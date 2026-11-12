@@ -8,6 +8,7 @@ bad() { printf '%s' "$1" | ./check-commit-msg.sh - 2>/dev/null && { echo "FAIL (
 
 ok  "feat: add review pipeline"
 ok  "feat(sanitize): strip hidden characters"
+ok  "feat(gateway): deny a service that is not on the allow-list"
 ok  "fix(llm)!: change the complete() signature"
 ok  "docs(spec): describe deep modules"
 ok  "chore(guardrails): add commit-msg hook"

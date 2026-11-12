@@ -24,6 +24,8 @@ ok  "critical module at 95 %" \
   "$( { file app/budget/_impl.py 100 95 0 0; } | report)"
 bad "llm is critical" \
   "$( { file app/llm/_impl.py 100 94 0 0; } | report)"
+bad "gateway is critical" \
+  "$( { file app/gateway/_impl.py 100 94 0 0; } | report)"
 ok  "a non-critical module may sit at 80 %" \
   "$( { file app/pipeline/_impl.py 100 80 0 0; } | report)"
 ok  "file without statements is ignored" \

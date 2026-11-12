@@ -29,7 +29,7 @@ GitHub flow with Conventional Commits. Read this before creating a branch, a com
 
 - **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
 - **Scope** is optional and is one of these (lowercase, kebab-case):
-  - code modules from the [specification](../specification.md#code-structure-deep-modules): `places`, `sources`, `sanitize`, `taxonomy`, `classification`, `metrics`, `insights`, `llm`, `budget`, `storage`, `pipeline`;
+  - code modules from the [specification](../specification.md#code-structure-deep-modules): `places`, `sources`, `sanitize`, `taxonomy`, `classification`, `metrics`, `insights`, `llm`, `gateway`, `budget`, `storage`, `pipeline`;
   - layers: `api`, `worker`, `web`, `infra` (Docker, Cloud Run, Terraform);
   - areas of the repository: `spec`, `agents`, `guardrails`, `process`.
 
