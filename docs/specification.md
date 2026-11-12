@@ -7,7 +7,7 @@ The user enters a company name and within a few minutes gets a dashboard: overal
 **In the MVP:**
 
 - 2 sources: Google Maps and Firmy.cz (Heureka as a third if time allows)
-- one company or a specific branch chosen via an autocomplete (Google Places); the company is verified by its company ID (IČO, via ARES)
+- one company or a specific branch chosen via an autocomplete (Google Places)
 - classification of reviews into topics, sentiment, a timeline that explains drops and rises
 - an overall summary and suggestions for improvement with links to reviews
 - input and output checks, a budget per run, cache
@@ -39,7 +39,7 @@ I recommend a Python backend on Google Cloud Run: Python has the best AI ecosyst
 | Task queue | Google Cloud Tasks (or Pub/Sub) | reliable triggering and retry of jobs |
 | Database | PostgreSQL (Neon, free tier); pgvector only later | run state, cache, reviews, results, costs; aggregations by month and branch in SQL |
 | Scraping | Apify: compass/google-maps-reviews-scraper; Firmy.cz: jupri/firmy (being tested) | ready-made scrapers, pay per use, spending limit |
-| Autocomplete and verification | Google Places Autocomplete (New), ARES API | unambiguous choice of company or branch; place_id goes straight to the scraper, the company ID (IČO) identifies the company |
+| Autocomplete | Google Places Autocomplete (New) | unambiguous choice of company or branch; place_id goes straight to the scraper |
 | Fast model | Jev 1.14 (TypeSafe) via OpenRouter, fallback Claude Haiku | typed classification of topics and sentiment, latency 70 to 500 ms, very cheap |
 | Strong model | Claude Sonnet | summary, comparison of sources, explanation of trends, suggestions |
 | Gateway | in-process Python module `gateway` | one place for rate limits, allow-list, Budget and the call log of all paid services; no extra service to run |
@@ -59,7 +59,7 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 
 - A module is a Python package `app/<module>/`. The public interface is in `__init__.py`: `Protocol`s and Pydantic types of inputs and outputs. Everything else is internal (`_impl`) and importing it from outside is forbidden; import-linter guards the boundaries in CI.
 - Dependencies go one way: `api`/`worker` → `pipeline` → domain modules → `gateway` → `budget` and ports. Only `gateway` imports `budget`. No cycles.
-- External services (Apify, OpenRouter, Anthropic, Google Places, ARES, Langfuse, the database) sit behind ports (`Protocol`) only. An adapter is thin and replaceable; in tests a fake replaces it.
+- External services (Apify, OpenRouter, Anthropic, Google Places, Langfuse, the database) sit behind ports (`Protocol`) only. An adapter is thin and replaceable; in tests a fake replaces it.
 - Paid external services (Apify, OpenRouter, Anthropic, Google Places) are reached only through `gateway`: it owns their ports and adapters, and import-linter forbids importing those adapters from anywhere else. `budget` is called by `gateway` only.
 - Numbers and trends are pure functions without I/O. I/O stays at the edge (adapters, repositories).
 - `api` and `worker` are thin layers: parse the request, call `pipeline`, serialize. No business logic.
@@ -69,7 +69,7 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 
 | Module | Public interface | What it hides | How it is tested |
 | --- | --- | --- | --- |
-| `places` | `suggest(query)`, `resolve(place_id) -> Company` | ARES, matching a branch on Firmy.cz by name and address; Google Places calls go through `gateway` | fake gateway and HTTP clients, contract tests on recorded responses |
+| `places` | `suggest(query)`, `resolve(place_id) -> Place`, `branches(place) -> list[Place]`, `confirm(place_ids) -> Company`, `match_other_sources(place)` | finding candidate branches of a chain, matching a branch on Firmy.cz by name and address, a Company as the user-confirmed set of Places (the same set is the same Company); Google Places calls go through `gateway` | fake gateway and HTTP clients, contract tests on recorded responses |
 | `sources` | `fetch_reviews(place, since, limit) -> list[RawReview]` | Apify actors (called through `gateway`), polling, pagination, field mapping, dates | fake gateway, fake Apify client, fixtures from real outputs |
 | `sanitize` | `prepare(raw) -> PreparedReviews(clean, flagged)` | removal of HTML and hidden characters, PII, deduplication (hash), prompt injection detector | pure functions, fake detector, property-based tests |
 | `taxonomy` | `get_taxonomy(industry) -> Taxonomy` | generating topics from a sample, freezing them | fake LLM port |
@@ -127,7 +127,7 @@ The main attack vector is not the input field but the reviews themselves: they a
 **User input**
 
 - company name: length, allowed characters, rate limit per IP
-- the autocomplete is called through our API (the API key is not in the browser, rate limit, debounce); the pipeline receives a place_id or a company ID (IČO), not free text
+- the autocomplete is called through our API (the API key is not in the browser, rate limit, debounce); the pipeline receives a place_id, not free text
 
 **Paid services**
 
@@ -154,7 +154,7 @@ The main attack vector is not the input field but the reviews themselves: they a
 
 Every run has a fixed budget and its actual cost is shown on the dashboard. The monthly cap is 30 USD, per-run limits will be set after the first measurement.
 
-- **Cache:** the result for a company is reused while it is fresh (e.g. 24 h); a new run downloads only new reviews
+- **Cache:** the result for a target (a branch, or a company = the same set of branches) is reused while it is fresh (e.g. 24 h); a new run downloads only new reviews
 - **Input limits:** max. number of reviews per source and branch, max. review length
 - **Model routing:** bulk work (classification) is done by a cheap model in batches, the expensive model receives only aggregated data and samples of reviews
 - **Token savings:** prompt caching for system prompts, Batch API for non-urgent runs
@@ -169,8 +169,9 @@ A database is needed: the worker runs asynchronously, so run state, cache and al
 
 | Entity | Main fields | Purpose |
 | --- | --- | --- |
-| Company | id, name, company ID (IČO), industry | a company verified via ARES |
-| Place | company_id, source, external_id, branch name, address | a branch on a specific source (Google Maps, Firmy.cz) |
+| Company | id, places_key (hash of the sorted place_ids), name, industry | a set of branches confirmed by the user; the same set is the same Company |
+| Place | source, external_id, branch name, address | a branch on a specific source (Google Maps, Firmy.cz) |
+| CompanyPlace | company_id, place_id | membership of a Place in a Company; one Place can be in several Companies |
 | Review | place_id, source, rating, text, date, date precision, language, hash, flagged | a review without personal data |
 | Topic | key, name, description, industry | taxonomy of topics (e.g. staff, waiting, prices) |
 | ReviewTopic | review_id, topic_id, sentiment, confidence | result of the classification |
@@ -183,7 +184,7 @@ A database is needed: the worker runs asynchronously, so run state, cache and al
 
 Three screens for users (search, run progress and result) and one admin screen for the owner.
 
-1. **Search:** a field with an autocomplete that offers companies and specific branches (name, address, company ID). The choice decides whether the whole chain or a single branch is analyzed.
+1. **Search:** a field with an autocomplete that offers companies and specific branches (name, address). The choice decides whether the whole chain or a single branch is analyzed.
 2. **Progress:** steps of the run (downloading, classification, analysis) with a running cost.
 3. **Result:**
     - overall rating and rating by source (Google Maps vs. Firmy.cz) with the number of reviews
@@ -200,7 +201,7 @@ Three screens for users (search, run progress and result) and one admin screen f
 
 ## Decisions
 
-All open questions are decided; only two things remain to be verified for Jev and the scrapers.
+All open questions are decided, except how the branches of a chain are found (research ticket #16); two things also remain to be verified for Jev and the scrapers.
 
 | Question | Decision | Consequence |
 | --- | --- | --- |
@@ -221,5 +222,6 @@ All open questions are decided; only two things remain to be verified for Jev an
 
 **Still to verify:**
 
+- [ ] Branch discovery for a chain: Google Places text search by name, filtered by name and address, plus user confirmation; precision on 3 real companies
 - [ ] Jev: whether it handles Czech (50 real reviews labelled by a model and corrected by a human, plus about 15 synthetic injection attacks; go if sentiment agreement is at least 80 %, topics at least 70 % and no injection false negatives, otherwise Haiku only; test key limited to 5 USD) and a client for the OpenRouter Decisions API, which is not OpenAI-compatible
 - [ ] Test run: jupri/firmy and oodoow/mapy-com-ppe (date, review ID, more than 3 reviews?) and a comparison of older dates from compass with Google Maps
