@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Tests of scripts/check-coverage.sh. Run: scripts/test-check-coverage.sh
 set -uo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
 fails=0
 # file <path> <statements> <covered lines> <branches> <covered branches>
 file() { jq -n --arg p "$1" --argjson s "$2" --argjson c "$3" --argjson b "$4" --argjson cb "$5" \
@@ -31,4 +31,4 @@ ok  "file without statements is ignored" \
 bad "empty report is an error, not a pass" '{"files": {}}'
 bad "garbage input" 'not json'
 
-[[ $fails -eq 0 ]] && echo "test-check-coverage: all passed" || { echo "$fails failed"; exit 1; }
+if [[ $fails -eq 0 ]]; then echo "test-check-coverage: all passed"; else echo "$fails failed"; exit 1; fi
