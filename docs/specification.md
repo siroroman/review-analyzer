@@ -7,7 +7,7 @@ The user enters a company name and within a few minutes gets a dashboard: overal
 **In the MVP:**
 
 - 2 sources: Google Maps and Firmy.cz (Heureka as a third if time allows)
-- one company or a specific branch chosen via an autocomplete (Google Places); the company is identified by its company ID (IČO)
+- one company or a specific branch chosen via an autocomplete (Google Places)
 - classification of reviews into topics, sentiment, a timeline that explains drops and rises
 - an overall summary and suggestions for improvement with links to reviews
 - input and output checks, a budget per run, cache
@@ -38,7 +38,7 @@ I recommend a Python backend on Google Cloud Run: Python has the best AI ecosyst
 | Task queue | Google Cloud Tasks (or Pub/Sub) | reliable triggering and retry of jobs |
 | Database | PostgreSQL (Neon, free tier); pgvector only later | run state, cache, reviews, results, costs; aggregations by month and branch in SQL |
 | Scraping | Apify: compass/google-maps-reviews-scraper; Firmy.cz: jupri/firmy (being tested) | ready-made scrapers, pay per use, spending limit |
-| Autocomplete | Google Places Autocomplete (New) | unambiguous choice of company or branch; place_id goes straight to the scraper, the company ID (IČO) identifies the company |
+| Autocomplete | Google Places Autocomplete (New) | unambiguous choice of company or branch; place_id goes straight to the scraper |
 | Fast model | Jev 1.14 (TypeSafe) via OpenRouter, fallback Claude Haiku | typed classification of topics and sentiment, latency 70 to 500 ms, very cheap |
 | Strong model | Claude Sonnet | summary, comparison of sources, explanation of trends, suggestions |
 | Guardrails | Pydantic schemas, JEV as a prompt injection detector | detection of prompt injection in reviews, output validation |
@@ -122,7 +122,7 @@ The main attack vector is not the input field but the reviews themselves: they a
 **User input**
 
 - company name: length, allowed characters, rate limit per IP
-- the autocomplete is called through our API (the API key is not in the browser, rate limit, debounce); the pipeline receives a place_id or a company ID (IČO), not free text
+- the autocomplete is called through our API (the API key is not in the browser, rate limit, debounce); the pipeline receives a place_id, not free text
 
 **Reviews (untrusted data)**
 
@@ -157,7 +157,7 @@ A database is needed: the worker runs asynchronously, so run state, cache and al
 
 | Entity | Main fields | Purpose |
 | --- | --- | --- |
-| Company | id, name, company ID (IČO), industry | a company identified by its company ID (IČO) |
+| Company | id, name, industry | a company chosen from the autocomplete |
 | Place | company_id, source, external_id, branch name, address | a branch on a specific source (Google Maps, Firmy.cz) |
 | Review | place_id, source, rating, text, date, date precision, language, hash, flagged | a review without personal data |
 | Topic | key, name, description, industry | taxonomy of topics (e.g. staff, waiting, prices) |
@@ -170,7 +170,7 @@ A database is needed: the worker runs asynchronously, so run state, cache and al
 
 Three screens: search, run progress and result.
 
-1. **Search:** a field with an autocomplete that offers companies and specific branches (name, address, company ID). The choice decides whether the whole chain or a single branch is analyzed.
+1. **Search:** a field with an autocomplete that offers companies and specific branches (name, address). The choice decides whether the whole chain or a single branch is analyzed.
 2. **Progress:** steps of the run (downloading, classification, analysis) with a running cost.
 3. **Result:**
     - overall rating and rating by source (Google Maps vs. Firmy.cz) with the number of reviews
