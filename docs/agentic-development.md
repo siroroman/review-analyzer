@@ -88,7 +88,7 @@ Places where a mistake costs the most. A PR that touches them names them in the 
 | Area | Modules | What goes wrong |
 | --- | --- | --- |
 | Resistance to prompt injection and PII | `sanitize`, `insights` (content check) | the text of a review influences the model, personal data is stored or shown |
-| Budget | `budget`, `llm` | a run exceeds the limit, the monthly cap of 30 USD |
+| Budget | `budget`, `gateway`, `llm` | a run exceeds the limit, the monthly cap of 30 USD |
 | Grounding | `insights` | a claim or suggestion refers to a non-existent review ID |
 | Numbers and trends | `metrics` | a wrong average or topic share, a false drop on the dashboard |
 | Data identity | `storage`, `sources` | duplicate reviews, a broken cache, a changed `external_id` |
@@ -102,7 +102,7 @@ Files that check or limit agents and PRs: hooks, CI, check scripts, lint and cov
 ## Glossary and ADRs
 
 - `GLOSSARY.md`: uniform terms (Company, Place, Review, Topic, Run, Insight, TrendPoint) and their use in names.
-- `docs/adr/`: decisions that outlive a ticket: Python and FastAPI, Jev as the fast model and Haiku as fallback, module boundaries and ports, the way of caching and budgeting. The reviewer flags every PR that contradicts an ADR.
+- `docs/adr/`: decisions that outlive a ticket: Python and FastAPI, Jev as the fast model and Haiku as fallback, module boundaries and ports, the way of caching and budgeting, the gateway for paid services. The reviewer flags every PR that contradicts an ADR.
 
 ## Context and token management
 

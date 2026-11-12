@@ -11,14 +11,15 @@ The user enters a company name and within a few minutes gets a dashboard: overal
 - classification of reviews into topics, sentiment, a timeline that explains drops and rises
 - an overall summary and suggestions for improvement with links to reviews
 - input and output checks, a budget per run, cache
+- one gateway for every paid service, with an admin screen showing spend and the call log
 
-**Out of the MVP:** login, regular monitoring and notifications, comparison with competitors, further sources (Trustpilot, Heureka, Mapy.com), suggested replies to reviews.
+**Out of the MVP:** login (the admin screen is protected by a secret token instead), regular monitoring and notifications, comparison with competitors, further sources (Trustpilot, Heureka, Mapy.com), suggested replies to reviews.
 
 ## Architecture
 
 ![Architecture](images/architecture.png)
 
-The dashboard only calls the API. Scraping and model calls run in a worker through a queue, so a long run does not block a request and can be retried on failure. The code is split into deep modules with clear interfaces that can be tested in isolation (see [Code structure](#code-structure-deep-modules)).
+The dashboard only calls the API. Scraping and model calls run in a worker through a queue, so a long run does not block a request and can be retried on failure. Every paid service (models, Apify, Google Places) is reached only through the `gateway` module, which limits traffic, enforces the Budget and logs every call ([ADR 0006](adr/0006-gateway-for-paid-services.md)). The code is split into deep modules with clear interfaces that can be tested in isolation (see [Code structure](#code-structure-deep-modules)).
 
 ## Processing flow
 
@@ -41,6 +42,8 @@ I recommend a Python backend on Google Cloud Run: Python has the best AI ecosyst
 | Autocomplete and verification | Google Places Autocomplete (New), ARES API | unambiguous choice of company or branch; place_id goes straight to the scraper, the company ID (IČO) identifies the company |
 | Fast model | Jev 1.14 (TypeSafe) via OpenRouter, fallback Claude Haiku | typed classification of topics and sentiment, latency 70 to 500 ms, very cheap |
 | Strong model | Claude Sonnet | summary, comparison of sources, explanation of trends, suggestions |
+| Gateway | in-process Python module `gateway` | one place for rate limits, allow-list, Budget and the call log of all paid services; no extra service to run |
+| Admin access | secret admin token from configuration | protects the admin screen and `/admin/*` without a login |
 | Guardrails | Pydantic schemas, JEV as a prompt injection detector | detection of prompt injection in reviews, output validation |
 | Observability and costs | Langfuse | prompt tracing, tokens and price of every run |
 | Infra | Docker, Cloud Run, Secret Manager, GitHub Actions | container in the cloud, CI/CD, keys outside the code |
@@ -55,8 +58,9 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 **Rules**
 
 - A module is a Python package `app/<module>/`. The public interface is in `__init__.py`: `Protocol`s and Pydantic types of inputs and outputs. Everything else is internal (`_impl`) and importing it from outside is forbidden; import-linter guards the boundaries in CI.
-- Dependencies go one way: `api`/`worker` → `pipeline` → domain modules → ports. No cycles.
+- Dependencies go one way: `api`/`worker` → `pipeline` → domain modules → `gateway` → `budget` and ports. Only `gateway` imports `budget`. No cycles.
 - External services (Apify, OpenRouter, Anthropic, Google Places, ARES, Langfuse, the database) sit behind ports (`Protocol`) only. An adapter is thin and replaceable; in tests a fake replaces it.
+- Paid external services (Apify, OpenRouter, Anthropic, Google Places) are reached only through `gateway`: it owns their ports and adapters, and import-linter forbids importing those adapters from anywhere else. `budget` is called by `gateway` only.
 - Numbers and trends are pure functions without I/O. I/O stays at the edge (adapters, repositories).
 - `api` and `worker` are thin layers: parse the request, call `pipeline`, serialize. No business logic.
 - A module changes only at the price of an interface change; if the interface stays, the tests stay green.
@@ -65,16 +69,17 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 
 | Module | Public interface | What it hides | How it is tested |
 | --- | --- | --- | --- |
-| `places` | `suggest(query)`, `resolve(place_id) -> Company` | Google Places, ARES, matching a branch on Firmy.cz by name and address | fake HTTP clients, contract tests on recorded responses |
-| `sources` | `fetch_reviews(place, since, limit) -> list[RawReview]` | Apify actors, polling, pagination, field mapping, dates | fake Apify client, fixtures from real outputs |
+| `places` | `suggest(query)`, `resolve(place_id) -> Company` | ARES, matching a branch on Firmy.cz by name and address; Google Places calls go through `gateway` | fake gateway and HTTP clients, contract tests on recorded responses |
+| `sources` | `fetch_reviews(place, since, limit) -> list[RawReview]` | Apify actors (called through `gateway`), polling, pagination, field mapping, dates | fake gateway, fake Apify client, fixtures from real outputs |
 | `sanitize` | `prepare(raw) -> PreparedReviews(clean, flagged)` | removal of HTML and hidden characters, PII, deduplication (hash), prompt injection detector | pure functions, fake detector, property-based tests |
 | `taxonomy` | `get_taxonomy(industry) -> Taxonomy` | generating topics from a sample, freezing them | fake LLM port |
 | `classification` | `classify(reviews, taxonomy) -> list[ReviewTopic]` | batching, Jev with fallback to Haiku, retry, schema validation | fake LLM port |
 | `metrics` | `compute(reviews, topics) -> Metrics` (averages, `TrendPoint`, topic shares, drops and rises) | all computations and anomaly detection | pure functions, no mocks |
 | `insights` | `generate(metrics, samples) -> Insights` | prompts, Sonnet, schema validation, grounding check (the review IDs exist), content check | fake LLM port |
-| `llm` | `complete(task, prompt, schema) -> T` | providers, model routing, retry, fallback, prompt caching, Langfuse tracing | fake providers |
-| `budget` | `reserve(estimate)`, `record(cost)`, `BudgetExceeded` | cost estimate, cap per run, monthly cap | pure functions |
-| `storage` | repositories: `ReviewRepo`, `RunRepo`, `InsightRepo`, `TrendRepo` | SQL, migrations, cache with TTL | integration tests on PostgreSQL (testcontainers); in-memory implementation for the other modules |
+| `llm` | `complete(task, prompt, schema) -> T` | model routing, retry, fallback, prompt caching, Langfuse tracing; provider calls go through `gateway` | fake gateway |
+| `gateway` | `call(service, operation, request) -> response`, `GatewayDenied`, `BudgetExceeded` | allow-list of services and operations, rate limit and concurrency per service, `budget.reserve` before and `record` after every call, a record of every call (no request or response bodies), provider adapters (OpenRouter, Anthropic, Apify, Google Places) | fake `ServiceClient`s, fake `Clock`, fake `CallLog` |
+| `budget` | `reserve(estimate)`, `record(cost)`, `BudgetExceeded` | cost estimate, cap per run, monthly cap, for every paid service | pure functions; called by `gateway` only |
+| `storage` | repositories: `ReviewRepo`, `RunRepo`, `InsightRepo`, `TrendRepo`, `ServiceCallRepo` (the Call log; implements the `CallLog` port of `gateway`) | SQL, migrations, cache with TTL | integration tests on PostgreSQL (testcontainers); in-memory implementation for the other modules |
 | `pipeline` | `run(run_id) -> RunResult` | order of steps, run state machine, retry, partial result when the budget is exceeded | all ports as fakes, a whole run without a network |
 
 Every new module is built in this order: interface and types, tests of the interface, implementation. A module without tests of its interface is not considered done.
@@ -95,7 +100,7 @@ Every change (a module or a PR) passes a separate code review agent before it is
 
 - It gets only the diff, this specification and a checklist, not the conversation history or the implementer's reasoning. The goal is an independent view.
 - Its tools are read-only plus running tests (Read, Grep, Glob, git diff, pytest); it does not edit code. The agent definition is in the repository (`.claude/agents/code-reviewer.md`).
-- It checks: adherence to the interface and boundaries of the module, depth of the module (leaking implementation, shallow wrappers), quality of tests (error paths, tests through the interface, not just the coverage number), guardrails (injection, PII, grounding), the budget check before a model call, keys and secrets in code, readability.
+- It checks: adherence to the interface and boundaries of the module, depth of the module (leaking implementation, shallow wrappers), quality of tests (error paths, tests through the interface, not just the coverage number), guardrails (injection, PII, grounding), the Budget check in the gateway before every paid call, keys and secrets in code, readability.
 - The output is a list of findings with severity (blocker, major, minor), location (file:line) and a suggested fix. Blockers and majors are fixed before the merge.
 - The author fixes in the original session; a repeated review always runs in a new fresh session.
 - The review ends with the marker `<!-- code-reviewer: <sha> -->`, which CI uses to verify that a review exists. One round: at most 5 blocking findings, each with a concrete failing case. Details, agents, hooks and workflow rules are in [Agentic development](agentic-development.md).
@@ -113,7 +118,7 @@ GitHub Actions runs these steps on every PR, and merging into `main` is blocked 
 7. `review-passed`: a PR that is not a draft must have a review by the `code-reviewer` agent of a commit from this PR, and its last review must report no open blocking findings (the last line of the review is a marker with the SHA and `blocking=<n>`; `n` must be 0)
 8. Checks of critical paths and guardrail paths, check of the PR body and gitleaks (see [Agentic development](agentic-development.md#ci-checks))
 
-The modules `metrics`, `sanitize`, `budget` and `llm` have a stricter threshold of 95 %; they are critical paths, for which CI fails also when source changes without a change of tests. The threshold must not be lowered; exclusions from coverage (tests, migrations, `__main__`) are explicit in the configuration with a reason. Coverage is a necessary, not a sufficient condition: the quality of tests is judged by the code review agent.
+The modules `metrics`, `sanitize`, `budget`, `llm` and `gateway` have a stricter threshold of 95 %; they are critical paths, for which CI fails also when source changes without a change of tests. The threshold must not be lowered; exclusions from coverage (tests, migrations, `__main__`) are explicit in the configuration with a reason. Coverage is a necessary, not a sufficient condition: the quality of tests is judged by the code review agent.
 
 ## Guardrails
 
@@ -123,6 +128,12 @@ The main attack vector is not the input field but the reviews themselves: they a
 
 - company name: length, allowed characters, rate limit per IP
 - the autocomplete is called through our API (the API key is not in the browser, rate limit, debounce); the pipeline receives a place_id or a company ID (IČO), not free text
+
+**Paid services**
+
+- every call goes through `gateway`: an allow-list of services and operations (anything else is denied), a rate limit and a concurrency limit per service
+- the Call log never stores request or response bodies (Reviews are untrusted and may hold personal data), only service, operation, status, cost, units, latency and the Run
+- the admin screen and `/admin/*` need the secret admin token (constant-time comparison, never logged, never in the browser bundle); a missing or wrong token gives 401
 
 **Reviews (untrusted data)**
 
@@ -147,13 +158,14 @@ Every run has a fixed budget and its actual cost is shown on the dashboard. The 
 - **Input limits:** max. number of reviews per source and branch, max. review length
 - **Model routing:** bulk work (classification) is done by a cheap model in batches, the expensive model receives only aggregated data and samples of reviews
 - **Token savings:** prompt caching for system prompts, Batch API for non-urgent runs
-- **Budget per run:** the price estimate is checked before every call; when exceeded, the run stops with a partial result
-- **Provider limits:** spending limit in Apify and in the model API keys, a daily limit of runs per user
-- **Measurement:** Langfuse records tokens and price of every call, a run has the sum of costs of Apify and the models
+- **Budget per run:** `gateway` checks the price estimate before every paid call (models, Apify, Google Places); when exceeded, the run stops with a partial result
+- **Provider limits:** spending limit in Apify and in the model API keys, a daily limit of runs per user; they are the backstop if our code is wrong
+- **Measurement:** the gateway records every call (service, operation, cost, units, status) in the Call log, a run has the sum of costs of all services; Langfuse additionally traces prompts, tokens and price of model calls
+- **Admin view:** spend per service, per day and per run, and the Call log, on the admin screen (see [Dashboard](#dashboard))
 
 ## Data model
 
-A database is needed: the worker runs asynchronously, so run state, cache and already downloaded reviews must live somewhere between requests. Eight entities in PostgreSQL are enough; reviews are stored once and analyses over them can be repeated.
+A database is needed: the worker runs asynchronously, so run state, cache and already downloaded reviews must live somewhere between requests. Nine entities in PostgreSQL are enough; reviews are stored once and analyses over them can be repeated.
 
 | Entity | Main fields | Purpose |
 | --- | --- | --- |
@@ -165,10 +177,11 @@ A database is needed: the worker runs asynchronously, so run state, cache and al
 | AnalysisRun | company_id, status, budget, cost USD, tokens, time | one pipeline run and its costs |
 | Insight | run_id, type (summary, anomaly, suggestion), period, text, review_ids | output of the strong model with links to reviews |
 | TrendPoint | run_id, source, period, average, count, sentiment | precomputed points of the timeline |
+| ServiceCall | id, run_id (nullable), service, operation, status (ok, denied, failed), cost USD, units (tokens, items), latency, error kind, created_at | the Call log: one record of every paid call, without request or response bodies |
 
 ## Dashboard
 
-Three screens: search, run progress and result.
+Three screens for users (search, run progress and result) and one admin screen for the owner.
 
 1. **Search:** a field with an autocomplete that offers companies and specific branches (name, address, company ID). The choice decides whether the whole chain or a single branch is analyzed.
 2. **Progress:** steps of the run (downloading, classification, analysis) with a running cost.
@@ -178,7 +191,12 @@ Three screens: search, run progress and result.
     - topics: share of positive and negative mentions, specific reviews on click
     - comparison of branches by rating and main problems
     - verbal and numerical assessment of the development and suggestions for improvement with links to reviews
-    - cost of the run (Apify, models) and the number of excluded suspicious reviews
+    - cost of the run (Apify, models, Google Places) and the number of excluded suspicious reviews
+4. **Admin** (owner only, at `/admin`, protected by a secret admin token; login stays out of the MVP):
+    - current spend against the monthly cap and per-run caps
+    - spend per service (OpenRouter, Anthropic, Apify, Google Places), per day and per run
+    - the call log with filters (service, operation, run, status, date range); denied and failed calls included
+    - read-only; served by `GET /admin/spend` and `GET /admin/calls`
 
 ## Decisions
 
@@ -197,6 +215,8 @@ All open questions are decided; only two things remain to be verified for Jev an
 | Tests and coverage | coverage of at least 90 % (branches and lines), diff coverage 90 %, checked in CI | a merge is blocked when coverage is lower |
 | Code review | a separate agent in a fresh session before every merge, CI checks that the review exists | an independent view without the author's context |
 | Agentic development | rules, agents, hooks and CI checks, a [separate document](agentic-development.md) | every rule has an enforcer or is marked as a process rule |
+| Paid services | one in-process `gateway` module for all of them ([ADR 0006](adr/0006-gateway-for-paid-services.md)) | traffic limits, Budget and the call log in one place; `budget` is called by the gateway only |
+| Admin access | a secret token, no login in the MVP | the admin screen shows spend and the call log; the token is separate from the demo token |
 | Demo access | links with a token | a precomputed analysis of a selected company plus the option to try another |
 
 **Still to verify:**

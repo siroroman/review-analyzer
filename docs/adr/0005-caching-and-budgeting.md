@@ -1,6 +1,6 @@
 # 0005: Caching and budgeting of Runs
 
-Status: accepted, 2026-11-12
+Status: accepted, 2026-11-12. Changed in part by [0006](0006-gateway-for-paid-services.md): `budget.reserve` and `record` are called by the gateway, not by `llm` or `sources`.
 
 ## Context
 
@@ -17,6 +17,6 @@ The project has a hard monthly cost ceiling of 30 USD, and scraping and model ca
 
 ## Consequences
 
-- `budget` and `llm` are critical paths with a 95 % coverage threshold.
+- `budget`, `gateway` and `llm` are critical paths with a 95 % coverage threshold (`gateway` added by [0006](0006-gateway-for-paid-services.md)).
 - The monthly total comes from a repository port, so it survives restarts.
 - Provider limits live outside the repository; they are listed in `docs/agents/rules-enforcement.md`.
