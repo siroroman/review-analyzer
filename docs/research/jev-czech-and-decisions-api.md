@@ -11,9 +11,9 @@ Date read: 2026-11-12. Ticket: #17 (T15), part of #2. Feeds: ADR 0003 (Jev as th
 ## Answer
 
 - Part 1 is answered below: `POST https://openrouter.ai/api/alpha/decisions`, bearer key, `state` plus named `questions` (types `choice`, `noul`, `score`, `box`), typed answers with probabilities. It is alpha ("the shape may change") and not OpenAI-compatible.
-- Part 2 is NOT answered. No primary source states that Jev supports Czech or any non-English language, and none claims injection robustness. The 50-review test needs an OpenRouter key and spending (limit 5 USD), which this agent must not use. Go/no-go is therefore **undecided**, not a go.
-- Until the test is run, the safe default is Haiku-only with Jev behind configuration (a config change, per ADR 0003).
-- Part 3 (ADR update) is not done here; it depends on the test result.
+- Part 2 is answered only partly. No primary source states that Jev supports Czech or any non-English language, and none claims injection robustness. The desk research therefore left go/no-go undecided. It was then decided by the owner on 2026-11-12 after an orientation test on synthetic Reviews: **Jev is used** (see "Decision" below). The formal check on 50 real Reviews stays open.
+- Haiku stays the fallback, and Jev is replaced by Haiku if real data fails the ADR 0003 thresholds (a config change, per ADR 0003).
+- Part 3 (ADR update) is done in the same PR: ADR 0003 records the decision, see "Decision" below.
 
 ## Evidence
 
@@ -52,7 +52,7 @@ Search results list `typesafe/jev-1.13`, `jev-1.14` (dated 20261014) and an alia
 
 ## Not verified
 
-- Czech accuracy, failure types, and injection detection: no test run (needs an OpenRouter key and up to 5 USD; owner must provide it). Acceptance criterion 2 is open.
+- Czech accuracy, failure types, and injection detection: no test run (needs an OpenRouter key and up to 5 USD; owner must provide it). Acceptance criterion 2 is met only by the orientation test (see "Decision"); the check on real Reviews is open.
 - Whether 1.14 serves `choice`/`noul` exactly like 1.13 and its current price (model page 404).
 - Rate limits, payload size limit, and whether the alpha shape has changed since the pages were published.
 - Whether `/api/v1/systemone` is a stable alternative to the alpha path.
@@ -60,7 +60,7 @@ Search results list `typesafe/jev-1.13`, `jev-1.14` (dated 20261014) and an alia
 
 ## Recommendation
 
-Do not mark Jev "go" yet. The owner should supply a test key (limit 5 USD) so a follow-up session can run the ADR 0003 evaluation: 50 real Czech Reviews hand-labelled plus about 15 synthetic injections, using one `choice` for sentiment, `noul` per Topic, and one `noul` for injection, via a thin adapter behind the `llm` port that handles `refusal` answers and the retry rules above. Until then keep Haiku as the working default, with Jev as a configurable route, and pin the model ID in configuration because the API is alpha. Also decide whether to pin `jev-1.14` or `jev-1.13`. Once results exist, ADR 0003 should be updated with the outcome (acceptance criterion 3). This note leaves ADR 0003 unchanged.
+(Written before the decision; superseded by "Decision" below, the steps remain valid for the check on real data.) The ADR 0003 evaluation on real data should use: 50 real Czech Reviews hand-labelled plus about 15 synthetic injections, using one `choice` for sentiment, `noul` per Topic, and one `noul` for injection, via a thin adapter behind the `llm` port that handles `refusal` answers and the retry rules above. Keep Jev as a configurable route with Haiku as fallback, and pin the model ID in configuration because the API is alpha. Also decide whether to pin `jev-1.14` or `jev-1.13`. ADR 0003 was updated with the decision (acceptance criterion 3) and is updated again when the real-data check finishes.
 
 ## Decision (2026-11-12, owner)
 
@@ -75,7 +75,7 @@ Run by the owner on 2026-11-12 with a test key (limit 5 USD), model `typesafe/je
 - Injection: 10 of 10 flagged, scores 0.91 to 0.96. On clean Reviews the highest score was 0.36, so a threshold near 0.6 separates them. That threshold is not validated.
 - Cost: about 0.001 USD for 61 requests. Answer shape confirmed: `choice` gives `choice`, `probabilities`, `confidence`; `noul` gives a number in `noul`.
 
-Limits: synthetic and short Reviews, labels by the agent, simple injections, model 1.13 and not 1.14. This is a signal, not the gate of ADR 0003 on 50 real Reviews.
+Limits: synthetic and short Reviews, labels by the agent, simple injections, model 1.13 and not 1.14. The test asked one Review-level `sentiment` and one `topic` per text, while `classify` returns a sentiment per Topic (one `noul` per Topic is recommended above), so the 88 % says nothing about Reviews with several Topics. The script and raw results are not in the repo, so the numbers cannot be reproduced. This is a signal, not the gate of ADR 0003 on 50 real Reviews.
 
 ### What stays open
 
