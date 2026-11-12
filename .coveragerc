@@ -1,0 +1,17 @@
+# Coverage config (docs/agents/testing.md, Coverage). Guardrail path: never lower a threshold to get green.
+# Thresholds live in the CI command (--cov-fail-under=90) and in scripts/check-coverage.sh.
+[run]
+source = app
+branch = True
+
+[report]
+show_missing = True
+# Every exclusion has a reason.
+exclude_also =
+    # a Protocol method body is a signature, never executed
+    \.\.\.$
+    # type checking only imports
+    if TYPE_CHECKING:
+omit =
+    # the entry point only wires things together, covered by the end to end test of pipeline
+    app/__main__.py

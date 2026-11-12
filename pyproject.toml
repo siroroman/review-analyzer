@@ -1,0 +1,49 @@
+[project]
+name = "review-analyzer"
+version = "0.0.0"
+description = "Dashboard of public reviews of a Czech company"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "diff-cover>=9",
+  "hypothesis>=6",
+  "import-linter>=2",
+  "mypy>=1.13",
+  "pytest>=8",
+  "pytest-cov>=6",
+  "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config"
+
+[tool.mypy]
+strict = true
+files = ["app", "tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "TID"]
+
+# ADR-0004: time and randomness come only from ports (Clock), never from the standard library directly.
+# `datetime.now` is banned in every spelling ruff can resolve; tests may use them.
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"datetime.datetime.now".msg = "Use the Clock port, never datetime.now() (ADR-0004)."
+"datetime.datetime.utcnow".msg = "Use the Clock port, never datetime.utcnow() (ADR-0004)."
+"datetime.datetime.today".msg = "Use the Clock port, never datetime.today() (ADR-0004)."
+"datetime.date.today".msg = "Use the Clock port, never date.today() (ADR-0004)."
+"time.sleep".msg = "Never sleep; retries and TTL go through the Clock port (ADR-0004)."
+"random".msg = "Randomness comes from a port, never from the random module (ADR-0004)."
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "TID251"]
