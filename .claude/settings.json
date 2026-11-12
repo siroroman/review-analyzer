@@ -3,6 +3,7 @@
     "allow": [
       "Bash(make setup)",
       "Bash(make test-scripts)",
+      "Bash(make lint)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
