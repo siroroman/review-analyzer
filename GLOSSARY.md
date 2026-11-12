@@ -7,7 +7,7 @@ Turns the public reviews of a company and its branches into a dashboard: rating,
 ### What is analyzed
 
 **Company**:
-A legal entity verified by its company ID (IČO). Owns one or more Places.
+A legal entity identified by its company ID (IČO). Owns one or more Places.
 _Avoid_: Business, client, organization
 
 **Place**:

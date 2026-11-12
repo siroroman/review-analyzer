@@ -7,7 +7,7 @@ The user enters a company name and within a few minutes gets a dashboard: overal
 **In the MVP:**
 
 - 2 sources: Google Maps and Firmy.cz (Heureka as a third if time allows)
-- one company or a specific branch chosen via an autocomplete (Google Places); the company is verified by its company ID (IČO, via ARES)
+- one company or a specific branch chosen via an autocomplete (Google Places); the company is identified by its company ID (IČO)
 - classification of reviews into topics, sentiment, a timeline that explains drops and rises
 - an overall summary and suggestions for improvement with links to reviews
 - input and output checks, a budget per run, cache
@@ -38,7 +38,7 @@ I recommend a Python backend on Google Cloud Run: Python has the best AI ecosyst
 | Task queue | Google Cloud Tasks (or Pub/Sub) | reliable triggering and retry of jobs |
 | Database | PostgreSQL (Neon, free tier); pgvector only later | run state, cache, reviews, results, costs; aggregations by month and branch in SQL |
 | Scraping | Apify: compass/google-maps-reviews-scraper; Firmy.cz: jupri/firmy (being tested) | ready-made scrapers, pay per use, spending limit |
-| Autocomplete and verification | Google Places Autocomplete (New), ARES API | unambiguous choice of company or branch; place_id goes straight to the scraper, the company ID (IČO) identifies the company |
+| Autocomplete | Google Places Autocomplete (New) | unambiguous choice of company or branch; place_id goes straight to the scraper, the company ID (IČO) identifies the company |
 | Fast model | Jev 1.14 (TypeSafe) via OpenRouter, fallback Claude Haiku | typed classification of topics and sentiment, latency 70 to 500 ms, very cheap |
 | Strong model | Claude Sonnet | summary, comparison of sources, explanation of trends, suggestions |
 | Guardrails | Pydantic schemas, JEV as a prompt injection detector | detection of prompt injection in reviews, output validation |
@@ -56,7 +56,7 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 
 - A module is a Python package `app/<module>/`. The public interface is in `__init__.py`: `Protocol`s and Pydantic types of inputs and outputs. Everything else is internal (`_impl`) and importing it from outside is forbidden; import-linter guards the boundaries in CI.
 - Dependencies go one way: `api`/`worker` → `pipeline` → domain modules → ports. No cycles.
-- External services (Apify, OpenRouter, Anthropic, Google Places, ARES, Langfuse, the database) sit behind ports (`Protocol`) only. An adapter is thin and replaceable; in tests a fake replaces it.
+- External services (Apify, OpenRouter, Anthropic, Google Places, Langfuse, the database) sit behind ports (`Protocol`) only. An adapter is thin and replaceable; in tests a fake replaces it.
 - Numbers and trends are pure functions without I/O. I/O stays at the edge (adapters, repositories).
 - `api` and `worker` are thin layers: parse the request, call `pipeline`, serialize. No business logic.
 - A module changes only at the price of an interface change; if the interface stays, the tests stay green.
@@ -65,7 +65,7 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 
 | Module | Public interface | What it hides | How it is tested |
 | --- | --- | --- | --- |
-| `places` | `suggest(query)`, `resolve(place_id) -> Company` | Google Places, ARES, matching a branch on Firmy.cz by name and address | fake HTTP clients, contract tests on recorded responses |
+| `places` | `suggest(query)`, `resolve(place_id) -> Company` | Google Places, matching a branch on Firmy.cz by name and address | fake HTTP clients, contract tests on recorded responses |
 | `sources` | `fetch_reviews(place, since, limit) -> list[RawReview]` | Apify actors, polling, pagination, field mapping, dates | fake Apify client, fixtures from real outputs |
 | `sanitize` | `prepare(raw) -> PreparedReviews(clean, flagged)` | removal of HTML and hidden characters, PII, deduplication (hash), prompt injection detector | pure functions, fake detector, property-based tests |
 | `taxonomy` | `get_taxonomy(industry) -> Taxonomy` | generating topics from a sample, freezing them | fake LLM port |
@@ -157,7 +157,7 @@ A database is needed: the worker runs asynchronously, so run state, cache and al
 
 | Entity | Main fields | Purpose |
 | --- | --- | --- |
-| Company | id, name, company ID (IČO), industry | a company verified via ARES |
+| Company | id, name, company ID (IČO), industry | a company identified by its company ID (IČO) |
 | Place | company_id, source, external_id, branch name, address | a branch on a specific source (Google Maps, Firmy.cz) |
 | Review | place_id, source, rating, text, date, date precision, language, hash, flagged | a review without personal data |
 | Topic | key, name, description, industry | taxonomy of topics (e.g. staff, waiting, prices) |
