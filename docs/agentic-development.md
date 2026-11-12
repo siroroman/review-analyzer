@@ -69,13 +69,13 @@ In `.claude/settings.json` and `.claude/hooks/`:
 | tests and coverage | runs only when a changed path is under tests ([Test scope](agents/testing.md#test-scope)), so not for docs. A failing test, `pytest --cov`: overall below 90 %, a file below 80 %, a critical module below 95 %, Vitest below 80 % (see the [specification](specification.md#ci-coverage-check)). `tests-passed` is the check to require |
 | diff coverage | new or changed code below 90 % |
 | `review-passed` | a PR that is not a draft has no review by `code-reviewer` of a commit from this PR, its last review has no `Skills:` line, or it reports `blocking` above 0 |
-| critical paths | source of a critical path changed without a change of tests (exception: the PR starts with `> **Warning:**` with a reason) |
-| guardrail paths | a hook, CI, agent or coverage config changed without a **Guardrails touched:** line in the PR |
-| PR body | missing evidence for criteria, list of tests or the line `Closes #N` |
+| critical paths | `guards.yml`, `check-critical-paths.sh`: source of a critical path changed without a change of tests (exception: the PR starts with `> **Warning:**` with a reason) |
+| guardrail paths | `guards.yml`, `check-guardrail-paths.sh`: a hook, CI, agent or coverage config changed without a **Guardrails touched:** line in the PR |
+| PR body | `guards.yml`, `check-pr-body.sh`: an empty section of the template, a criterion without evidence, no line `Closes #N` (or `Refs #N`) |
 | PR title and branch name | not a Conventional Commit, wrong branch format |
-| context size | `CLAUDE.md` over 3 kB, a skill or agent description over 700 characters |
-| script tests | every `check-*.sh` has its own `test-check-*.sh` that runs in CI |
-| gitleaks | a secret in the change |
+| context size | `guards.yml`, `check-context-size.sh`: `CLAUDE.md` over 3 kB, a skill or agent description over 700 characters |
+| script tests | `check-script-tests.sh` in `make test-scripts`: every `check-*.sh` has its own `test-check-*.sh` that runs in CI |
+| gitleaks | `guards.yml`, `check-secrets.sh`: a secret in a commit of the PR |
 
 `review-passed` makes the reviewer's own verdict the gate: findings keep it red until a later review reports `blocking=0`. It does **not** prove that the session was really fresh, that the named skills were really used, or that commits pushed after the last (clean) review were reviewed. Those stay process rules (hence the step with `git diff <sha>..HEAD`).
 

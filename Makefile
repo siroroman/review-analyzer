@@ -32,3 +32,10 @@ test-scripts: ## Tests of the repo scripts and hooks
 	scripts/test-check-review.sh
 	scripts/test-check-test-scope.sh
 	scripts/test-check-coverage.sh
+	scripts/test-check-pr-body.sh
+	scripts/test-check-critical-paths.sh
+	scripts/test-check-guardrail-paths.sh
+	scripts/test-check-context-size.sh
+	scripts/test-check-script-tests.sh
+	scripts/test-check-secrets.sh
+	scripts/check-script-tests.sh
