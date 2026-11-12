@@ -1,6 +1,6 @@
 # 0005: Caching and budgeting of Runs
 
-Status: accepted, 2026-11-12
+Status: accepted, 2026-11-12. Changed in part by [0006](0006-gateway-for-paid-services.md): `budget.reserve` and `record` are called by the gateway, not by `llm` or `sources`.
 
 ## Context
 
