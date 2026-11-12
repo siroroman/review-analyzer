@@ -11,7 +11,10 @@ from app.domain import (
     Insight,
     InsightType,
     Metrics,
+    PlaceSummary,
+    RatingSummary,
     Source,
+    SourceSummary,
     TopicShare,
     TrendPoint,
 )
@@ -119,3 +122,30 @@ def test_insight_rejects_empty_text() -> None:
 def test_insight_rejects_a_period_that_ends_before_it_starts() -> None:
     with pytest.raises(ValidationError):
         _insight(period_start=date(2026, 4, 1), period_end=date(2026, 3, 1))
+
+
+def test_metrics_with_summaries_and_a_main_topic_round_trips_through_json() -> None:
+    summary = RatingSummary(average_rating=4.5, count=2)
+    metrics = Metrics(
+        trend=(),
+        topic_shares=(),
+        changes=(
+            Change(
+                kind=ChangeKind.DROP,
+                source=Source.GOOGLE_MAPS,
+                period_start=date(2026, 3, 1),
+                delta=-0.8,
+                main_topic_key="waiting",
+            ),
+        ),
+        overall=summary,
+        per_source=(SourceSummary(source=Source.GOOGLE_MAPS, summary=summary),),
+        per_place=(PlaceSummary(source=Source.GOOGLE_MAPS, place_external_id="p1", summary=summary),),
+    )
+
+    assert Metrics.model_validate_json(metrics.model_dump_json()) == metrics
+
+
+def test_rating_summary_rejects_an_empty_group() -> None:
+    with pytest.raises(ValidationError):
+        RatingSummary(average_rating=4.0, count=0)
