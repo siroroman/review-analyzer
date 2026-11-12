@@ -201,5 +201,5 @@ All open questions are decided; only two things remain to be verified for Jev an
 
 **Still to verify:**
 
-- [ ] Jev: whether it handles Czech (a test on hand-labelled reviews) and a client for the OpenRouter Decisions API, which is not OpenAI-compatible
+- [ ] Jev: whether it handles Czech (50 real reviews labelled by a model and corrected by a human, plus about 15 synthetic injection attacks; go if sentiment agreement is at least 80 %, topics at least 70 % and no injection false negatives, otherwise Haiku only; test key limited to 5 USD) and a client for the OpenRouter Decisions API, which is not OpenAI-compatible
 - [ ] Test run: jupri/firmy and oodoow/mapy-com-ppe (date, review ID, more than 3 reviews?) and a comparison of older dates from compass with Google Maps
