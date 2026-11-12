@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date
 from decimal import Decimal
 from itertools import count
 from typing import Literal, Protocol
@@ -101,13 +101,13 @@ class Budget:
         """
         if cost < _ZERO:
             raise ValueError("cost must not be negative")
-        if reservation.id not in self._open:
+        held = self._open.pop(reservation.id, None)
+        if held is None:
             raise ValueError("unknown or already recorded reservation")
-        del self._open[reservation.id]
-        self._run_spent[reservation.run_id] = self._run_spent.get(reservation.run_id, _ZERO) + cost
+        self._run_spent[held.run_id] = self._run_spent.get(held.run_id, _ZERO) + cost
 
     def _monthly_total(self) -> Decimal:
-        now = self._clock.now()
+        now = self._clock.now().astimezone(UTC)
         return self._monthly_spend.total(date(now.year, now.month, 1))
 
     def _in_flight(self, run_id: str | None = None) -> Decimal:

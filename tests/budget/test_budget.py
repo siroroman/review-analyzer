@@ -1,5 +1,7 @@
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 import pytest
 from hypothesis import given
@@ -180,6 +182,29 @@ def test_a_new_month_starts_from_that_months_total() -> None:
     budget.reserve("run-1", D(10))
 
     assert spend.asked == [date(2026, 12, 1)]
+
+
+def test_the_month_is_taken_in_utc_not_in_the_clocks_zone() -> None:
+    # 00:30 on 1 December in Prague is still 30 November in UTC.
+    clock = FakeClock(datetime(2026, 12, 1, 0, 30, tzinfo=ZoneInfo("Europe/Prague")))
+    spend = FakeMonthlySpend({date(2026, 11, 1): D(30)})
+    budget = Budget(BudgetConfig(run_cap=D(100), monthly_cap=D(30)), spend, clock)
+
+    with pytest.raises(BudgetExceeded) as raised:
+        budget.reserve("run-1", D(20))
+
+    assert raised.value.cap_kind == "monthly"
+    assert spend.asked == [date(2026, 11, 1)]
+
+
+def test_record_books_the_cost_under_the_run_that_reserved_it() -> None:
+    budget, _, _ = make(run_cap="5")
+    reservation = budget.reserve("run-1", D(1))
+
+    budget.record(replace(reservation, run_id="run-2"), D(10))
+
+    with pytest.raises(BudgetExceeded):
+        budget.reserve("run-1", D(1))
 
 
 def test_an_empty_month_has_nothing_spent() -> None:
