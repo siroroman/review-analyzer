@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Tests of scripts/check-commit-msg.sh. Run: scripts/test-check-commit-msg.sh
 set -uo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
 fails=0
 ok()  { printf '%s' "$1" | ./check-commit-msg.sh - 2>/dev/null || { echo "FAIL (should pass): $1"; fails=$((fails+1)); }; }
 bad() { printf '%s' "$1" | ./check-commit-msg.sh - 2>/dev/null && { echo "FAIL (should be rejected): $1"; fails=$((fails+1)); }; }
@@ -25,4 +25,4 @@ bad "feat:add x"
 bad "feat: $(printf 'x%.0s' {1..70})"
 bad $'feat: add x\nbody without blank line'
 
-[[ $fails -eq 0 ]] && echo "test-check-commit-msg: all passed" || { echo "$fails failed"; exit 1; }
+if [[ $fails -eq 0 ]]; then echo "test-check-commit-msg: all passed"; else echo "$fails failed"; exit 1; fi

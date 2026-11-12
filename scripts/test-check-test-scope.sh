@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Tests of scripts/check-test-scope.sh. Run: scripts/test-check-test-scope.sh
 set -uo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
 fails=0
 # expect <"backend frontend" as true/false> <changed paths, newline separated>
 expect() {
@@ -60,4 +60,4 @@ if out=$("$script" onlyone 2>/dev/null </dev/null); then
   echo "FAIL: one argument passed with: $out"; fails=$((fails+1))
 fi
 
-[[ $fails -eq 0 ]] && echo "test-check-test-scope: all passed" || { echo "$fails failed"; exit 1; }
+if [[ $fails -eq 0 ]]; then echo "test-check-test-scope: all passed"; else echo "$fails failed"; exit 1; fi

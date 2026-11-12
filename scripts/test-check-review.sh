@@ -7,7 +7,7 @@ fails=0
 # A throwaway repo: base <- other (a commit of main only) and base <- c1 <- c2 (the PR, head = c2).
 repo=$(mktemp -d)
 trap 'rm -rf "$repo"' EXIT
-cd "$repo"
+cd "$repo" || exit 1
 git init -q -b main
 git config user.email t@example.com
 git config user.name t
@@ -67,4 +67,4 @@ bad "JSON object, not a list"          false '{"state":"COMMENTED"}'
 "$script" "$head" maybe "$base" <<<"$empty" >/dev/null 2>&1 && { echo "FAIL (draft value)"; fails=$((fails + 1)); }
 "$script" "$head" false "" <<<"$empty" >/dev/null 2>&1 && { echo "FAIL (no base)"; fails=$((fails + 1)); }
 
-[[ $fails -eq 0 ]] && echo "test-check-review: all passed" || { echo "$fails failed"; exit 1; }
+if [[ $fails -eq 0 ]]; then echo "test-check-review: all passed"; else echo "$fails failed"; exit 1; fi

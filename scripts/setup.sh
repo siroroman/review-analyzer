@@ -7,7 +7,7 @@ git config core.hooksPath .githooks # relative, so a worktree never runs hooks f
 chmod +x .githooks/* scripts/*.sh .claude/hooks/*.sh
 
 missing=0
-for tool in jq gitleaks gh; do
+for tool in jq gitleaks gh shellcheck actionlint; do
   if ! command -v "$tool" >/dev/null; then
     echo "setup: '$tool' is missing (brew install $tool)" >&2
     missing=1

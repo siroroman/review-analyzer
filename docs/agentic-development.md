@@ -63,6 +63,7 @@ In `.claude/settings.json` and `.claude/hooks/`:
 
 | Check | What fails |
 | --- | --- |
+| lint of scripts and workflows | `lint.yml` runs `make lint`: `shellcheck` on `scripts/`, `.githooks/`, `.claude/hooks/`, `actionlint` on workflows; a finding fails it. Python tools join `make lint` with the skeleton |
 | lint and types | `ruff`, `mypy --strict` |
 | module boundaries | import-linter: importing internals of another module, a cycle, a wrong direction of dependencies, a network library in the pure modules |
 | tests and coverage | runs only when a changed path is under tests ([Test scope](agents/testing.md#test-scope)), so not for docs. A failing test, `pytest --cov`: overall below 90 %, a file below 80 %, a critical module below 95 %, Vitest below 80 % (see the [specification](specification.md#ci-coverage-check)). `tests-passed` is the check to require |

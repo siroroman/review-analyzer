@@ -37,4 +37,4 @@ block "gh repo delete x"
 block "gh issue delete 3"
 block "gh release delete v1"
 
-[[ $fails -eq 0 ]] && echo "test-block-dangerous-git: all passed" || { echo "$fails failed"; exit 1; }
+if [[ $fails -eq 0 ]]; then echo "test-block-dangerous-git: all passed"; else echo "$fails failed"; exit 1; fi

@@ -13,6 +13,7 @@ Status: **live** exists today, **planned** arrives with the named ticket.
 | No reading of `.env`, keys, `~/.ssh` | `deny` in `.claude/settings.json` | live |
 | Lint and tests green at the end of a session | Stop hook | planned (T01, needs T02 targets) |
 | Format after edit | PostToolUse hook, `ruff format` | planned (T01, needs T02) |
+| Shell scripts, hooks and workflows pass static analysis; a missing linter is an error, not a skip | `make lint` (`shellcheck`, `actionlint`) in `lint.yml` and in `make setup`; not yet a required check until the owner adds it to the ruleset (T04) | live |
 | Module boundaries, no network library in pure modules | import-linter in CI | planned (T02) |
 | No `datetime.now`, `time.sleep`, `random` in `app/` | ruff rule in CI | planned (T02) |
 | Tests run only when a tested path changes (not for docs); failing tests and coverage thresholds fail the PR | `tests-passed` in CI (`tests.yml`, `scripts/check-test-scope.sh`, `scripts/check-coverage.sh`); the jobs start working with the Python and frontend skeletons; not yet required until the owner adds `tests-passed` to the ruleset (T04) | live (filter, coverage script) / planned (T02, jobs) |
