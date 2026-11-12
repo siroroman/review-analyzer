@@ -3,7 +3,9 @@ name = "review-analyzer"
 version = "0.0.0"
 description = "Dashboard of public reviews of a Czech company"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "pydantic>=2.14.3",
+]
 
 [dependency-groups]
 dev = [
