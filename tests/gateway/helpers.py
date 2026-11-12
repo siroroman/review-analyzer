@@ -44,10 +44,13 @@ class Setup:
         run_cap: str = "5",
         monthly_cap: str = "30",
         took: timedelta = timedelta(0),
+        fail_with: Exception | None = None,
     ) -> None:
         self.clock = FakeClock(START)
         self.log = FakeCallLog()
-        self.clients = clients if clients is not None else {"anthropic": self.client(took=took)}
+        self.clients = (
+            clients if clients is not None else {"anthropic": self.client(took=took, fail_with=fail_with)}
+        )
         config = GatewayConfig(
             services=services if services is not None else {"anthropic": policy()},
             run_cap=D(run_cap),
@@ -55,11 +58,18 @@ class Setup:
         )
         self.gateway = Gateway(config, self.clients, self.clock, self.log)
 
-    def client(self, usage: Tokens | Units = HAIKU_700K, took: timedelta = timedelta(0)) -> FakeServiceClient:
-        """A client that answers after `took` on this setup's fake clock."""
+    def client(
+        self,
+        usage: Tokens | Units = HAIKU_700K,
+        took: timedelta = timedelta(0),
+        fail_with: Exception | None = None,
+    ) -> FakeServiceClient:
+        """A client that answers (or fails with `fail_with`) after `took` on this setup's fake clock."""
 
         def respond(_op: str, _req: object) -> ClientResponse:
             self.clock.advance(took)
+            if fail_with is not None:
+                raise fail_with
             return ClientResponse("answer", usage)
 
         return FakeServiceClient(usage, respond)

@@ -3,11 +3,12 @@ from collections.abc import Mapping
 from datetime import datetime
 from decimal import Decimal
 
-from app.budget import Budget, BudgetConfig, BudgetExceeded, Tokens, UnknownPrice, estimate_cost
+from app.budget import Budget, BudgetConfig, BudgetExceeded, Reservation, Tokens, UnknownPrice, estimate_cost
 from app.domain import Clock
 from app.gateway._types import (
     CallLog,
     CallStatus,
+    ClientError,
     GatewayConfig,
     GatewayDenied,
     GatewayResponse,
@@ -72,7 +73,16 @@ class Gateway:
                 self._log(service, operation, run_id, "denied", _ZERO, None, started, "budget_exceeded")
                 raise
 
-        response = client.call(operation, request)
+        try:
+            response = client.call(operation, request)
+        except ClientError as failure:
+            self._settle_failure(
+                reservation, service, operation, run_id, started, failure.kind, failure.usage
+            )
+            raise
+        except Exception:
+            self._settle_failure(reservation, service, operation, run_id, started, "error", None)
+            raise
         cost = estimate_cost(response.usage)
         with self._lock:
             self._budget.record(reservation, cost)
@@ -88,6 +98,22 @@ class Gateway:
             self._deny(service, operation, run_id, "operation_not_allowed")
             raise GatewayDenied(service, operation, "operation_not_allowed")
         return self._clients[service]
+
+    def _settle_failure(
+        self,
+        reservation: Reservation,
+        service: str,
+        operation: str,
+        run_id: str,
+        started: datetime,
+        error_kind: str,
+        charged: Usage | None,
+    ) -> None:
+        """Book what the provider charged for a failed call (nothing when unknown) and log it."""
+        cost = _ZERO if charged is None else estimate_cost(charged)
+        with self._lock:
+            self._budget.record(reservation, cost)
+            self._log(service, operation, run_id, "failed", cost, charged, started, error_kind)
 
     def _deny(self, service: str, operation: str, run_id: str, reason: str) -> None:
         with self._lock:
