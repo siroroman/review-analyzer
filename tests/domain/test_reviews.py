@@ -5,7 +5,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from pydantic import ValidationError
 
-from app.domain import DatePrecision, RawReview, Review, Source
+from app.domain import DatePrecision, RawReview, Review, Source, TrendPoint
 
 
 def _review(**changes: object) -> Review:
@@ -111,3 +111,27 @@ def test_raw_review_round_trips_through_json() -> None:
 def test_raw_review_rejects_a_rating_outside_one_to_five() -> None:
     with pytest.raises(ValidationError):
         _raw(rating=0)
+
+
+@pytest.mark.parametrize("rating", [True, False, "4", 4.0])
+def test_review_rejects_a_rating_that_is_not_an_int(rating: object) -> None:
+    with pytest.raises(ValidationError):
+        _review(rating=rating)
+
+
+@pytest.mark.parametrize("flagged", ["no", "yes", "false", 0, 1])
+def test_review_rejects_a_flagged_that_is_not_a_bool(flagged: object) -> None:
+    with pytest.raises(ValidationError):
+        _review(flagged=flagged)
+
+
+@pytest.mark.parametrize("count", [True, "3", 3.0])
+def test_trend_point_rejects_a_count_that_is_not_an_int(count: object) -> None:
+    with pytest.raises(ValidationError):
+        TrendPoint(
+            source=Source.GOOGLE_MAPS,
+            period_start=date(2026, 3, 1),
+            average_rating=4.0,
+            count=count,  # type: ignore[arg-type]
+            sentiment=0.0,
+        )
