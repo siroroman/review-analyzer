@@ -22,7 +22,7 @@ fi
 
 types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
 # Keep in sync with docs/agents/git.md (Commits, Scope). A new scope is added there in its own pull request.
-scopes='places sources sanitize taxonomy classification metrics insights llm budget storage pipeline api worker web infra spec agents guardrails process'
+scopes='places sources sanitize taxonomy classification metrics insights llm gateway budget storage pipeline api worker web infra spec agents guardrails process'
 pattern="^(${types})(\\(([a-z0-9]+(-[a-z0-9]+)*)\\))?!?: .+"
 
 fail() {
