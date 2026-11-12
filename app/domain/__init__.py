@@ -12,9 +12,13 @@ from app.domain._analysis import (
 from app.domain._clock import Clock, FakeClock
 from app.domain._places import Company, Place, Source
 from app.domain._reviews import DatePrecision, Rating, RawReview, Review
+from app.domain._run_status import InvalidTransition, RunStatus, advance
 from app.domain._topics import ReviewTopic, Sentiment, Taxonomy, Topic
 
 __all__ = [
+    "InvalidTransition",
+    "RunStatus",
+    "advance",
     "Change",
     "ChangeKind",
     "Insight",
