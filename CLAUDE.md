@@ -42,4 +42,4 @@ Single context: `GLOSSARY.md` and `docs/adr/` at the root. See `docs/agents/doma
 
 ## More detail
 
-`docs/agents/`: `testing.md`, `critical-paths.md`, `rules-enforcement.md`, `git.md`.
+`docs/agents/`: `testing.md`, `critical-paths.md`, `rules-enforcement.md`, `git.md`, `skills.md` (which skills for which area; the repo wins over a skill).
