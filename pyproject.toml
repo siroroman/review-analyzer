@@ -4,6 +4,7 @@ version = "0.0.0"
 description = "Dashboard of public reviews of a Czech company"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "psycopg[binary]>=3.2",
     "pydantic>=2.14.3",
 ]
 
@@ -16,6 +17,7 @@ dev = [
   "pytest>=8",
   "pytest-cov>=6",
   "ruff>=0.8",
+  "testcontainers[postgres]>=4",
 ]
 
 [tool.uv]
