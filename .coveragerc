@@ -13,5 +13,5 @@ exclude_also =
     # type checking only imports
     if TYPE_CHECKING:
 omit =
-    # the entry point only wires things together, covered by the end to end test of pipeline
+    # the entry point only wires things together, nothing to test there; add a test if it ever holds logic
     app/__main__.py

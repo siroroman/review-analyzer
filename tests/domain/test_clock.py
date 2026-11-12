@@ -27,7 +27,7 @@ def test_fake_clock_is_a_clock() -> None:
 
 def test_fake_clock_rejects_a_time_without_a_zone() -> None:
     with pytest.raises(ValueError, match="time zone"):
-        FakeClock(datetime(2026, 11, 12, 8, 0))  # noqa: DTZ001
+        FakeClock(datetime(2026, 11, 12, 8, 0))
 
 
 def test_fake_clock_rejects_going_back() -> None:

@@ -98,3 +98,38 @@ def test_import_linter_rejects_a_boundary_violation(
 
     assert result.returncode != 0, result.stdout
     assert contract in result.stdout
+
+
+def test_coverage_gate_rejects_code_no_test_runs(tmp_path: Path) -> None:
+    shutil.copytree(ROOT / "app", tmp_path / "app", ignore=shutil.ignore_patterns("__pycache__"))
+    for tests in ("domain", "metrics"):
+        shutil.copytree(
+            ROOT / "tests" / tests, tmp_path / "tests" / tests, ignore=shutil.ignore_patterns("__pycache__")
+        )
+    shutil.copy(ROOT / ".coveragerc", tmp_path / ".coveragerc")
+    (tmp_path / "app" / "metrics" / "_untested.py").write_text(
+        "def f(x: int) -> int:\n"
+        + "".join(f"    if x > {i}:\n        return {i}\n" for i in range(10))
+        + "    return 0\n"
+    )
+
+    result = subprocess.run(  # noqa: S603
+        [
+            str(BIN / "python"),
+            "-m",
+            "pytest",
+            "-p",
+            "no:cacheprovider",
+            "--cov=app",
+            "--cov-branch",
+            "--cov-fail-under=90",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        check=False,
+        env={"PATH": str(BIN), "PYTHONPATH": str(tmp_path)},
+    )
+
+    assert result.returncode != 0, result.stdout
+    assert "Required test coverage of 90% not reached" in result.stdout
