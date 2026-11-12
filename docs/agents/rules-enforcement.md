@@ -15,7 +15,7 @@ Status: **live** exists today, **planned** arrives with the named ticket.
 | Format after edit | PostToolUse hook, `ruff format` | planned (T01, needs T02) |
 | Module boundaries, no network library in pure modules | import-linter in CI | planned (T02) |
 | No `datetime.now`, `time.sleep`, `random` in `app/` | ruff rule in CI | planned (T02) |
-| Coverage thresholds, diff coverage | pytest-cov, diff-cover in CI | planned (T02) |
+| Tests run only when a tested path changes (not for docs); failing tests and coverage thresholds fail the PR | `tests-passed` in CI (`tests.yml`, `scripts/check-test-scope.sh`, `scripts/check-coverage.sh`); the jobs start working with the Python and frontend skeletons; not yet required until the owner adds `tests-passed` to the ruleset (T04) | live (filter, coverage script) / planned (T02, jobs) |
 | Review before ready, findings resolved (`blocking=0`), `Skills:` line | `review-passed` in CI (`scripts/check-review.sh`); not yet a required check until the owner adds it to the ruleset (T04) | live |
 | Critical paths have tests, guardrail changes are declared | CI checks | planned (T03) |
 | PR body complete | CI check | planned (T03) |

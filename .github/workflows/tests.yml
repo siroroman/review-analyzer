@@ -1,0 +1,123 @@
+name: Tests
+
+# Tests and coverage (docs/agents/testing.md, Test scope). The jobs run only when a changed path is under tests,
+# decided by scripts/check-test-scope.sh: a docs-only PR runs none of them.
+# There is no workflow-level `paths:` filter on purpose: a workflow skipped by it never reports, and a required
+# check that never reports blocks the PR forever. Instead this workflow always runs, the heavy jobs are skipped,
+# and `tests-passed` is the one check to require in the ruleset (docs/agents/rules-enforcement.md).
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.scope.outputs.backend }}
+      frontend: ${{ steps.scope.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # Tests of the filter first, so a broken filter cannot skip the tests of a code change.
+      - run: scripts/test-check-test-scope.sh
+      - id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # `shell: bash` adds pipefail, so a failing script is not hidden by `tee`.
+        shell: bash
+        # The script runs `git diff --no-renames base...head`: what the PR changes since it branched off, with moved files listed under both paths.
+        run: scripts/check-test-scope.sh "$BASE_SHA" "$HEAD_SHA" | tee -a "$GITHUB_OUTPUT"
+
+  backend:
+    name: backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # A hit of the filter without a Python project is an error, never a silent pass.
+      - name: The Python project exists
+        run: test -f pyproject.toml || { echo "::error::backend paths changed but there is no pyproject.toml"; exit 1; }
+      - run: scripts/test-check-coverage.sh
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version-file: pyproject.toml
+      - run: uv sync --frozen
+      # Exits non-zero when a test fails or overall line and branch coverage is below 90 %.
+      - name: Tests and overall coverage
+        run: uv run pytest --cov=app --cov-branch --cov-fail-under=90 --cov-report=xml --cov-report=json --cov-report=term-missing
+      - name: Coverage per file and per critical module
+        run: jq . coverage.json | scripts/check-coverage.sh
+      - name: Coverage of the changed lines
+        env:
+          BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+        run: uv run diff-cover coverage.xml --compare-branch="$BASE_REF" --fail-under=90 --markdown-report diff-coverage.md
+      - name: Coverage report in the job summary
+        if: always()
+        run: |
+          { echo '### Diff coverage'; cat diff-coverage.md 2>/dev/null || echo 'not produced'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: backend-coverage
+          path: |
+            coverage.xml
+            coverage.json
+            diff-coverage.md
+          if-no-files-found: ignore
+
+  frontend:
+    name: frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The frontend project exists
+        run: test -f package.json || { echo "::error::frontend paths changed but there is no web/package.json"; exit 1; }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: web/package.json
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      # The 80 % threshold lives in the Vitest config (coverage.thresholds), so `vitest run` fails below it.
+      - run: npx vitest run --coverage
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: frontend-coverage
+          path: web/coverage
+          if-no-files-found: ignore
+
+  # The one check to require in the ruleset. Skipped jobs (no tested path changed) count as passed,
+  # failed, cancelled or never-run-because-`changes`-failed jobs do not.
+  tests-passed:
+    name: tests-passed
+    needs: [changes, backend, frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do
+            [[ "$r" == success || "$r" == skipped ]] || { echo "::error::a test job ended as '$r'"; exit 1; }
+          done
