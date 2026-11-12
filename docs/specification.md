@@ -58,7 +58,7 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 **Rules**
 
 - A module is a Python package `app/<module>/`. The public interface is in `__init__.py`: `Protocol`s and Pydantic types of inputs and outputs. Everything else is internal (`_impl`) and importing it from outside is forbidden; import-linter guards the boundaries in CI.
-- Dependencies go one way: `api`/`worker` → `pipeline` → domain modules → `gateway` → ports. No cycles.
+- Dependencies go one way: `api`/`worker` → `pipeline` → domain modules → `gateway` → `budget` and ports. Only `gateway` imports `budget`. No cycles.
 - External services (Apify, OpenRouter, Anthropic, Google Places, ARES, Langfuse, the database) sit behind ports (`Protocol`) only. An adapter is thin and replaceable; in tests a fake replaces it.
 - Paid external services (Apify, OpenRouter, Anthropic, Google Places) are reached only through `gateway`: it owns their ports and adapters, and import-linter forbids importing those adapters from anywhere else. `budget` is called by `gateway` only.
 - Numbers and trends are pure functions without I/O. I/O stays at the edge (adapters, repositories).
@@ -79,7 +79,7 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 | `llm` | `complete(task, prompt, schema) -> T` | model routing, retry, fallback, prompt caching, Langfuse tracing; provider calls go through `gateway` | fake gateway |
 | `gateway` | `call(service, operation, request) -> response`, `GatewayDenied`, `BudgetExceeded` | allow-list of services and operations, rate limit and concurrency per service, `budget.reserve` before and `record` after every call, a record of every call (no request or response bodies), provider adapters (OpenRouter, Anthropic, Apify, Google Places) | fake `ServiceClient`s, fake `Clock`, fake `CallLog` |
 | `budget` | `reserve(estimate)`, `record(cost)`, `BudgetExceeded` | cost estimate, cap per run, monthly cap, for every paid service | pure functions; called by `gateway` only |
-| `storage` | repositories: `ReviewRepo`, `RunRepo`, `InsightRepo`, `TrendRepo` | SQL, migrations, cache with TTL | integration tests on PostgreSQL (testcontainers); in-memory implementation for the other modules |
+| `storage` | repositories: `ReviewRepo`, `RunRepo`, `InsightRepo`, `TrendRepo`, `ServiceCallRepo` (the Call log; implements the `CallLog` port of `gateway`) | SQL, migrations, cache with TTL | integration tests on PostgreSQL (testcontainers); in-memory implementation for the other modules |
 | `pipeline` | `run(run_id) -> RunResult` | order of steps, run state machine, retry, partial result when the budget is exceeded | all ports as fakes, a whole run without a network |
 
 Every new module is built in this order: interface and types, tests of the interface, implementation. A module without tests of its interface is not considered done.
@@ -159,7 +159,7 @@ Every run has a fixed budget and its actual cost is shown on the dashboard. The 
 - **Model routing:** bulk work (classification) is done by a cheap model in batches, the expensive model receives only aggregated data and samples of reviews
 - **Token savings:** prompt caching for system prompts, Batch API for non-urgent runs
 - **Budget per run:** `gateway` checks the price estimate before every paid call (models, Apify, Google Places); when exceeded, the run stops with a partial result
-- **Provider limits:** spending limit in Apify and in the model API keys, a daily limit of runs per demo token; they are the backstop if our code is wrong
+- **Provider limits:** spending limit in Apify and in the model API keys, a daily limit of runs per user; they are the backstop if our code is wrong
 - **Measurement:** the gateway records every call (service, operation, cost, units, status) in the Call log, a run has the sum of costs of all services; Langfuse additionally traces prompts, tokens and price of model calls
 - **Admin view:** spend per service, per day and per run, and the Call log, on the admin screen (see [Dashboard](#dashboard))
 
@@ -191,7 +191,7 @@ Three screens for users (search, run progress and result) and one admin screen f
     - topics: share of positive and negative mentions, specific reviews on click
     - comparison of branches by rating and main problems
     - verbal and numerical assessment of the development and suggestions for improvement with links to reviews
-    - cost of the run (Apify, models) and the number of excluded suspicious reviews
+    - cost of the run (Apify, models, Google Places) and the number of excluded suspicious reviews
 4. **Admin** (owner only, at `/admin`, protected by a secret admin token; login stays out of the MVP):
     - current spend against the monthly cap and per-run caps
     - spend per service (OpenRouter, Anthropic, Apify, Google Places), per day and per run
