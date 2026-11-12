@@ -30,6 +30,28 @@ All rows from `fastapi-templates` down were chosen as the most installed skill o
 
 Skills are advice. They never grant an agent access to live services: see the `langfuse` row below.
 
+## Skills for a review
+
+The `code-reviewer` agent sorts the changed files by this table, loads every skill whose row matches and judges that part of the diff against it. It names them on the `Skills:` line of its review (CI requires the line). A file that matches no row is judged against the repo docs only. The skills of the install table above apply as written; this table only says which ones a reviewer opens for which paths.
+
+| Changed paths | Skills |
+| --- | --- |
+| every diff | `code-review` (the Standards and the Spec axes, done by the reviewer itself) |
+| `app/<module>/__init__.py`, new modules, ports | `codebase-design`, `hexagonal-architecture` |
+| `app/api/**` | `fastapi-templates` |
+| `app/worker/**`, `app/pipeline/**`, anything `async` | `async-python-patterns` |
+| `app/storage/**`, migrations, SQL | `supabase-postgres-best-practices` |
+| `app/llm/**`, `app/insights/**`, tracing code | `langfuse` (documentation only, see the override table) |
+| `tests/**` (Python) | `python-testing-patterns`, `tdd` |
+| `pyproject.toml`, ruff, mypy, package layout | `modern-python`, `python-project-structure` |
+| `web/**` components, hooks, data fetching | `vercel-react-best-practices` |
+| `web/**` styles, Tailwind config | `tailwind-design-system` |
+| `web/**` tests | `vitest` |
+| `.github/workflows/**` | `github-actions-templates` |
+| `GLOSSARY.md`, `docs/adr/**` | `domain-modeling` |
+
+Add a row in the same PR that adds a skill or a new area of the code.
+
 ## Where the repository overrides a skill
 
 | Skill | Skill says | We do instead |

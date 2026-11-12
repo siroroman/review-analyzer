@@ -17,6 +17,7 @@ jobs:
       - run: scripts/test-check-commit-msg.sh
       - run: scripts/test-check-branch-name.sh
       - run: scripts/test-block-dangerous-git.sh
+      - run: scripts/test-check-review.sh
       - name: Validate PR title against Conventional Commits
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}

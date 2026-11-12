@@ -110,7 +110,7 @@ GitHub Actions runs these steps on every PR, and merging into `main` is blocked 
 4. `diff-cover --fail-under=90`: new or changed code must be covered at least 90 %, so that coverage cannot be "diluted" by old code
 5. Vitest with `--coverage` and an 80 % threshold for the frontend
 6. Coverage report as an artifact and a comment on the PR
-7. `review-posted`: a PR that is not a draft must have a review by the `code-reviewer` agent of a commit from this PR (marker with the SHA in the last line of the review)
+7. `review-passed`: a PR that is not a draft must have a review by the `code-reviewer` agent of a commit from this PR, and its last review must report no open blocking findings (the last line of the review is a marker with the SHA and `blocking=<n>`; `n` must be 0)
 8. Checks of critical paths and guardrail paths, check of the PR body and gitleaks (see [Agentic development](agentic-development.md#ci-checks))
 
 The modules `metrics`, `sanitize`, `budget` and `llm` have a stricter threshold of 95 %; they are critical paths, for which CI fails also when source changes without a change of tests. The threshold must not be lowered; exclusions from coverage (tests, migrations, `__main__`) are explicit in the configuration with a reason. Coverage is a necessary, not a sufficient condition: the quality of tests is judged by the code review agent.

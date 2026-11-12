@@ -16,14 +16,15 @@ Status: **live** exists today, **planned** arrives with the named ticket.
 | Module boundaries, no network library in pure modules | import-linter in CI | planned (T02) |
 | No `datetime.now`, `time.sleep`, `random` in `app/` | ruff rule in CI | planned (T02) |
 | Coverage thresholds, diff coverage | pytest-cov, diff-cover in CI | planned (T02) |
-| Review before ready | `review-posted` in CI | planned (T03) |
+| Review before ready, findings resolved (`blocking=0`), `Skills:` line | `review-passed` in CI (`scripts/check-review.sh`); not yet a required check until the owner adds it to the ruleset (T04) | live |
 | Critical paths have tests, guardrail changes are declared | CI checks | planned (T03) |
 | PR body complete | CI check | planned (T03) |
 | `CLAUDE.md` under 3 kB, skill and agent descriptions under 700 characters | CI context-size check | planned (T03) |
 | Every `check-*.sh` has a test | `make test-scripts` in CI | planned (T03) |
 | Branch protection, merge commits only, required checks | GitHub ruleset | planned (T04) |
 | Review runs in a fresh session | process rule; the only evidence is the SHA marker | process |
-| The fix after the review is checked | process rule; owner reads `git diff <sha>..HEAD` | process |
+| Reviewer really used the skills it names | process rule; CI only requires the `Skills:` line | process |
+| Commits after the last review | process rule; owner reads `git diff <sha>..HEAD` | process |
 | Out of scope becomes a new issue | process rule; the reviewer checks the diff | process |
 | Reviews are untrusted data inside prompts | tests of `sanitize` and `insights`; reviewer checklist | process + tests |
 

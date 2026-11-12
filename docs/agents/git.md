@@ -45,7 +45,7 @@ GitHub flow with Conventional Commits. Read this before creating a branch, a com
 
 - The title is a valid Conventional Commit header. The merge commit on `main` takes it as its title.
 - The body follows the template `.github/pull_request_template.md`: summary, acceptance criteria with evidence, tests, critical paths touched, guardrails touched, reviewer notes and `Closes #<issue>` at the end.
-- A PR is opened as a **draft**. The owner marks it ready only after the `code-reviewer` agent has reviewed it in a fresh session and the checks are green ([agentic development](../agentic-development.md#agents-claudeagents)). One review round: fix the findings and push, no further review is needed.
+- A PR is opened as a **draft**. The owner marks it ready only after the `code-reviewer` agent has reviewed it in a fresh session, using the skills of each area of the diff, and its last review says `blocking=0`. Findings: fix the blockers, push and run the reviewer again in a fresh session; repeat until it reports `blocking=0` ([agentic development](../agentic-development.md#agents-claudeagents)). CI `review-passed` checks this.
 - Merge with a **merge commit**, never squash or rebase. Every commit of the branch reaches `main`, so each one is a valid Conventional Commit (the `commit-msg` hook checks it). History on `main` is not linear.
 
 ## Keeping a PR branch up to date
@@ -73,7 +73,8 @@ The ruleset requires a branch to be up to date with `main` before merging (stric
 | Destructive commands (force push including `-fu` and `--force-with-lease`, deleting or mirroring remote refs, push to `main`, `reset --hard`, `clean -f`, `branch -D`, `checkout .`), bypassing hooks (`--no-verify`, `-n`, `-c core.hooksPath`) and `gh pr merge`, `gh repo delete`, `gh issue delete`, `gh release delete` | Claude Code hook `.claude/hooks/block-dangerous-git.sh` in `.claude/settings.json`, tests `scripts/test-block-dangerous-git.sh`; needs `jq`, without it everything is blocked; it matches the command text, so a commit message quoting a blocked command is blocked too (reword it) |
 | Merge commit, PR title as the merge commit title | repository setting (see below) |
 | Branch protection on `main`, required checks, up-to-date branch | GitHub ruleset (see below) |
-| Review before ready, critical paths, guardrail paths, PR body | CI checks described in [agentic development](../agentic-development.md#ci-checks); they arrive with the ticket "Agentic scaffolding" |
+| Review before ready, all blocking findings resolved, `Skills:` line | CI `.github/workflows/pr-review.yml` (`review-passed`) calls `scripts/check-review.sh`, tests `scripts/test-check-review.sh`; a PR that is a draft passes, a check that ran before the review is run again from the Actions tab |
+| Critical paths, guardrail paths, PR body | CI checks described in [agentic development](../agentic-development.md#ci-checks); they arrive with the ticket "Agentic scaffolding" |
 
 Turn the hooks on once per clone with `make setup` (it sets `git config core.hooksPath .githooks`, a relative path, so a worktree never runs hooks from another checkout, and checks `jq`, `gitleaks` and `gh`). The Claude Code hook needs no setup, it is in `.claude/settings.json`. Tests of all scripts: `make test-scripts`.
 
@@ -82,6 +83,6 @@ Turn the hooks on once per clone with `make setup` (it sets `git config core.hoo
 It is not in the diff, so it is recorded here once set:
 
 - [ ] Only **merge commits** allowed (squash and rebase off), the merge commit title = PR title, message = PR body, branches deleted after the merge.
-- [ ] Ruleset for `main`: no direct commits or force pushes, deletion forbidden, required checks (`check-title`, later also tests, coverage and `review-posted`), **Require branches to be up to date before merging**. "Require linear history" stays off.
+- [ ] Ruleset for `main`: no direct commits or force pushes, deletion forbidden, required checks (`check-title`, `review-passed`, later also tests and coverage), **Require branches to be up to date before merging**. "Require linear history" stays off.
 - [ ] Secret scanning and push protection on.
 - [ ] A new check from a workflow is not required until the owner adds it to the ruleset.

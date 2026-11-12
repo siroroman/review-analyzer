@@ -76,19 +76,19 @@ Before pushing run the checks again and read them to the last line; a draft PR i
 
 ## Step 7: Review
 
-Right after the draft PR is open, start the `code-reviewer` agent with the Agent tool (`subagent_type: "code-reviewer"`). Give it the PR number and the issue number, nothing else: it starts with an empty context, so the review is fresh ([agentic development](../../../docs/agentic-development.md#agents-claudeagents)). It posts the review with a `<!-- code-reviewer: <sha> -->` marker for the commit it reviewed.
+Right after the draft PR is open, start the `code-reviewer` agent with the Agent tool (`subagent_type: "code-reviewer"`). Give it the PR number and the issue number, nothing else: it starts with an empty context, so the review is fresh ([agentic development](../../../docs/agentic-development.md#agents-claudeagents)). It loads the skills that fit each part of the diff and posts the review with a `Skills:` line and the marker `<!-- code-reviewer: <sha> blocking=<n> -->`. CI `review-passed` keeps the PR from being marked ready until the last review says `blocking=0`.
 
-- Put its findings in the chat as short bullets, **Blocking** first, then the **Notes**, and which acceptance criteria are not met or not shown.
-- One review round only. Do not fix findings or mark the PR ready without the user. After the user agrees, fix only the **Blocking** findings, each with its evidence (a test that was red and is green, a command output), and push. The **Notes** are not fixed in this PR: offer them to the user as issues. Do not start the agent again unless the user asks for it.
-- After the push, show the user what came after the review: `git diff <reviewed sha>..HEAD` (the sha is in the marker of the review), as a short list of files and what changed. That diff is what no agent has reviewed.
-- Marking the PR ready and merging are the user's.
+- Put its findings in the chat as short bullets, **Blocking** first, then the **Notes**, the skills it used, and which acceptance criteria are not met or not shown.
+- `blocking=0`: show `git diff <reviewed sha>..HEAD` if commits came after it, offer the Notes as issues and tell the user the PR can be marked ready. Marking it ready and merging are the user's.
+- `blocking` above 0: do not mark anything ready. After the user agrees, fix only the **Blocking** findings, each with its evidence (a test that was red and is green, a command output), and push. Then start a **new** `code-reviewer` run (a new Agent call, never a message to the old one) with the PR number, the issue number and the previous review's URL or SHA, so it re-reviews. Repeat until it reports `blocking=0`.
+- After two re-reviews that still have open blockers, stop: write what was tried and ask the user. The **Notes** are not fixed in this PR.
 
 ## Examples
 
 **New request, no issue**
 User says: "Add a trend point for each month to the metrics module."
 Actions: search finds nothing → create issue with acceptance criteria → card (`feat`, `feat/12-monthly-trend-points`) → ask about planning → user says yes → plan mode → bullets + plan link → approval → branch, implement, checks → summary → ask about the PR → draft PR → `code-reviewer` subagent.
-Result: draft PR that closes the issue, reviewed by the `code-reviewer` agent, with its findings in the chat.
+Result: draft PR that closes the issue, reviewed by the `code-reviewer` agent until it reports `blocking=0`, with its findings in the chat.
 
 **Request already has an issue**
 User says: "Fix the duplicate reviews."
