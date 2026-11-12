@@ -153,12 +153,13 @@ Every run has a fixed budget and its actual cost is shown on the dashboard. The 
 
 ## Data model
 
-A database is needed: the worker runs asynchronously, so run state, cache and already downloaded reviews must live somewhere between requests. Eight entities in PostgreSQL are enough; reviews are stored once and analyses over them can be repeated.
+A database is needed: the worker runs asynchronously, so run state, cache and already downloaded reviews must live somewhere between requests. Nine entities in PostgreSQL are enough; reviews are stored once and analyses over them can be repeated.
 
 | Entity | Main fields | Purpose |
 | --- | --- | --- |
 | Company | id, places_key (hash of the sorted place_ids), name, industry | a set of branches confirmed by the user; the same set is the same Company |
-| Place | company_id, source, external_id, branch name, address | a branch on a specific source (Google Maps, Firmy.cz) |
+| Place | source, external_id, branch name, address | a branch on a specific source (Google Maps, Firmy.cz) |
+| CompanyPlace | company_id, place_id | membership of a Place in a Company; one Place can be in several Companies |
 | Review | place_id, source, rating, text, date, date precision, language, hash, flagged | a review without personal data |
 | Topic | key, name, description, industry | taxonomy of topics (e.g. staff, waiting, prices) |
 | ReviewTopic | review_id, topic_id, sentiment, confidence | result of the classification |
@@ -201,6 +202,6 @@ All open questions are decided, except how the branches of a chain are found (re
 
 **Still to verify:**
 
-- [ ] Branch discovery for a chain without a company ID: Google Places text search by name, filtered by name and address, plus user confirmation; precision on 3 real companies
+- [ ] Branch discovery for a chain: Google Places text search by name, filtered by name and address, plus user confirmation; precision on 3 real companies
 - [ ] Jev: whether it handles Czech (50 real reviews labelled by a model and corrected by a human, plus about 15 synthetic injection attacks; go if sentiment agreement is at least 80 %, topics at least 70 % and no injection false negatives, otherwise Haiku only; test key limited to 5 USD) and a client for the OpenRouter Decisions API, which is not OpenAI-compatible
 - [ ] Test run: jupri/firmy and oodoow/mapy-com-ppe (date, review ID, more than 3 reviews?) and a comparison of older dates from compass with Google Maps
