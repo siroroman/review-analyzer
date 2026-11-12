@@ -85,3 +85,16 @@ def test_latency_of_a_refused_call_is_zero() -> None:
         s.gateway.call("anthropic", "complete", "x", run_id="run-1")
 
     assert s.log.calls[0].latency == timedelta(0)
+
+
+def test_a_response_that_cannot_be_priced_is_booked_at_the_estimate() -> None:
+    unpriced = Units("anthropic", "mystery_item", 1)
+    client = FakeServiceClient(HAIKU_700K, lambda *_: ClientResponse("answer", unpriced))
+    s = Setup(clients={"anthropic": client}, monthly_cap="1")
+
+    response = s.gateway.call("anthropic", "complete", "x", run_id="run-1")
+
+    assert response.cost == D("0.7")
+    assert (s.log.calls[0].status, s.log.calls[0].error_kind) == ("ok", "unknown_price")
+    with pytest.raises(BudgetExceeded):  # the reservation was settled, not leaked, and the 0.7 is booked
+        s.gateway.call("anthropic", "complete", "x", run_id="run-2")
