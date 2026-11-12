@@ -1,0 +1,46 @@
+name: PR review
+
+# Enforces the review rule of docs/agents/git.md: a PR that is not a draft has been reviewed by the code-reviewer agent
+# and its last review reports `blocking=0` (every blocking finding resolved). Findings keep the check red until the fixes
+# are pushed and the reviewer, in a fresh session, has verified them.
+# The agent reviews while the PR is a draft, then the owner marks it ready and `ready_for_review` runs this with the review
+# in place. A run that was red because the PR was marked ready before the review is run again from the Actions tab after
+# the review. A `pull_request_review` trigger is left out on purpose: it would add a third run of the same name for a
+# commit, and which run a ruleset counts is not known.
+# The check is required only after the owner adds `review-passed` to the ruleset (docs/agents/git.md).
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+
+permissions:
+  contents: read
+
+jobs:
+  review-passed:
+    name: review-passed
+    # Dependabot's version bumps have no review. A skipped job counts as passed for a required check.
+    # The PR author, not the actor: on a review event the actor is the person who reviewed.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      # The whole history: the check asks git whether the reviewed commit is an ancestor of the head.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # Tests of the check first, so a broken check cannot pass a PR.
+      - run: scripts/test-check-review.sh
+      - name: The last code-reviewer review of the PR has no open blocking findings
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+        # `shell: bash` adds pipefail, so a failing `gh api` fails the step. --slurp wraps the pages in one list.
+        shell: bash
+        run: gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" --paginate --slurp | jq 'add // []' | scripts/check-review.sh "$HEAD_SHA" "$DRAFT" "$BASE_SHA"
