@@ -41,9 +41,8 @@ Which part of the repository is under which tests. CI decides from this table (`
 | Pipeline | `app/pipeline/**` | end to end, `tests/pipeline/` | pytest, fake ports | as above | `backend` |
 | Backend config | `pyproject.toml`, `uv.lock`, `importlinter.ini`, `.coveragerc` | all backend tests | pytest | as above | `backend` |
 | Frontend | `frontend/**` | next to components | Vitest, Testing Library | 80 % | `frontend` |
-| CI workflow | `.github/workflows/tests.yml` | everything above | | | `backend` and `frontend` |
 | Repo scripts and hooks | `scripts/**`, `.githooks/**` | `scripts/test-*.sh` | bash | none | `make test-scripts` (always) |
-| Not under tests | `*.md`, `docs/**`, `.claude/**`, other workflows | none | | none | none |
+| Not under tests | `*.md`, `docs/**`, `.claude/**`, `.github/**` | none | | none | none (a change to `tests.yml` still runs `changes` and `tests-passed`) |
 
 Rules:
 

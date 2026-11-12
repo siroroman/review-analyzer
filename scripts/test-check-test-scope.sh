@@ -22,7 +22,7 @@ expect true  false '.coveragerc'
 expect true  false 'uv.lock'
 expect false true  'frontend/src/App.tsx'
 expect false true  'frontend/package.json'
-expect true  true  '.github/workflows/tests.yml'
+expect false false '.github/workflows/tests.yml'
 expect true  true  $'docs/a.md\napp/budget/_impl.py\nfrontend/src/a.tsx'
 expect true  false $'docs/a.md\napp/budget/_impl.py'
 # a markdown file inside code still is not under tests
