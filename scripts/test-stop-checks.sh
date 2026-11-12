@@ -56,7 +56,7 @@ reset
 echo "y = 2" >>app/a.py
 code=$(run)
 check "uncommitted python change: checks pass, exit 0" [ "$code" = 0 ]
-check "uncommitted python change runs make lint test" grep -qx "lint test" "$tmp/make.log"
+check "uncommitted python change runs make lint test test-scripts" grep -qx "lint test test-scripts" "$tmp/make.log"
 
 code=$(run '{}' 1)
 check "failing checks: exit 2" [ "$code" = 2 ]
@@ -71,11 +71,21 @@ echo "z = 3" >>app/a.py
 git commit -q -am "feat: z"
 code=$(run)
 check "committed python change since origin/main: exit 0" [ "$code" = 0 ]
-check "committed python change runs make lint test" grep -qx "lint test" "$tmp/make.log"
+check "committed python change runs make lint test test-scripts" grep -qx "lint test test-scripts" "$tmp/make.log"
 
 reset
 echo "# dep" >>pyproject.toml
 code=$(run)
-check "pyproject.toml change runs checks" grep -qx "lint test" "$tmp/make.log"
+check "pyproject.toml change runs checks" grep -qx "lint test test-scripts" "$tmp/make.log"
+
+# make lint also covers shell scripts, git hooks and workflows, and test-scripts covers the scripts.
+for changed in scripts/check-x.sh .githooks/pre-commit .claude/hooks/h.sh .github/workflows/ci.yml Makefile; do
+  reset
+  mkdir -p "$(dirname "$changed")"
+  echo "# change" >>"$changed"
+  code=$(run '{}' 1)
+  check "$changed change runs checks and a failure is fed back" [ "$code" = 2 ]
+  check "$changed change runs make lint test test-scripts" grep -qx "lint test test-scripts" "$tmp/make.log"
+done
 
 if [[ $fails -eq 0 ]]; then echo "test-stop-checks: all passed"; else echo "$fails failed"; exit 1; fi
