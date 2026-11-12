@@ -23,6 +23,7 @@ description() {
     /^---[[:space:]]*$/ { exit }
     /^description:/ { sub(/^description:[[:space:]]*/, ""); inside = 1; found = 1; if ($0 !~ /^[>|][-+]?$/) d = $0; next }
     inside && /^[[:space:]]+[^[:space:]]/ { sub(/^[[:space:]]+/, ""); d = d (d == "" ? "" : " ") $0; next }
+    inside && /^[[:space:]]*$/ { next }   # a blank line inside the value does not end it
     { inside = 0 }
     END { if (found) printf "%s", d }
   ' "$1" | tr -d '\r'
