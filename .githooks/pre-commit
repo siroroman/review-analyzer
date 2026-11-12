@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Enabled with: make setup (git config core.hooksPath .githooks)
+# Refuses a commit on main or master: changes reach main through a merged pull request (docs/agents/git.md).
+# Also scans the staged changes for secrets with gitleaks.
+# A detached HEAD (rebase, cherry-pick) has no branch name and passes.
+set -euo pipefail
+
+branch=$(git branch --show-current)
+if [[ "$branch" == main || "$branch" == master ]]; then
+  cat >&2 <<EOF2
+pre-commit: refusing to commit on '$branch'. main only changes through a merged pull request.
+Move your work to a branch and commit there:
+  git switch -c <type>/<issue>-<slug>
+Branch names and the flow: docs/agents/git.md. Do not use --no-verify.
+EOF2
+  exit 1
+fi
+
+# Secrets: API keys (Apify, model providers) must never leave the disk. Scans the staged changes only.
+# Not installed = no commit, because a guardrail that skips silently is not one (make setup checks for it too).
+if ! command -v gitleaks >/dev/null; then
+  echo "pre-commit: gitleaks is not installed, so the staged changes cannot be scanned for secrets. Run: brew install gitleaks" >&2
+  exit 1
+fi
+if ! gitleaks git --staged --redact --verbose --no-banner --log-level warn >&2; then
+  cat >&2 <<EOF2
+pre-commit: gitleaks found a secret in the staged changes (above, the value is redacted).
+Remove it from the file, then 'git add' the file again. A key that was ever committed or pushed must be revoked.
+A false positive goes to a .gitleaksignore line with the fingerprint printed above. Do not use --no-verify.
+EOF2
+  exit 1
+fi

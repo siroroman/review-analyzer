@@ -1,0 +1,27 @@
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  check-title:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Tests of the checks first, so a broken check cannot pass a bad title.
+      - run: scripts/test-check-commit-msg.sh
+      - run: scripts/test-check-branch-name.sh
+      - run: scripts/test-block-dangerous-git.sh
+      - name: Validate PR title against Conventional Commits
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s' "$PR_TITLE" | scripts/check-commit-msg.sh -
+      - name: Validate branch name against docs/agents/git.md
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: scripts/check-branch-name.sh "$HEAD_REF"
