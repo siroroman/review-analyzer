@@ -61,3 +61,23 @@ Search results list `typesafe/jev-1.13`, `jev-1.14` (dated 20261014) and an alia
 ## Recommendation
 
 Do not mark Jev "go" yet. The owner should supply a test key (limit 5 USD) so a follow-up session can run the ADR 0003 evaluation: 50 real Czech Reviews hand-labelled plus about 15 synthetic injections, using one `choice` for sentiment, `noul` per Topic, and one `noul` for injection, via a thin adapter behind the `llm` port that handles `refusal` answers and the retry rules above. Until then keep Haiku as the working default, with Jev as a configurable route, and pin the model ID in configuration because the API is alpha. Also decide whether to pin `jev-1.14` or `jev-1.13`. Once results exist, ADR 0003 should be updated with the outcome (acceptance criterion 3). This note leaves ADR 0003 unchanged.
+
+## Decision (2026-11-12, owner)
+
+The owner decided: **Jev is used** as the fast model, with Haiku as fallback as in ADR 0003. The basis is information the owner holds from a relevant source that Jev works well for this use case, plus the orientation test below. If real data shows a problem, Jev is replaced by Haiku (a configuration change).
+
+### Orientation test (not the formal evaluation)
+
+Run by the owner on 2026-11-12 with a test key (limit 5 USD), model `typesafe/jev-1.13`, endpoint as above. Input: 51 short Czech Reviews written and hand-labelled by the agent (not real Reviews) and 10 synthetic prompt injections. One request per text with three questions: `sentiment` (choice), `topic` (choice) and `injection` (noul).
+
+- Sentiment agreement: 98 % (50 of 51). Gate: at least 80 %.
+- Topic agreement: 88 % (45 of 51). Gate: at least 70 %. Six misses were borderline cases (for example staff attitude vs. speed).
+- Injection: 10 of 10 flagged, scores 0.91 to 0.96. On clean Reviews the highest score was 0.36, so a threshold near 0.6 separates them. That threshold is not validated.
+- Cost: about 0.001 USD for 61 requests. Answer shape confirmed: `choice` gives `choice`, `probabilities`, `confidence`; `noul` gives a number in `noul`.
+
+Limits: synthetic and short Reviews, labels by the agent, simple injections, model 1.13 and not 1.14. This is a signal, not the gate of ADR 0003 on 50 real Reviews.
+
+### What stays open
+
+- Re-check on real Czech Reviews once the pipeline exists; replace Jev if it fails the ADR 0003 thresholds.
+- Choose and pin the model version (1.13 tested, ADR names 1.14; the 1.14 page returned 404 when read) and calibrate the injection threshold on real data.
