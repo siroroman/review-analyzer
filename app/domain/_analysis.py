@@ -26,6 +26,28 @@ class TopicShare(DomainModel):
     negative: int = Field(ge=0)
 
 
+class RatingSummary(DomainModel):
+    """The average rating and the number of Reviews of one group (all, one Source or one Place)."""
+
+    average_rating: float = Field(ge=1, le=5, allow_inf_nan=False)
+    count: int = Field(ge=1)
+
+
+class SourceSummary(DomainModel):
+    """The RatingSummary of one Source."""
+
+    source: Source
+    summary: RatingSummary
+
+
+class PlaceSummary(DomainModel):
+    """The RatingSummary of one Place, for the comparison of Places."""
+
+    source: Source
+    place_external_id: str = Field(min_length=1)
+    summary: RatingSummary
+
+
 class ChangeKind(StrEnum):
     DROP = "drop"
     RISE = "rise"
@@ -38,6 +60,7 @@ class Change(DomainModel):
     source: Source
     period_start: date
     delta: float = Field(allow_inf_nan=False)
+    main_topic_key: str | None = None
 
     @model_validator(mode="after")
     def _delta_matches_kind(self) -> "Change":
@@ -54,6 +77,9 @@ class Metrics(DomainModel):
     trend: tuple[TrendPoint, ...]
     topic_shares: tuple[TopicShare, ...]
     changes: tuple[Change, ...]
+    overall: RatingSummary | None = None
+    per_source: tuple[SourceSummary, ...] = ()
+    per_place: tuple[PlaceSummary, ...] = ()
 
 
 class InsightType(StrEnum):
