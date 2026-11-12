@@ -40,14 +40,14 @@ Which part of the repository is under which tests. CI decides from this table (`
 | Storage | `app/storage/**` | integration, `tests/storage/` | pytest, testcontainers | as above | `backend` |
 | Pipeline | `app/pipeline/**` | end to end, `tests/pipeline/` | pytest, fake ports | as above | `backend` |
 | Backend config | `pyproject.toml`, `uv.lock`, `importlinter.ini`, `.coveragerc` | all backend tests | pytest | as above | `backend` |
-| Frontend | `frontend/**` | next to components | Vitest, Testing Library | 80 % | `frontend` |
+| Frontend | `web/**` | next to components | Vitest, Testing Library | 80 % | `frontend` |
 | Repo scripts and hooks | `scripts/**`, `.githooks/**` | `scripts/test-*.sh` | bash | none | `make test-scripts` (always) |
 | Not under tests | `*.md`, `docs/**`, `.claude/**`, `.github/**` | none | | none | none (a change to `tests.yml` still runs `changes` and `tests-passed`) |
 
 Rules:
 
-- A `*.md` file never triggers tests, even inside `app/` or `frontend/`.
-- A path that matches a row but has no project behind it (no `pyproject.toml`, no `frontend/package.json`) fails the job; it is never silently skipped.
+- A `*.md` file never triggers tests, even inside `app/` or `web/`.
+- A path that matches a row but has no project behind it (no `pyproject.toml`, no `web/package.json`) fails the job; it is never silently skipped.
 - `tests-passed` is the one check required in the ruleset. It is green when the jobs that had to run passed or were skipped, and red when any failed or was cancelled.
 - Per-file and critical-module thresholds are checked by `scripts/check-coverage.sh`, the overall one by `pytest --cov-fail-under`, changed lines by `diff-cover`, the frontend by `coverage.thresholds` in the Vitest config.
 
