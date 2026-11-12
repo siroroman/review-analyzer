@@ -15,14 +15,15 @@ else
   problem "CLAUDE.md not found"
 fi
 
-# description <file>: the description of the front matter; a folded or literal block (`>` / `|`) is joined with spaces.
+# description <file>: the description of the front matter. Indented lines after it continue it, whether it is a
+# folded or literal block (`>` / `|`), a plain scalar or a quoted one; they are joined with spaces.
 description() {
   awk '
     NR == 1 { if ($0 != "---") exit; next }
     /^---[[:space:]]*$/ { exit }
-    /^description:/ { sub(/^description:[[:space:]]*/, ""); if ($0 ~ /^[>|][-+]?$/) { block = 1; next } d = $0; found = 1; next }
-    block && /^[[:space:]]+/ { sub(/^[[:space:]]+/, ""); d = d (d == "" ? "" : " ") $0; found = 1; next }
-    { block = 0 }
+    /^description:/ { sub(/^description:[[:space:]]*/, ""); inside = 1; found = 1; if ($0 !~ /^[>|][-+]?$/) d = $0; next }
+    inside && /^[[:space:]]+[^[:space:]]/ { sub(/^[[:space:]]+/, ""); d = d (d == "" ? "" : " ") $0; next }
+    { inside = 0 }
     END { if (found) printf "%s", d }
   ' "$1" | tr -d '\r'
 }
