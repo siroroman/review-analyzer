@@ -14,9 +14,10 @@ Status: **live** exists today, **planned** arrives with the named ticket.
 | Lint and tests green at the end of a session | Stop hook | planned (T01, needs T02 targets) |
 | Format after edit | PostToolUse hook, `ruff format` | planned (T01, needs T02) |
 | Shell scripts, hooks and workflows pass static analysis; a missing linter is an error, not a skip | `make lint` (`shellcheck`, `actionlint`) in `lint.yml` and in `make setup`; not yet a required check until the owner adds it to the ruleset (T04) | live |
-| Module boundaries, no network library in pure modules | import-linter in CI | planned (T02) |
-| No `datetime.now`, `time.sleep`, `random` in `app/` | ruff rule in CI | planned (T02) |
-| Tests run only when a tested path changes (not for docs); failing tests and coverage thresholds fail the PR | `tests-passed` in CI (`tests.yml`, `scripts/check-test-scope.sh`, `scripts/check-coverage.sh`); the jobs start working with the Python and frontend skeletons; not yet required until the owner adds `tests-passed` to the ruleset (T04) | live (filter, coverage script) / planned (T02, jobs) |
+| Module boundaries, no network library in pure modules | import-linter (`importlinter.ini`) in `make lint` and `lint.yml`; `tests/gates/` proves it rejects violations | live |
+| No `datetime.now`, `time.sleep`, `random` in `app/` | ruff rule TID251 (`pyproject.toml`) in `make lint` and `lint.yml`; `tests/gates/` | live |
+| Python lint, format and types | `ruff`, `mypy --strict` in `make lint` and `lint.yml` | live |
+| Tests run only when a tested path changes (not for docs); failing tests and coverage thresholds fail the PR | `tests-passed` in CI (`tests.yml`, `scripts/check-test-scope.sh`, `scripts/check-coverage.sh`); the `backend` job works since the Python skeleton (pytest, 90 % overall, `check-coverage.sh`, `diff-cover` at 90 %), the `frontend` job starts working with the frontend skeleton; not yet required until the owner adds `tests-passed` to the ruleset (T04) | live (filter, coverage script, `backend` job) / planned (`frontend` job) |
 | Review before ready, findings resolved (`blocking=0`), `Skills:` line | `review-passed` in CI (`scripts/check-review.sh`); not yet a required check until the owner adds it to the ruleset (T04) | live |
 | Critical paths have tests, guardrail changes are declared | `pr-body` job in `guards.yml` (`scripts/check-critical-paths.sh`, `scripts/check-guardrail-paths.sh`) | live |
 | PR body complete | `pr-body` job in `guards.yml` (`scripts/check-pr-body.sh`) | live |
