@@ -65,7 +65,7 @@ In `.claude/settings.json` and `.claude/hooks/`:
 | --- | --- |
 | lint and types | `ruff`, `mypy --strict` |
 | module boundaries | import-linter: importing internals of another module, a cycle, a wrong direction of dependencies, a network library in the pure modules |
-| tests and coverage | `pytest --cov`: overall below 90 %, a file below 80 %, a critical module below 95 % (see the [specification](specification.md#ci-coverage-check)) |
+| tests and coverage | runs only when a changed path is under tests ([Test scope](agents/testing.md#test-scope)), so not for docs. A failing test, `pytest --cov`: overall below 90 %, a file below 80 %, a critical module below 95 %, Vitest below 80 % (see the [specification](specification.md#ci-coverage-check)). `tests-passed` is the check to require |
 | diff coverage | new or changed code below 90 % |
 | `review-passed` | a PR that is not a draft has no review by `code-reviewer` of a commit from this PR, its last review has no `Skills:` line, or it reports `blocking` above 0 |
 | critical paths | source of a critical path changed without a change of tests (exception: the PR starts with `> **Warning:**` with a reason) |
@@ -123,7 +123,7 @@ Every rule is either enforced or explicitly a process rule (in `docs/agents/rule
 | No force push, merge or deletion by an agent | `block-dangerous-git.sh`, `deny` in `settings.json` |
 | Lint and tests green before the end of a session | Stop hook |
 | Module boundaries | import-linter in CI |
-| Coverage | `check-coverage.sh` in CI |
+| Tests pass and coverage holds, only when a tested path changed | `tests-passed` in CI (`tests.yml`, `check-test-scope.sh`, `check-coverage.sh`) |
 | Review before ready | `review-passed` in CI |
 | Review in a fresh session | process rule (the only evidence is the SHA marker) |
 | Reviewer uses the skills of the area | `Skills:` line required by `review-passed`; that they were used is a process rule |

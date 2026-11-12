@@ -29,6 +29,29 @@ Interface and types, then a test of the interface, then implementation. A module
 - `Clock` is faked; tests never sleep and never read the real time. Retries and cache TTL are tested by advancing the fake.
 - Fakes of the LLM port return scripted responses, including invalid ones.
 
+## Test scope
+
+Which part of the repository is under which tests. CI decides from this table (`scripts/check-test-scope.sh`, workflow `tests.yml`): a job runs only when a changed path matches its row, so a documentation-only PR runs no tests. Whoever adds a code area adds its row and the glob in the script in the same PR.
+
+| Area | Paths | Tests | Tool | Coverage | CI job |
+| --- | --- | --- | --- | --- | --- |
+| Backend modules | `app/**` | unit, `tests/<module>/` | pytest, Hypothesis, fakes | 90 % overall, 80 % per file, 95 % for `metrics`, `sanitize`, `budget`, `llm`, 90 % of changed lines | `backend` |
+| Adapters | `app/**` (adapters) | contract, `tests/adapters/` | pytest, recorded fixtures | as above | `backend` |
+| Storage | `app/storage/**` | integration, `tests/storage/` | pytest, testcontainers | as above | `backend` |
+| Pipeline | `app/pipeline/**` | end to end, `tests/pipeline/` | pytest, fake ports | as above | `backend` |
+| Backend config | `pyproject.toml`, `uv.lock`, `importlinter.ini`, `.coveragerc` | all backend tests | pytest | as above | `backend` |
+| Frontend | `frontend/**` | next to components | Vitest, Testing Library | 80 % | `frontend` |
+| CI workflow | `.github/workflows/tests.yml` | everything above | | | `backend` and `frontend` |
+| Repo scripts and hooks | `scripts/**`, `.githooks/**` | `scripts/test-*.sh` | bash | none | `make test-scripts` (always) |
+| Not under tests | `*.md`, `docs/**`, `.claude/**`, other workflows | none | | none | none |
+
+Rules:
+
+- A `*.md` file never triggers tests, even inside `app/` or `frontend/`.
+- A path that matches a row but has no project behind it (no `pyproject.toml`, no `frontend/package.json`) fails the job; it is never silently skipped.
+- `tests-passed` is the one check required in the ruleset. It is green when the jobs that had to run passed or were skipped, and red when any failed or was cancelled.
+- Per-file and critical-module thresholds are checked by `scripts/check-coverage.sh`, the overall one by `pytest --cov-fail-under`, changed lines by `diff-cover`, the frontend by `coverage.thresholds` in the Vitest config.
+
 ## Not in CI
 
 Live contract tests and the evaluation on 100 to 200 hand-labelled Reviews run manually or nightly and do not count toward coverage. CI never calls Apify or a model.
