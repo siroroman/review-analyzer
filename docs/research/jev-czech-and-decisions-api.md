@@ -48,15 +48,15 @@ All fetched 2026-11-12.
 
 ### Model name discrepancy
 
-Search results list `typesafe/jev-1.13`, `jev-1.14` (dated 20261014) and an alias `~typesafe/jev-latest`. The API page and cookbook examples use `jev-1.13`; the Jev guide says Box needs 1.14. The OpenRouter model page URL for 1.14 returned 404 for me, so I could not read its current price or modalities. ADR 0003 pins 1.14.
+Search results list `typesafe/jev-1.13`, `jev-1.14` (dated 20261014) and an alias `~typesafe/jev-latest`. The API page and cookbook examples use `jev-1.13`; the Jev guide says Box needs 1.14. The OpenRouter model page URL for 1.14 returned 404 for me, so I could not read its current price or modalities. ADR 0003 names 1.14; the orientation test used 1.13.
 
 ## Not verified
 
-- Czech accuracy, failure types, and injection detection: no test run (needs an OpenRouter key and up to 5 USD; owner must provide it). Acceptance criterion 2 is met only by the orientation test (see "Decision"); the check on real Reviews is open.
+- Czech accuracy, failure types and injection detection on real Reviews: only the orientation test on synthetic Reviews was run (see "Decision"); the check on 50 real Reviews is open.
 - Whether 1.14 serves `choice`/`noul` exactly like 1.13 and its current price (model page 404).
 - Rate limits, payload size limit, and whether the alpha shape has changed since the pages were published.
 - Whether `/api/v1/systemone` is a stable alternative to the alpha path.
-- No source tells how Jev treats instructions embedded in `state`. Reviews stay in `state` (data), but this must be tested with the synthetic injections.
+- No source tells how Jev treats instructions embedded in `state`. Reviews stay in `state` (data), the orientation test used synthetic injections (all flagged, see "Decision"), so how Jev treats real or more elaborate injections is still untested.
 
 ## Recommendation
 
