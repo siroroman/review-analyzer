@@ -1,0 +1,83 @@
+# Jev on Czech and the OpenRouter Decisions API
+
+Date read: 2026-11-12. Ticket: #17 (T15), part of #2. Feeds: ADR 0003 (Jev as the fast model, Haiku as fallback).
+
+## Question
+
+1. What are the request and response shapes of the OpenRouter Decisions API (the `llm` adapter for Jev must speak it)?
+2. Can Jev classify Czech Reviews (sentiment, Topics) and detect prompt injection well enough to pass the ADR 0003 go/no-go gate (sentiment at least 80 %, Topics at least 70 %, no injection false negatives)?
+3. What routing and fallback should the ADR record?
+
+## Answer
+
+- Part 1 is answered below: `POST https://openrouter.ai/api/alpha/decisions`, bearer key, `state` plus named `questions` (types `choice`, `noul`, `score`, `box`), typed answers with probabilities. It is alpha ("the shape may change") and not OpenAI-compatible.
+- Part 2 is answered only partly. No primary source states that Jev supports Czech or any non-English language, and none claims injection robustness. The desk research therefore left go/no-go undecided. It was then decided by the owner on 2026-11-12 after an orientation test on synthetic Reviews: **Jev is used** (see "Decision" below). The formal check on 50 real Reviews stays open.
+- Haiku stays the fallback, and Jev is replaced by Haiku if real data fails the ADR 0003 thresholds (a config change, per ADR 0003).
+- Part 3 (ADR update) is done in the same PR: ADR 0003 records the decision, see "Decision" below.
+
+## Evidence
+
+All fetched 2026-11-12.
+
+### Decisions API shape ([API reference](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request.md))
+
+- Endpoint `POST https://openrouter.ai/api/alpha/decisions`, `Authorization: Bearer <key>`, JSON. Marked alpha.
+- Request: `model` (required, e.g. `typesafe/jev-1.13`), `state` (required: string, object or array; media parts go here), `questions` (required: map of name to question). Optional: `assets`, `provider` (routing preferences), `session_id`, `trace`, `user`.
+- Question types by `type`: `noul` (yes/no, optional `criteria` with `true`/`false` guidance), `choice` (required `criteria` map option to guidance), `score` (ordered `criteria` array), `box` (image only, TypeSafe Jev only).
+- Response: `model`, `answers` (required), `usage` (required). `answers[name]` is typed: `choice` gives the option plus `confidence` and `probabilities`; `noul` gives a number plus `confidence`; `score` gives a number, probabilities, `legend`; `refusal` means the provider declined that question while other answers may still be present. `usage` has `input_tokens`, `output_tokens`, `cost`.
+- Errors: 400, 401, 402, 403, 404, 413, 429, 500, 502, 503, 524, 529; no numeric rate or size limits documented.
+- Typed text/number fields go to a different endpoint (`/api/alpha/extractions`), not this one.
+
+### Jev guide ([Jev on OpenRouter](https://openrouter.ai/docs/guides/community/jev.md))
+
+- Returns typed answers and probabilities, no reasoning. "Not a drop-in replacement for a chat model."
+- Context 262,144 tokens; text over about 32,000 bytes runs in a slower, less accurate long-context mode (a Review batch should stay well below that).
+- Page does not mention Czech or any language, and has no prompt injection section.
+- Suggests cascades (cheap model, Jev verifies, stronger model on failure) and human routing for low confidence; switching model changes probabilities, so thresholds need recalibration.
+
+### Classification recipe ([cookbook](https://openrouter.ai/docs/cookbook/evaluate-and-optimize/jev-classification.md))
+
+- One `choice` question for an exclusive category (add an `other` option); one `noul` question per tag for multi-label. This maps to sentiment as `choice` and each Topic as `noul`, or a `choice` over the taxonomy.
+- Calibrate per-tag thresholds on 100 to 200 hand-labelled items. Example is English tweets only.
+- Retry on 429, 5xx and in-flight-budget 402; honor `Retry-After`; backoff from 1 s doubling to 30 s with jitter; 60 s timeout; do not retry other 402 or 400.
+- Price quoted $0.042 per 1M input tokens, output free; about $0.026 per 1,000 items at about 610 input tokens each. Matches ADR 0003. Cost of the 50-review test would be a fraction of a cent, well inside the 5 USD cap.
+
+### Vendor page ([TypeSafe announcement](https://typesafe.ai/blog/introducing-system-one-models-and-jev))
+
+- Does not state language support, training data, public benchmark results, or injection robustness. It mentions detecting jailbreaks as a use case (Jev as a detector), which is not evidence of accuracy.
+
+### Model name discrepancy
+
+Search results list `typesafe/jev-1.13`, `jev-1.14` (dated 20261014) and an alias `~typesafe/jev-latest`. The API page and cookbook examples use `jev-1.13`; the Jev guide says Box needs 1.14. The OpenRouter model page URL for 1.14 returned 404 for me, so I could not read its current price or modalities. ADR 0003 names 1.14; the orientation test used 1.13.
+
+## Not verified
+
+- Czech accuracy, failure types and injection detection on real Reviews: only the orientation test on synthetic Reviews was run (see "Decision"); the check on 50 real Reviews is open.
+- Whether 1.14 serves `choice`/`noul` exactly like 1.13 and its current price (model page 404).
+- Rate limits, payload size limit, and whether the alpha shape has changed since the pages were published.
+- Whether `/api/v1/systemone` is a stable alternative to the alpha path.
+- No source tells how Jev treats instructions embedded in `state`. Reviews stay in `state` (data), the orientation test used synthetic injections (all flagged, see "Decision"), so how Jev treats real or more elaborate injections is still untested.
+
+## Recommendation
+
+(Written before the decision; superseded by "Decision" below, the steps remain valid for the check on real data.) The ADR 0003 evaluation on real data should use: 50 real Czech Reviews hand-labelled plus about 15 synthetic injections, using one `choice` for sentiment, `noul` per Topic, and one `noul` for injection, via a thin adapter behind the `llm` port that handles `refusal` answers and the retry rules above. Keep Jev as a configurable route with Haiku as fallback, and pin the model ID in configuration because the API is alpha. Also decide whether to pin `jev-1.14` or `jev-1.13`. ADR 0003 was updated with the decision (acceptance criterion 3) and is updated again when the real-data check finishes.
+
+## Decision (2026-11-12, owner)
+
+The owner decided: **Jev is used** as the fast model, with Haiku as fallback as in ADR 0003. The basis is information the owner holds from a relevant source that Jev works well for this use case, plus the orientation test below. If real data shows a problem, Jev is replaced by Haiku (a configuration change).
+
+### Orientation test (not the formal evaluation)
+
+Run by the owner on 2026-11-12 with a test key (limit 5 USD), model `typesafe/jev-1.13`, endpoint as above. Input: 51 short Czech Reviews written and hand-labelled by the agent (not real Reviews) and 10 synthetic prompt injections. One request per text with three questions: `sentiment` (choice), `topic` (choice) and `injection` (noul).
+
+- Sentiment agreement: 98 % (50 of 51). Gate: at least 80 %.
+- Topic agreement: 88 % (45 of 51). Gate: at least 70 %. Six misses were borderline cases (for example staff attitude vs. speed).
+- Injection: 10 of 10 flagged, scores 0.91 to 0.96. On clean Reviews the highest score was 0.36, so a threshold near 0.6 separates them. That threshold is not validated.
+- Cost: about 0.001 USD for 61 requests. Answer shape confirmed: `choice` gives `choice`, `probabilities`, `confidence`; `noul` gives a number in `noul`.
+
+Limits: synthetic and short Reviews, labels by the agent, simple injections, model 1.13 and not 1.14. The test asked one Review-level `sentiment` and one `topic` per text, while `classify` returns a sentiment per Topic (one `noul` per Topic is recommended above), so the 88 % says nothing about Reviews with several Topics. The script and raw results are not in the repo, so the numbers cannot be reproduced. This is a signal, not the gate of ADR 0003 on 50 real Reviews.
+
+### What stays open
+
+- Re-check on real Czech Reviews once the pipeline exists; replace Jev if it fails the ADR 0003 thresholds.
+- Choose and pin the model version (1.13 tested, ADR names 1.14; the 1.14 page returned 404 when read) and calibrate the injection threshold on real data.
