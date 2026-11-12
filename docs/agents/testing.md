@@ -35,7 +35,7 @@ Which part of the repository is under which tests. CI decides from this table (`
 
 | Area | Paths | Tests | Tool | Coverage | CI job |
 | --- | --- | --- | --- | --- | --- |
-| Backend modules | `app/**` | unit, `tests/<module>/` | pytest, Hypothesis, fakes | 90 % overall, 80 % per file, 95 % for `metrics`, `sanitize`, `budget`, `llm`, 90 % of changed lines | `backend` |
+| Backend modules | `app/**` | unit, `tests/<module>/` | pytest, Hypothesis, fakes | 90 % overall, 80 % per file, 95 % for `metrics`, `sanitize`, `budget`, `gateway`, `llm`, 90 % of changed lines | `backend` |
 | Adapters | `app/**` (adapters) | contract, `tests/adapters/` | pytest, recorded fixtures | as above | `backend` |
 | Storage | `app/storage/**` | integration, `tests/storage/` | pytest, testcontainers | as above | `backend` |
 | Pipeline | `app/pipeline/**` | end to end, `tests/pipeline/` | pytest, fake ports | as above | `backend` |
@@ -57,4 +57,4 @@ Live contract tests and the evaluation on 100 to 200 hand-labelled Reviews run m
 
 ## Coverage
 
-90 % overall (lines and branches), 80 % per file, 95 % for `metrics`, `sanitize`, `budget`, `llm`; diff coverage 90 %. Below the threshold means a path no test runs: write the test, never lower the threshold. Exclusions (tests, migrations, `__main__`) are explicit in the config with a reason.
+90 % overall (lines and branches), 80 % per file, 95 % for `metrics`, `sanitize`, `budget`, `gateway`, `llm`; diff coverage 90 %. Below the threshold means a path no test runs: write the test, never lower the threshold. Exclusions (tests, migrations, `__main__`) are explicit in the config with a reason.

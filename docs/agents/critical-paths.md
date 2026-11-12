@@ -7,12 +7,12 @@ Whoever adds a module in one of these areas adds or fixes the glob in the same P
 | Area | Source globs | Test globs | What goes wrong |
 | --- | --- | --- | --- |
 | Prompt injection and PII | `app/sanitize/**`, `app/insights/**` | `tests/sanitize/**`, `tests/insights/**` | a Review steers the model, personal data is stored or shown |
-| Budget | `app/budget/**`, `app/llm/**` | `tests/budget/**`, `tests/llm/**` | a Run or the 30 USD monthly cap is exceeded |
+| Budget | `app/budget/**`, `app/gateway/**`, `app/llm/**` | `tests/budget/**`, `tests/gateway/**`, `tests/llm/**` | a Run or the 30 USD monthly cap is exceeded, a paid call bypasses the Gateway |
 | Grounding | `app/insights/**` | `tests/insights/**` | an Insight cites a non-existent Review ID |
 | Numbers and trends | `app/metrics/**` | `tests/metrics/**` | wrong average or Topic share, a false drop |
 | Data identity | `app/storage/**`, `app/sources/**` | `tests/storage/**`, `tests/sources/**` | duplicate Reviews, broken cache, a changed `external_id` |
 
-Modules with a 95 % coverage threshold: `metrics`, `sanitize`, `budget`, `llm`.
+Modules with a 95 % coverage threshold: `metrics`, `sanitize`, `budget`, `gateway`, `llm`.
 
 ## Guardrail paths
 

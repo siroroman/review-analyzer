@@ -1,6 +1,6 @@
 # 0004: Deep modules, ports and enforced boundaries
 
-Status: accepted, 2026-11-12
+Status: accepted, 2026-11-12. Refined by [0006](0006-gateway-for-paid-services.md): paid services are reached only through the gateway.
 
 ## Context
 

@@ -63,8 +63,20 @@ One execution of the pipeline for a Company, with a status, a Budget and a measu
 _Avoid_: Job, analysis, task (a task is a queue message)
 
 **Budget**:
-The cost cap of one Run (and the monthly cap across Runs); exceeding it ends the Run with a partial result.
+The cost cap of one Run (and the monthly cap across Runs) over all paid services; the Gateway enforces it, and exceeding it ends the Run with a partial result.
 _Avoid_: Quota, limit
+
+**Gateway**:
+The one module through which every paid external service (model providers, Apify, Google Places) is called. It applies the allow-list, the traffic limits and the Budget, and writes a Service call for each call.
+_Avoid_: Proxy, middleware, client (a client is one provider's adapter behind the Gateway)
+
+**Service call**:
+One call through the Gateway to a paid service, with its service, operation, status, cost, units and latency, never its request or response body.
+_Avoid_: Request, API call, transaction
+
+**Call log**:
+The stored list of Service calls; the admin screen reads it.
+_Avoid_: Audit trail, history, trace (a trace is a Langfuse record of a model call)
 
 **Partial result**:
 The result of a Run that stopped early (Budget exceeded or a step failed past retry) and shows what was finished.
@@ -73,3 +85,7 @@ _Avoid_: Failed run, incomplete run
 **Demo token**:
 A link token that gives access to the dashboard in the demo, in place of a login.
 _Avoid_: API key, session
+
+**Admin token**:
+A secret token from configuration that gives access to the admin screen (spend and Call log), in place of a login. It is not the Demo token.
+_Avoid_: Admin password, API key, session

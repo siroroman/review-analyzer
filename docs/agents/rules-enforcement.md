@@ -32,7 +32,7 @@ Status: **live** exists today, **planned** arrives with the named ticket.
 
 ## Spending limits outside the repository
 
-These cap cost if our code is wrong (see [ADR-0005](../adr/0005-caching-and-budgeting.md)). They are set by the owner in each provider's dashboard and ticked here once done. A change is recorded here.
+These cap cost if our code is wrong (see [ADR-0005](../adr/0005-caching-and-budgeting.md) and [ADR-0006](../adr/0006-gateway-for-paid-services.md)). They are set by the owner in each provider's dashboard and ticked here once done. A change is recorded here.
 
 - [ ] Apify: monthly spending limit set (part of the 30 USD total)
 - [ ] OpenRouter: key credit limit set (Jev and Haiku)
