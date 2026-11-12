@@ -8,8 +8,11 @@
 set -euo pipefail
 
 # --no-renames: a moved file is listed under its old path too, so code leaving `app/` still counts as a change there.
+# The list is captured first: under `set -e` a failing `git diff` stops the script, whereas a failing process
+# substitution would be ignored and the empty list would read as "no tests needed" (a filter that fails open).
 if [[ $# -eq 2 ]]; then
-  exec < <(git diff --name-only --no-renames "$1...$2")
+  changed=$(git diff --name-only --no-renames "$1...$2")
+  exec <<< "$changed"
 elif [[ $# -ne 0 ]]; then
   echo "usage: check-test-scope.sh [<base> <head>]  (paths on stdin without arguments)" >&2
   exit 1

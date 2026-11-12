@@ -52,4 +52,12 @@ expect_range true false "code moved out of app/"
 git_in reset -q --hard "$base"; mkdir -p "$repo/lib"; git_in mv web/src/a.tsx lib/a.tsx; git_in commit -qm move
 expect_range false true "code moved out of web/"
 
+# A diff that fails must fail the script: a filter that fails open would skip the tests of a code change.
+if out=$(cd "$repo" && "$script" deadbeef cafebabe 2>/dev/null); then
+  echo "FAIL: unknown revisions passed with: $out"; fails=$((fails+1))
+fi
+if out=$("$script" onlyone 2>/dev/null </dev/null); then
+  echo "FAIL: one argument passed with: $out"; fails=$((fails+1))
+fi
+
 [[ $fails -eq 0 ]] && echo "test-check-test-scope: all passed" || { echo "$fails failed"; exit 1; }
