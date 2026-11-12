@@ -11,9 +11,8 @@ A skill is generic advice written by someone else. When it disagrees with this r
 | Area | Skill | Source | Use when |
 | --- | --- | --- | --- |
 | Test-first workflow | `tdd` | in the repo (`.claude/skills/tdd`) | every code change |
-| Module design | `codebase-design` | personal | designing a module interface or a seam |
-| Domain language | `domain-modeling` | personal | editing `GLOSSARY.md` or an ADR |
-| Charts | `dataviz` | built in | dashboard charts (Recharts) |
+| Module design | `codebase-design` | `mattpocock/skills` | designing a module interface or a seam |
+| Domain language | `domain-modeling` | `mattpocock/skills` | editing `GLOSSARY.md` or an ADR |
 | FastAPI | `fastapi-templates` | `wshobson/agents` | API routes, dependencies, error handling |
 | Python layout | `python-project-structure` | `wshobson/agents` | package layout, `__init__.py` public interface |
 | Architecture | `hexagonal-architecture` | `affaan-m/ecc` | ports and adapters (ADR-0004) |
@@ -27,7 +26,9 @@ A skill is generic advice written by someone else. When it disagrees with this r
 | Styling | `tailwind-design-system` | `wshobson/agents` | Tailwind tokens and components |
 | CI | `github-actions-templates` | `wshobson/agents` | workflows under `.github/workflows/` |
 
-All of these except the first three rows were chosen as the most installed skill of their area on [skills.sh](https://skills.sh/) (checked 2026-11-12). They are installed per user (`~/.claude/skills`), not committed, so each clone needs them once.
+All rows from `fastapi-templates` down were chosen as the most installed skill of their area on [skills.sh](https://skills.sh/) (checked 2026-11-12). They are installed per user (`~/.claude/skills`), not committed or pinned, so each clone needs them once and a skill can change under us. Where the repo has its own copy (`tdd`), the repo copy wins over a user-level one of the same name.
+
+Skills are advice. They never grant an agent access to live services: see the `langfuse` row below.
 
 ## Where the repository overrides a skill
 
@@ -39,12 +40,12 @@ All of these except the first three rows were chosen as the most installed skill
 | `supabase-postgres-best-practices` | Supabase features, row-level security | plain PostgreSQL on Neon; no RLS. Take indexing, types and migration advice only |
 | `python-testing-patterns` | mocking with `unittest.mock` | fakes next to ports, no mocks of internal collaborators ([testing.md](testing.md)) |
 | `github-actions-templates` | deploy and release templates | only the checks listed in the specification; touching `.github/**` is a guardrail change ([critical-paths.md](critical-paths.md#guardrail-paths)) |
-| `langfuse` | may call the Langfuse API or MCP | Langfuse sits behind a port; review text goes into traces only as data |
+| `langfuse` | its header pre-approves `curl *langfuse.com/*`, `npx langfuse-cli api * list/get` and WebFetch, and it says to run even when Langfuse is not configured | use it for documentation and instrumentation advice only. An agent never queries a real Langfuse project: traces hold Review text, which is untrusted and may contain personal data. Langfuse sits behind a port in code |
 
 ## Rules for adding a skill
 
 - One skill per area. Prefer an official source (the library's own repository, then a well-known vendor) over a popular unknown one.
-- Read its `SKILL.md` and look at the scanner result printed by `npx skills add` before installing. Treat a skill as code that runs with the agent's permissions.
+- Read its `SKILL.md` and look at the scanner result printed by `npx skills add` before installing. Treat a skill as code that runs with the agent's permissions. Check the frontmatter for `allowed-tools` or hooks: they pre-approve actions without a prompt, and each one needs a row in the override table.
 - A skill never overrides a rule in `CLAUDE.md`, never asks for secrets, and is not a reason to weaken a test, lint or coverage rule.
 - Add a row to the tables above in the same PR that starts using it.
 
@@ -54,4 +55,4 @@ All of these except the first three rows were chosen as the most installed skill
 npx skills add <owner/repo@skill> -g -y -a claude-code
 ```
 
-Run it once per skill; several skills in one call are not installed.
+Run it once per skill. When several skills were passed in one call, only the first was installed in our test (cause not investigated).
