@@ -29,6 +29,8 @@ test-scripts: ## Tests of the repo scripts and hooks
 	scripts/test-check-commit-msg.sh
 	scripts/test-check-branch-name.sh
 	scripts/test-block-dangerous-git.sh
+	scripts/test-format-after-edit.sh
+	scripts/test-stop-checks.sh
 	scripts/test-check-review.sh
 	scripts/test-check-test-scope.sh
 	scripts/test-check-coverage.sh
