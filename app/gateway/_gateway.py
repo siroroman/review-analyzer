@@ -94,11 +94,13 @@ class Gateway:
                 response = client.call(operation, request)
             except ClientError as failure:
                 self._settle_failure(
-                    reservation, service, operation, run_id, started, failure.kind, failure.usage
+                    reservation, estimate, service, operation, run_id, started, failure.kind, failure.usage
                 )
                 raise
             except Exception:
-                self._settle_failure(reservation, service, operation, run_id, started, "error", None)
+                self._settle_failure(
+                    reservation, estimate, service, operation, run_id, started, "error", None
+                )
                 raise
             try:
                 cost, error_kind = estimate_cost(response.usage), None
@@ -142,6 +144,7 @@ class Gateway:
     def _settle_failure(
         self,
         reservation: Reservation,
+        estimate: Decimal,
         service: str,
         operation: str,
         run_id: str,
@@ -149,8 +152,17 @@ class Gateway:
         error_kind: str,
         charged: Usage | None,
     ) -> None:
-        """Book what the provider charged for a failed call (nothing when unknown) and log it."""
-        cost = _ZERO if charged is None else estimate_cost(charged)
+        """Book what the provider charged for a failed call (nothing when unknown) and log it.
+
+        A charge that cannot be priced is booked at the estimate and logged `unknown_price`, like an
+        unpriced response: the reservation is always released and the call always logged.
+        """
+        cost = _ZERO
+        if charged is not None:
+            try:
+                cost = estimate_cost(charged)
+            except UnknownPrice:
+                cost, error_kind = estimate, "unknown_price"
         with self._lock:
             self._budget.record(reservation, cost)
             self._log(service, operation, run_id, "failed", cost, charged, started, error_kind)
