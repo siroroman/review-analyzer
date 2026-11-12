@@ -1,6 +1,6 @@
 """Storage: repositories of Companies, Reviews, Taxonomies, Runs, results and the Call log."""
 
-from app.storage._storage import Storage, in_memory_storage
+from app.storage._storage import Storage, in_memory_storage, postgres_storage
 from app.storage._types import (
     CallFilter,
     CompanyRepo,
@@ -33,4 +33,5 @@ __all__ = [
     "UnknownPlace",
     "UnknownRun",
     "in_memory_storage",
+    "postgres_storage",
 ]

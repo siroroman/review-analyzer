@@ -10,6 +10,16 @@ from app.storage._memory import (
     MemoryServiceCalls,
     MemoryTaxonomies,
 )
+from app.storage._postgres import (
+    PostgresCompanies,
+    PostgresInsights,
+    PostgresReviews,
+    PostgresRuns,
+    PostgresServiceCalls,
+    PostgresTaxonomies,
+    PostgresTrends,
+    connect,
+)
 from app.storage._types import (
     CompanyRepo,
     InsightRepo,
@@ -48,4 +58,19 @@ def in_memory_storage(clock: Clock) -> Storage:
         trends=MemoryResults[TrendPoint](runs),
         calls=MemoryServiceCalls(),
         close=lambda: None,
+    )
+
+
+def postgres_storage(dsn: str, clock: Clock) -> Storage:
+    """Connect to the PostgreSQL database `dsn`, bring its schema up to date and return the repositories."""
+    db = connect(dsn)
+    return Storage(
+        companies=PostgresCompanies(db),
+        reviews=PostgresReviews(db),
+        taxonomies=PostgresTaxonomies(db),
+        runs=PostgresRuns(db, clock),
+        insights=PostgresInsights(db),
+        trends=PostgresTrends(db),
+        calls=PostgresServiceCalls(db),
+        close=db.close,
     )
