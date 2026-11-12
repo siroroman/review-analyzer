@@ -7,7 +7,7 @@ Status: **live** exists today, **planned** arrives with the named ticket.
 | Rule | Enforcer | Status |
 | --- | --- | --- |
 | No commit on `main` | `pre-commit` hook | live |
-| No secret in the repository | gitleaks in `pre-commit`; CI job | live / planned (T03) |
+| No secret in the repository | gitleaks in `pre-commit`; CI job `gitleaks` (`guards.yml`, `scripts/check-secrets.sh`) | live |
 | Conventional Commits, branch name, PR title | `commit-msg` hook, `pr-title.yml` | live |
 | No force push, push to `main`, merge or deletion by an agent | `.claude/hooks/block-dangerous-git.sh`, `deny` in `.claude/settings.json` | live |
 | No reading of `.env`, keys, `~/.ssh` | `deny` in `.claude/settings.json` | live |
@@ -18,10 +18,10 @@ Status: **live** exists today, **planned** arrives with the named ticket.
 | No `datetime.now`, `time.sleep`, `random` in `app/` | ruff rule in CI | planned (T02) |
 | Tests run only when a tested path changes (not for docs); failing tests and coverage thresholds fail the PR | `tests-passed` in CI (`tests.yml`, `scripts/check-test-scope.sh`, `scripts/check-coverage.sh`); the jobs start working with the Python and frontend skeletons; not yet required until the owner adds `tests-passed` to the ruleset (T04) | live (filter, coverage script) / planned (T02, jobs) |
 | Review before ready, findings resolved (`blocking=0`), `Skills:` line | `review-passed` in CI (`scripts/check-review.sh`); not yet a required check until the owner adds it to the ruleset (T04) | live |
-| Critical paths have tests, guardrail changes are declared | CI checks | planned (T03) |
-| PR body complete | CI check | planned (T03) |
-| `CLAUDE.md` under 3 kB, skill and agent descriptions under 700 characters | CI context-size check | planned (T03) |
-| Every `check-*.sh` has a test | `make test-scripts` in CI | planned (T03) |
+| Critical paths have tests, guardrail changes are declared | `pr-body` job in `guards.yml` (`scripts/check-critical-paths.sh`, `scripts/check-guardrail-paths.sh`) | live |
+| PR body complete | `pr-body` job in `guards.yml` (`scripts/check-pr-body.sh`) | live |
+| `CLAUDE.md` under 3 kB, skill and agent descriptions under 700 characters | `context-size` job in `guards.yml` (`scripts/check-context-size.sh`) | live |
+| Every `check-*.sh` has a test | `script-tests` job in `guards.yml` runs `make test-scripts`, which ends with `scripts/check-script-tests.sh` | live |
 | Branch protection, merge commits only, required checks | GitHub ruleset | planned (T04) |
 | Review runs in a fresh session | process rule; the only evidence is the SHA marker | process |
 | Reviewer really used the skills it names | process rule; CI only requires the `Skills:` line | process |

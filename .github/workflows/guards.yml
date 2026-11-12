@@ -1,0 +1,110 @@
+name: Guards
+
+# The checks that keep agents honest (docs/agentic-development.md, CI checks): the tests of the check scripts,
+# gitleaks, the context size, and the PR body, critical paths and guardrail paths.
+# No `paths:` filter on purpose: a workflow skipped by a filter never reports, and a required check that never
+# reports blocks the PR forever. Every job takes seconds.
+# `edited` is in the types because the PR body is what three of the checks read.
+# Each job runs the tests of its own check first, so a broken check cannot pass a PR.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+env:
+  GITLEAKS_VERSION: 8.30.1
+  # sha256 of gitleaks_<version>_linux_x64.tar.gz, from the release asset digest. Change both together.
+  GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+
+jobs:
+  script-tests:
+    name: script-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install gitleaks
+        run: |
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$archive"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/$archive" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      # Every test of every check script, and the check that each check script has one.
+      - run: make test-scripts
+
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$archive"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/$archive" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - run: scripts/test-check-secrets.sh
+      # Every commit of the PR, not only its tip: a secret removed again is still in the history.
+      - name: No secret in the commits of the PR
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: scripts/check-secrets.sh "$BASE_SHA" "$HEAD_SHA"
+
+  context-size:
+    name: context-size
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: scripts/test-check-context-size.sh
+      - run: scripts/check-context-size.sh
+
+  pr-body:
+    name: pr-body
+    # Dependabot's version bumps have no template body. A skipped job counts as passed for a required check.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - run: scripts/test-check-pr-body.sh
+      - run: scripts/test-check-critical-paths.sh
+      - run: scripts/test-check-guardrail-paths.sh
+      - name: PR body is complete
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          scripts/check-pr-body.sh "$RUNNER_TEMP/pr-body.md"
+      # `git diff` of the PR since it branched off, moved files under both paths. The list is captured first, so a
+      # failing `git diff` fails the step instead of reading as "nothing changed".
+      - name: Critical paths have tests and are named
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          changed=$(git diff --name-only --no-renames "$BASE_SHA...$HEAD_SHA")
+          scripts/check-critical-paths.sh "$RUNNER_TEMP/pr-body.md" <<< "$changed"
+      - name: Guardrail changes are declared
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          changed=$(git diff --name-only --no-renames "$BASE_SHA...$HEAD_SHA")
+          scripts/check-guardrail-paths.sh "$RUNNER_TEMP/pr-body.md" <<< "$changed"
