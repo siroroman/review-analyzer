@@ -65,7 +65,7 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 
 | Module | Public interface | What it hides | How it is tested |
 | --- | --- | --- | --- |
-| `places` | `suggest(query)`, `resolve(place_id) -> Company` | Google Places, matching a branch on Firmy.cz by name and address | fake HTTP clients, contract tests on recorded responses |
+| `places` | `suggest(query)`, `resolve(place_id) -> Place`, `branches(place) -> list[Place]`, `confirm(place_ids) -> Company`, `match_other_sources(place)` | Google Places, finding candidate branches of a chain, matching a branch on Firmy.cz by name and address; a Company is the user-confirmed set of Places, the same set is the same Company | fake HTTP clients, contract tests on recorded responses |
 | `sources` | `fetch_reviews(place, since, limit) -> list[RawReview]` | Apify actors, polling, pagination, field mapping, dates | fake Apify client, fixtures from real outputs |
 | `sanitize` | `prepare(raw) -> PreparedReviews(clean, flagged)` | removal of HTML and hidden characters, PII, deduplication (hash), prompt injection detector | pure functions, fake detector, property-based tests |
 | `taxonomy` | `get_taxonomy(industry) -> Taxonomy` | generating topics from a sample, freezing them | fake LLM port |
@@ -143,7 +143,7 @@ The main attack vector is not the input field but the reviews themselves: they a
 
 Every run has a fixed budget and its actual cost is shown on the dashboard. The monthly cap is 30 USD, per-run limits will be set after the first measurement.
 
-- **Cache:** the result for a company is reused while it is fresh (e.g. 24 h); a new run downloads only new reviews
+- **Cache:** the result for a target (a branch, or a company = the same set of branches) is reused while it is fresh (e.g. 24 h); a new run downloads only new reviews
 - **Input limits:** max. number of reviews per source and branch, max. review length
 - **Model routing:** bulk work (classification) is done by a cheap model in batches, the expensive model receives only aggregated data and samples of reviews
 - **Token savings:** prompt caching for system prompts, Batch API for non-urgent runs
@@ -157,7 +157,7 @@ A database is needed: the worker runs asynchronously, so run state, cache and al
 
 | Entity | Main fields | Purpose |
 | --- | --- | --- |
-| Company | id, name, industry | a company chosen from the autocomplete |
+| Company | id, places_key (hash of the sorted place_ids), name, industry | a set of branches confirmed by the user; the same set is the same Company |
 | Place | company_id, source, external_id, branch name, address | a branch on a specific source (Google Maps, Firmy.cz) |
 | Review | place_id, source, rating, text, date, date precision, language, hash, flagged | a review without personal data |
 | Topic | key, name, description, industry | taxonomy of topics (e.g. staff, waiting, prices) |
@@ -182,7 +182,7 @@ Three screens: search, run progress and result.
 
 ## Decisions
 
-All open questions are decided; only two things remain to be verified for Jev and the scrapers.
+All open questions are decided, except how the branches of a chain are found (research ticket #16); two things also remain to be verified for Jev and the scrapers.
 
 | Question | Decision | Consequence |
 | --- | --- | --- |
@@ -201,5 +201,6 @@ All open questions are decided; only two things remain to be verified for Jev an
 
 **Still to verify:**
 
+- [ ] Branch discovery for a chain without a company ID: Google Places text search by name, filtered by name and address, plus user confirmation; precision on 3 real companies
 - [ ] Jev: whether it handles Czech (50 real reviews labelled by a model and corrected by a human, plus about 15 synthetic injection attacks; go if sentiment agreement is at least 80 %, topics at least 70 % and no injection false negatives, otherwise Haiku only; test key limited to 5 USD) and a client for the OpenRouter Decisions API, which is not OpenAI-compatible
 - [ ] Test run: jupri/firmy and oodoow/mapy-com-ppe (date, review ID, more than 3 reviews?) and a comparison of older dates from compass with Google Maps

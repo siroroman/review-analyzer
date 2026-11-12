@@ -7,7 +7,7 @@ Turns the public reviews of a company and its branches into a dashboard: rating,
 ### What is analyzed
 
 **Company**:
-A company chosen from the autocomplete (Google Places). Owns one or more Places.
+A set of one or more Places that the user confirmed as belonging together. It has no external key: the same set of Places is the same Company.
 _Avoid_: Business, client, organization
 
 **Place**:

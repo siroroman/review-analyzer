@@ -8,7 +8,7 @@ The project has a hard monthly cost ceiling of 30 USD, and scraping and model ca
 
 ## Decision
 
-- Cache: a fresh result for a Company is reused (about 24 h); a new Run downloads only new Reviews and classifies only Reviews without a ReviewTopic for the current Taxonomy version.
+- Cache: a fresh result for a target (one Place, or a Company, which is a set of Places) is reused (about 24 h); a new Run downloads only new Reviews and classifies only Reviews without a ReviewTopic for the current Taxonomy version.
 - Budget: every Run has a cap, and there is a monthly cap of 30 USD. `budget.reserve(estimate)` runs before every paid call and `budget.record(cost)` after it. `BudgetExceeded` is never retried; the Run ends with a Partial result.
 - Input limits: maximum Reviews per Source and Place, maximum Review length.
 - Routing: classification in batches on the cheap model; the strong model sees only Metrics and samples. Prompt caching for system prompts.
