@@ -2,5 +2,16 @@
 
 from app.domain._clock import Clock, FakeClock
 from app.domain._places import Company, Place, Source
+from app.domain._reviews import DatePrecision, Rating, RawReview, Review
 
-__all__ = ["Clock", "Company", "FakeClock", "Place", "Source"]
+__all__ = [
+    "Clock",
+    "Company",
+    "DatePrecision",
+    "FakeClock",
+    "Place",
+    "Rating",
+    "RawReview",
+    "Review",
+    "Source",
+]
