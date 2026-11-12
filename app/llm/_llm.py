@@ -2,13 +2,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.domain import Clock
-from app.gateway import GatewayResponse, Tokens
+from app.gateway import ClientError, GatewayResponse, Tokens
 from app.llm._types import (
     CompletionGateway,
     CompletionRequest,
+    InvalidOutput,
     LlmConfig,
     ModelRef,
     Sleeper,
@@ -19,6 +20,11 @@ from app.llm._types import (
 )
 
 _OPERATION = "complete"
+# Appended to the caller's prompt on the repair retry. It never repeats the invalid answer or the
+# validation error: both can carry text of an untrusted Review.
+_REPAIR = (
+    "\n\nYour previous answer was not valid JSON for the requested schema. Answer again with only the JSON."
+)
 
 
 @dataclass(frozen=True)
@@ -74,18 +80,44 @@ class Llm:
         if route is None:
             raise UnknownTask(task)
         ask = _Ask(task, prompt, schema, run_id, system, cache_system)
-        return self._ask_model(ask, route.primary)
+        try:
+            return self._ask_model(ask, route.primary)
+        except (ClientError, InvalidOutput):
+            if route.fallback is None:
+                raise
+        return self._ask_model(ask, route.fallback)
 
     def _ask_model[T: BaseModel](self, ask: _Ask[T], model: ModelRef) -> T:
-        request = CompletionRequest(
-            model.model, ask.prompt, ask.system, ask.cache_system, ask.schema.model_json_schema()
-        )
-        started = self._clock.now()
-        response = self._gateway.call(model.service, _OPERATION, request, run_id=ask.run_id)
-        text = response.payload if isinstance(response.payload, str) else ""
-        result = ask.schema.model_validate_json(text)
-        self._trace(ask.task, model, started, "ok", response)
-        return result
+        """Call one model with retries on retryable failures and one repair retry on invalid output."""
+        prompt = ask.prompt
+        retries = 0
+        repaired = False
+        while True:
+            request = CompletionRequest(
+                model.model, prompt, ask.system, ask.cache_system, ask.schema.model_json_schema()
+            )
+            started = self._clock.now()
+            try:
+                response = self._gateway.call(model.service, _OPERATION, request, run_id=ask.run_id)
+            except ClientError as failure:
+                self._trace(ask.task, model, started, "error", None)
+                if failure.kind not in self._config.retryable_kinds or retries >= self._config.max_retries:
+                    raise
+                self._sleeper.sleep(self._config.backoff * 2**retries)
+                retries += 1
+                continue
+            text = response.payload if isinstance(response.payload, str) else ""
+            try:
+                result = ask.schema.model_validate_json(text)
+            except ValidationError as invalid:
+                self._trace(ask.task, model, started, "invalid", response)
+                if repaired:
+                    raise InvalidOutput(ask.task, model.model) from invalid
+                repaired = True
+                prompt = ask.prompt + _REPAIR
+                continue
+            self._trace(ask.task, model, started, "ok", response)
+            return result
 
     def _trace(
         self,
