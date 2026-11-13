@@ -14,7 +14,8 @@ _PERSONAL_DATA = re.compile(
 )
 _INSULT = re.compile(
     r"\b(?:idiot\w*|moron\w*|imbecil\w*|debil\w*|blb(?:ec|ci|ce)\b|kret[eé]n\w*|čurák\w*|"
-    r"dement\w*|retard\w*)",
+    r"dement\w*|retard\w*|v[ůu]l\b|vole\b|vol[ůu]\w*|hovad\w*|hovn\w*|kokot\w*|zmrd\w*|"
+    r"p[ií]č\w*|kr[aá]v(?:a|y|u|o|ě|e|ám|ách|ami)\b|pr[aá]sa\w*|prase\b|svin\w*|zm[ií]t\w*|debil\w*)",
     re.IGNORECASE,
 )
 

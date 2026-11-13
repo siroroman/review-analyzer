@@ -17,6 +17,12 @@ SAMPLES = [review("r1")]
         "The staff are idiots.",
         "Obsluha jsou blbci.",
         "Manager is a total IDIOT.",
+        "Ty vole, hovada.",
+        "Obsluha jsou krávy.",
+        "Majitel je kokot.",
+        "Ti zmrdi nás ignorovali.",
+        "Ta píča se ani nepozdravila.",
+        "Ten vůl nás vyhodil.",
     ],
 )
 def test_personal_data_and_insults_are_removed_and_counted(text: str) -> None:
@@ -27,6 +33,12 @@ def test_personal_data_and_insults_are_removed_and_counted(text: str) -> None:
     assert [i.text for i in result.insights] == ["Waiting got longer."]
     assert result.removed == 1
     assert result.dropped == 0
+
+
+def test_clean_czech_words_that_look_like_insults_pass() -> None:
+    gen, _ = setup(answer(item("Kravata personálu chyběla, volání trvalo dlouho, vlak jel pozdě.", ["r1"])))
+
+    assert gen.generate(metrics(), SAMPLES, run_id=RUN).removed == 0
 
 
 def test_clean_czech_text_passes() -> None:
