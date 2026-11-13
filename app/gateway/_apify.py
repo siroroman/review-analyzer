@@ -120,9 +120,12 @@ class ApifyClient:
         try:
             response = self._transport.send(request)
         except HttpTimeout:
-            raise ClientTimeout() from None
+            # The run goes on at Apify and is billed per Review: book the most it can cost.
+            raise ClientTimeout(Units(SERVICE, _UNIT, asked.limit)) from None
         except HttpError:
             raise ClientError("connection_error") from None
+        if response.status == 408:  # Apify's own sync-run timeout: the run is still billed
+            raise ClientError("timeout", Units(SERVICE, _UNIT, asked.limit))
         if response.status not in (200, 201):
             raise ClientError(error_kind(response.status))
         try:
