@@ -203,16 +203,16 @@ Three screens for users (search, run progress and result) and one admin screen f
 
 ## Decisions
 
-All open questions are decided, except how the branches of a chain are found (research ticket #16); two things also remain to be verified for Jev and the scrapers.
+All open questions are decided, except how the branches of a chain are found and whether Firmy.cz may be a Source (research ticket #16, terms of use not read yet); two things also remain to be verified for Jev and the scrapers.
 
 | Question | Decision | Consequence |
 | --- | --- | --- |
 | Fast model | [Jev 1.14 by TypeSafe AI](https://typesafe.ai/blog/introducing-system-one-models-and-jev) via the [OpenRouter](https://openrouter.ai/typesafe/jev-1.14) Decisions API, fallback Claude Haiku | classification of topics and sentiment and prompt injection detection; typed output, $0.042 per 1M input tokens, output free, latency about 0.12 s; we do not use Jev Router (automatic LLM choice), routing is in code |
 | Backend | Python + FastAPI | API and worker in one image |
 | Topic taxonomy | generated per industry | an LLM proposes topics from a sample of reviews once per industry, then they are frozen and JEV classifies every review into them |
-| Autocomplete | Google Places Autocomplete (New) | place_id goes straight to the Google Maps scraper; a branch on Firmy.cz is matched by name and address; Mapy.com dropped out |
-| Firmy.cz | an Apify actor first, our own scraper if there are problems | no actor documents reviews with a date; we will test [jupri/firmy](https://apify.com/jupri/firmy) and [oodoow/mapy-com-ppe](https://apify.com/oodoow/mapy-com-ppe); anonymously only 3 reviews per company are visible, terms of use still need to be resolved |
-| Review dates | a scraper with an exact date | Google Maps: [compass/google-maps-reviews-scraper](https://apify.com/compass/google-maps-reviews-scraper) (field publishedAtDate in ISO, filter reviewsStartDate), deduplication by reviewId; Firmy.cz shows an exact date, the actor needs to be verified |
+| Autocomplete | Google Places Autocomplete (New) | place_id goes straight to the Google Maps scraper; a branch on Firmy.cz is matched by name and address; Mapy.com dropped out as an autocomplete source |
+| Firmy.cz | **Candidate, not decided** (go/no-go after the terms of use are read). Technically feasible with [oodoow/mapy-com-ppe](https://apify.com/oodoow/mapy-com-ppe) (Mapy.com serves the Firmy.cz profiles: the Place id equals the Firmy.cz detail id); jupri/firmy is not used (it needs full access to the Apify account) | tested 2026-11-13 on 3 Places: all Reviews are returned (165 to 329), each with an ISO date and rating, but **no review ID** (the adapter derives one by hashing date, reviewer and text), the rating is on a 0-100 scale (convert to 1-5) and the same Place can come back several times in one run (deduplicate by Place id). The terms of use were not read, so the owner decides go/no-go; see `docs/research/firmy-cz-branch-discovery-and-fixtures.md` |
+| Review dates | a scraper with an exact date | Google Maps: [compass/google-maps-reviews-scraper](https://apify.com/compass/google-maps-reviews-scraper) (field publishedAtDate in ISO, filter reviewsStartDate), deduplication by reviewId; Firmy.cz via mapy-com-ppe gives an ISO `date` (day precision, fixed +01:00 offset). Tested 2026-11-13: compass `publishedAtDate` has milliseconds and is probably computed from the relative text, so the exactness of old dates is not proven |
 | Budget | up to 30 USD per month | set spending limits in Apify and in the API keys accordingly |
 | Code architecture | deep modules with a clear interface, external services only behind ports | every module is tested in isolation with fake dependencies |
 | Tests and coverage | coverage of at least 90 % (branches and lines), diff coverage 90 %, checked in CI | a merge is blocked when coverage is lower |
