@@ -100,7 +100,7 @@ class OpenRouterClient:
     ) -> str:
         answers = body.get("answers")
         if not isinstance(answers, dict):
-            raise ClientError("bad_response")
+            raise ClientError("bad_response", usage)
         result: dict[str, object] = {}
         for name, question in questions.items():
             answer = answers.get(name)

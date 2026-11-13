@@ -196,3 +196,13 @@ def test_a_malformed_noul_answer_is_a_bad_response(answer: object) -> None:
     with pytest.raises(ClientError) as failure:
         adapter.call("complete", request())
     assert failure.value.kind == "bad_response"
+
+
+@pytest.mark.parametrize("answers", ["null", "[]", '"x"'])
+def test_a_charged_call_without_usable_answers_still_books_its_usage(answers: str) -> None:
+    body = f'{{"answers": {answers}, "usage": {{"input_tokens": 1200, "output_tokens": 3}}}}'.encode()
+    adapter, _ = client(HttpResponse(200, body))
+    with pytest.raises(ClientError) as failure:
+        adapter.call("complete", request())
+    assert failure.value.kind == "bad_response"
+    assert failure.value.usage == Tokens("openrouter", "jev-1.14", 1200, 3)

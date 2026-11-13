@@ -110,3 +110,65 @@ def test_a_refused_connection_to_a_closed_port_is_not_a_timeout() -> None:
     with pytest.raises(HttpError) as failure:
         UrllibTransport().send(post(f"http://127.0.0.1:{port}/x", timeout=1))
     assert not isinstance(failure.value, HttpTimeout)
+
+
+def test_garbage_instead_of_http_is_an_http_error() -> None:
+    import socket
+
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+
+    def serve() -> None:
+        conn, _ = listener.accept()
+        conn.recv(4096)
+        conn.sendall(b"garbage\r\n\r\n")
+        conn.close()
+
+    threading.Thread(target=serve, daemon=True).start()
+    try:
+        with pytest.raises(HttpError):
+            UrllibTransport().send(post(f"http://127.0.0.1:{port}/x", timeout=2))
+    finally:
+        listener.close()
+
+
+def test_a_redirect_is_returned_and_never_followed_so_keys_stay_put() -> None:
+    seen: list[str] = []
+
+    class Target(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            seen.append(self.headers.get("Authorization", ""))
+            self.send_response(200)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+            return
+
+    target = HTTPServer(("127.0.0.1", 0), Target)
+    threading.Thread(target=target.serve_forever, daemon=True).start()
+    location = f"http://127.0.0.1:{target.server_port}/stolen"
+
+    class Redirector(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            self.send_response(302)
+            self.send_header("Location", location)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+            return
+
+    redirector = HTTPServer(("127.0.0.1", 0), Redirector)
+    threading.Thread(target=redirector.serve_forever, daemon=True).start()
+    try:
+        request = HttpRequest(
+            "POST", f"http://127.0.0.1:{redirector.server_port}/", {"Authorization": "Bearer k"}, b"x", 2
+        )
+        assert UrllibTransport().send(request).status == 302
+        assert seen == []
+    finally:
+        redirector.shutdown()
+        target.shutdown()
