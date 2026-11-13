@@ -1,0 +1,22 @@
+{
+  "suggestions": [
+    {
+      "placePrediction": {
+        "place": "places/ChIJ_RjZFHvsC0cRk0DRRqTuJlA",
+        "placeId": "ChIJ_RjZFHvsC0cRk0DRRqTuJlA",
+        "text": {"text": "Globus Hypermarket, Kostelecká, Praha-Čakovice, Česko"},
+        "types": ["supermarket", "establishment"]
+      }
+    },
+    {
+      "queryPrediction": {"text": {"text": "globus hypermarket praha"}}
+    },
+    {
+      "placePrediction": {
+        "place": "places/ChIJcYfUFDm1ckcRizeMvL_POzQ",
+        "placeId": "ChIJcYfUFDm1ckcRizeMvL_POzQ",
+        "text": {"text": "CAMP VELO, Vratěnín, Česko"}
+      }
+    }
+  ]
+}
