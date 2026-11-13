@@ -2,20 +2,42 @@
   "suggestions": [
     {
       "placePrediction": {
-        "place": "places/ChIJ_RjZFHvsC0cRk0DRRqTuJlA",
         "placeId": "ChIJ_RjZFHvsC0cRk0DRRqTuJlA",
-        "text": {"text": "Globus Hypermarket, Kostelecká, Praha-Čakovice, Česko"},
-        "types": ["supermarket", "establishment"]
+        "text": {
+          "text": "Globus Hypermarket, Kostelecká, Praha-Čakovice"
+        }
       }
     },
     {
-      "queryPrediction": {"text": {"text": "globus hypermarket praha"}}
+      "placePrediction": {
+        "placeId": "ChIJ-1MNFg2-C0cRXyQmrJxu0o0",
+        "text": {
+          "text": "Globus Hypermarket, Zličín"
+        }
+      }
     },
     {
       "placePrediction": {
-        "place": "places/ChIJcYfUFDm1ckcRizeMvL_POzQ",
-        "placeId": "ChIJcYfUFDm1ckcRizeMvL_POzQ",
-        "text": {"text": "CAMP VELO, Vratěnín, Česko"}
+        "placeId": "ChIJJQOrL4qTC0cRZwhAPs8W0c0",
+        "text": {
+          "text": "Globus Hypermarket, Nákupní, Štěrboholy"
+        }
+      }
+    },
+    {
+      "placePrediction": {
+        "placeId": "ChIJL57JFF_tC0cREbKEGwlP04k",
+        "text": {
+          "text": "Globus Hypermarket, Chlumecká, Praha 14-Černý Most"
+        }
+      }
+    },
+    {
+      "placePrediction": {
+        "placeId": "ChIJo7L37sKECUcRoGgNy16plCM",
+        "text": {
+          "text": "Globus Hypermarket, Tyršova, Trmice"
+        }
       }
     }
   ]

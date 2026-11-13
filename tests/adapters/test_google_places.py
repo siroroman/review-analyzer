@@ -21,8 +21,8 @@ from tests.adapters.helpers import body_of, fixture
 
 KEY = "not-a-real-key"
 RECORDED = Path(__file__).parents[1] / "fixtures" / "places" / "2026-11-13-text-search-globus.json"
-# The autocomplete and details fixtures are written from the Places API (New) reference, not recorded;
-# the text search ones are cut from the real response recorded on 2026-11-13.
+# Recorded on 2026-11-13: autocomplete and details are the raw answers for "Globus Hypermarket"; the text
+# search ones are cut from the raw response of the same day.
 
 
 def client(*steps: HttpResponse | HttpError) -> tuple[GooglePlacesClient, FakeTransport]:
@@ -30,14 +30,23 @@ def client(*steps: HttpResponse | HttpError) -> tuple[GooglePlacesClient, FakeTr
     return GooglePlacesClient(SecretStr(KEY), transport), transport
 
 
-def test_autocomplete_keeps_only_place_predictions() -> None:
+def test_autocomplete_is_a_suggestion_per_place_prediction() -> None:
     adapter, _ = client(fixture("google_places_autocomplete_ok.json"))
-    response = adapter.call("autocomplete", AutocompleteRequest("globus"))
+    response = adapter.call("autocomplete", AutocompleteRequest("Globus Hypermarket"))
     assert response.payload == (
-        Suggestion("ChIJ_RjZFHvsC0cRk0DRRqTuJlA", "Globus Hypermarket, Kostelecká, Praha-Čakovice, Česko"),
-        Suggestion("ChIJcYfUFDm1ckcRizeMvL_POzQ", "CAMP VELO, Vratěnín, Česko"),
+        Suggestion("ChIJ_RjZFHvsC0cRk0DRRqTuJlA", "Globus Hypermarket, Kostelecká, Praha-Čakovice"),
+        Suggestion("ChIJ-1MNFg2-C0cRXyQmrJxu0o0", "Globus Hypermarket, Zličín"),
+        Suggestion("ChIJJQOrL4qTC0cRZwhAPs8W0c0", "Globus Hypermarket, Nákupní, Štěrboholy"),
+        Suggestion("ChIJL57JFF_tC0cREbKEGwlP04k", "Globus Hypermarket, Chlumecká, Praha 14-Černý Most"),
+        Suggestion("ChIJo7L37sKECUcRoGgNy16plCM", "Globus Hypermarket, Tyršova, Trmice"),
     )
     assert response.usage == Units("google_places", "autocomplete_request", 1)
+
+
+def test_autocomplete_skips_a_query_prediction() -> None:
+    body = b'{"suggestions": [{"queryPrediction": {"text": {"text": "globus praha"}}}]}'
+    adapter, _ = client(HttpResponse(200, body))
+    assert adapter.call("autocomplete", AutocompleteRequest("globus")).payload == ()
 
 
 def test_autocomplete_without_suggestions_is_empty() -> None:
@@ -63,7 +72,7 @@ def test_details_is_a_place_on_google_maps() -> None:
         source=Source.GOOGLE_MAPS,
         external_id="ChIJ_RjZFHvsC0cRk0DRRqTuJlA",
         name="Globus Hypermarket",
-        address="Kostelecká 823, 196 00 Praha-Čakovice",
+        address="Kostelecká 823, 196 00 Praha-Čakovice, Česko",
     )
     assert response.usage == Units("google_places", "details_request", 1)
     sent = transport.requests[0]
