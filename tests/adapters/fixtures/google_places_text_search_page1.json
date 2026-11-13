@@ -1,0 +1,41 @@
+{
+  "places": [
+    {
+      "id": "ChIJJQOrL4qTC0cRZwhAPs8W0c0",
+      "formattedAddress": "Nákupní 389/3, 102 00 Praha-Štěrboholy",
+      "location": {
+        "latitude": 50.0723152,
+        "longitude": 14.542918399999998
+      },
+      "displayName": {
+        "text": "Globus Hypermarket",
+        "languageCode": "cs"
+      }
+    },
+    {
+      "id": "ChIJ_RjZFHvsC0cRk0DRRqTuJlA",
+      "formattedAddress": "Kostelecká 823, 196 00 Praha-Čakovice",
+      "location": {
+        "latitude": 50.1512616,
+        "longitude": 14.506008900000001
+      },
+      "displayName": {
+        "text": "Globus Hypermarket",
+        "languageCode": "cs"
+      }
+    },
+    {
+      "id": "ChIJ-1MNFg2-C0cRXyQmrJxu0o0",
+      "formattedAddress": "Sárská 5/133 Praha 13, 155 00 Praha-Zličín",
+      "location": {
+        "latitude": 50.052936599999995,
+        "longitude": 14.297119599999998
+      },
+      "displayName": {
+        "text": "Globus Hypermarket",
+        "languageCode": "cs"
+      }
+    }
+  ],
+  "nextPageToken": "page-2-token"
+}

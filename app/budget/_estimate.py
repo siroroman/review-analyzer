@@ -15,6 +15,7 @@ _UNIT_PRICES: dict[tuple[str, str], Decimal] = {
     ("apify", "firmy_item"): Decimal("0.001"),
     ("google_places", "autocomplete_request"): Decimal("0.00283"),
     ("google_places", "details_request"): Decimal("0.017"),
+    ("google_places", "text_search_request"): Decimal("0.032"),
 }
 
 _MILLION = Decimal(1_000_000)
