@@ -144,3 +144,15 @@ def test_estimate_is_priced_by_model_and_leaves_room_for_the_whole_answer() -> N
 def test_the_key_is_never_in_the_adapter_repr() -> None:
     adapter, _ = client()
     assert KEY not in repr(adapter) and KEY not in str(adapter.__dict__)
+
+
+def test_a_non_positive_output_limit_is_refused() -> None:
+    with pytest.raises(ValueError, match="max_output_tokens"):
+        AnthropicClient(SecretStr(KEY), FakeTransport(), MODELS, max_output_tokens=0)
+
+
+def test_an_answer_without_usage_is_a_bad_response() -> None:
+    adapter, _ = client(HttpResponse(200, b'{"content": [{"type": "text", "text": "x"}], "usage": 5}'))
+    with pytest.raises(ClientError) as failure:
+        adapter.call("complete", request())
+    assert failure.value.kind == "bad_response"

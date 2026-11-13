@@ -99,3 +99,14 @@ def test_a_missing_secret_names_the_setting(environ: dict[str, str]) -> None:
 def test_a_request_never_shows_headers_or_body_in_its_repr() -> None:
     request = HttpRequest("POST", "https://x.test", {"Authorization": "Bearer sk-1"}, b"body-text", 1)
     assert "sk-1" not in repr(request) and "body-text" not in repr(request)
+
+
+def test_a_refused_connection_to_a_closed_port_is_not_a_timeout() -> None:
+    import socket
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    with pytest.raises(HttpError) as failure:
+        UrllibTransport().send(post(f"http://127.0.0.1:{port}/x", timeout=1))
+    assert not isinstance(failure.value, HttpTimeout)

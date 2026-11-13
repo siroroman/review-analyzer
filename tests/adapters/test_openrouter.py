@@ -161,3 +161,38 @@ def test_estimate_counts_the_prompt_and_prices_in_the_budget_table() -> None:
 def test_the_key_is_never_in_the_adapter_repr() -> None:
     adapter, _ = client()
     assert KEY not in repr(adapter) and KEY not in str(adapter.__dict__)
+
+
+@pytest.mark.parametrize(
+    "schema", [{}, {"properties": {}}, {"properties": {"a": "x"}}, {"properties": {"a": {"type": "integer"}}}]
+)
+def test_a_schema_without_askable_fields_is_unsupported(schema: dict[str, object]) -> None:
+    adapter, transport = client()
+    asked = CompletionRequest("jev-1.14", "x", None, False, schema)
+    with pytest.raises(ClientError) as failure:
+        adapter.call("complete", asked)
+    assert failure.value.kind == "unsupported_schema"
+    assert transport.requests == []
+
+
+@pytest.mark.parametrize(
+    "answer",
+    ["text", {"type": "choice", "choice": 3}, {"type": "choice"}],
+)
+def test_a_malformed_choice_answer_is_a_bad_response(answer: object) -> None:
+    body = json.loads(fixture("openrouter_decisions_ok.json").body)
+    body["answers"]["sentiment"] = answer
+    adapter, _ = client(HttpResponse(200, json.dumps(body).encode()))
+    with pytest.raises(ClientError) as failure:
+        adapter.call("complete", request())
+    assert failure.value.kind == "bad_response"
+
+
+@pytest.mark.parametrize("answer", [{"type": "noul", "noul": "high"}, {"type": "noul", "noul": True}])
+def test_a_malformed_noul_answer_is_a_bad_response(answer: object) -> None:
+    body = json.loads(fixture("openrouter_decisions_ok.json").body)
+    body["answers"]["injection"] = answer
+    adapter, _ = client(HttpResponse(200, json.dumps(body).encode()))
+    with pytest.raises(ClientError) as failure:
+        adapter.call("complete", request())
+    assert failure.value.kind == "bad_response"
