@@ -1,0 +1,95 @@
+[
+  {
+    "id": 13502193,
+    "title": "CAMP VELO",
+    "city": "Vratěnín",
+    "rating": 4.9,
+    "reviewCount": 241,
+    "reviews": [
+      {
+        "reviewer": "Reviewer 1",
+        "rating": 100,
+        "date": "2026-09-28T18:02:54+01:00",
+        "text": "Anonymized review text 1.",
+        "originalLanguage": "cs"
+      },
+      {
+        "reviewer": "Reviewer 2",
+        "rating": 90,
+        "date": "2026-07-06T09:49:41+01:00",
+        "text": "Anonymized review text 2.",
+        "originalLanguage": "cs"
+      },
+      {
+        "reviewer": "Reviewer 3",
+        "rating": 100,
+        "date": "2026-07-12T06:46:12+01:00",
+        "text": "Anonymized review text 3.",
+        "originalLanguage": "cs"
+      },
+      {
+        "reviewer": "Reviewer 4",
+        "rating": 100,
+        "date": "2026-09-29T12:24:05+01:00",
+        "text": "Anonymized review text 4.",
+        "originalLanguage": "cs"
+      },
+      {
+        "reviewer": "Reviewer 5",
+        "rating": 100,
+        "date": "2026-09-20T14:44:25+01:00",
+        "text": "Anonymized review text 5.",
+        "originalLanguage": "cs"
+      },
+      {
+        "reviewer": "Reviewer 6",
+        "rating": 100,
+        "date": "2026-08-25T10:21:14+01:00",
+        "text": "Anonymized review text 6.",
+        "originalLanguage": "cs"
+      },
+      {
+        "reviewer": "Reviewer 7",
+        "rating": 100,
+        "date": "2026-05-15T14:34:26+01:00",
+        "text": "Anonymized review text 7.",
+        "originalLanguage": "cs"
+      },
+      {
+        "reviewer": "Reviewer 8",
+        "rating": 100,
+        "date": "2026-08-23T23:17:52+01:00",
+        "text": "Anonymized review text 8.",
+        "originalLanguage": "cs"
+      },
+      {
+        "reviewer": "Reviewer 9",
+        "rating": 100,
+        "date": "2026-05-08T17:11:12+01:00",
+        "text": "Anonymized review text 9.",
+        "originalLanguage": "cs"
+      },
+      {
+        "reviewer": "Reviewer 10",
+        "rating": 100,
+        "date": "2026-07-26T12:19:39+01:00",
+        "text": "",
+        "originalLanguage": ""
+      },
+      {
+        "reviewer": "Reviewer 11",
+        "rating": 40,
+        "date": "2026-07-19T14:32:34+01:00",
+        "text": "Anonymized review text 11.",
+        "originalLanguage": "cs"
+      },
+      {
+        "reviewer": "Reviewer 12",
+        "rating": 100,
+        "date": "2026-06-07T22:54:48+01:00",
+        "text": "Anonymized review text 12.",
+        "originalLanguage": "cs"
+      }
+    ]
+  }
+]

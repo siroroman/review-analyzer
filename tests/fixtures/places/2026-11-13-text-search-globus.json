@@ -1,0 +1,182 @@
+[
+  {
+    "id": "ChIJJQOrL4qTC0cRZwhAPs8W0c0",
+    "formattedAddress": "Nákupní 389/3, 102 00 Praha-Štěrboholy",
+    "location": {
+      "latitude": 50.0723152,
+      "longitude": 14.542918399999998
+    },
+    "displayName": {
+      "text": "Globus Hypermarket",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJ_RjZFHvsC0cRk0DRRqTuJlA",
+    "formattedAddress": "Kostelecká 823, 196 00 Praha-Čakovice",
+    "location": {
+      "latitude": 50.1512616,
+      "longitude": 14.506008900000001
+    },
+    "displayName": {
+      "text": "Globus Hypermarket",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJ-1MNFg2-C0cRXyQmrJxu0o0",
+    "formattedAddress": "Sárská 5/133 Praha 13, 155 00 Praha-Zličín",
+    "location": {
+      "latitude": 50.052936599999995,
+      "longitude": 14.297119599999998
+    },
+    "displayName": {
+      "text": "Globus Hypermarket",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJL57JFF_tC0cREbKEGwlP04k",
+    "formattedAddress": "Chlumecká 765/6, Černý Most, 198 00 Praha-Praha 14",
+    "location": {
+      "latitude": 50.108029800000004,
+      "longitude": 14.5853593
+    },
+    "displayName": {
+      "text": "Globus Hypermarket",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJuX_Qd8KVC0cROFfVTancC5E",
+    "formattedAddress": "Petržílkova 2706/30, 158 00 Praha-Praha 13",
+    "location": {
+      "latitude": 50.0510722,
+      "longitude": 14.3435291
+    },
+    "displayName": {
+      "text": "Globus Fresh Stodůlky",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJxzMxFrm_C0cRyoVg2BBv2ks",
+    "formattedAddress": "Makovského 1330/34, 163 00 Praha 17-Řepy",
+    "location": {
+      "latitude": 50.0660622,
+      "longitude": 14.3009292
+    },
+    "displayName": {
+      "text": "Globus Fresh Řepy",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJVZXON32TC0cRuJxYnwtAGJ8",
+    "formattedAddress": "Nákupní 389/3, 102 00 Praha-Praha-Štěrboholy",
+    "location": {
+      "latitude": 50.0723152,
+      "longitude": 14.542918399999998
+    },
+    "displayName": {
+      "text": "Restaurace Globus",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJ_RjZFHvsC0cRBfDx2WP426k",
+    "formattedAddress": "Kostelecká 822/75, 196 00 Praha-Praha-Čakovice",
+    "location": {
+      "latitude": 50.15072190000001,
+      "longitude": 14.504976099999999
+    },
+    "displayName": {
+      "text": "Restaurace Globus",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJCdkyInO-C0cRQxDu8B7-7H8",
+    "formattedAddress": "Sárská 133/5, 155 00 Praha-Zličín",
+    "location": {
+      "latitude": 50.0521525,
+      "longitude": 14.2931432
+    },
+    "displayName": {
+      "text": "Globus čerpací stanice",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJU-dupmvtC0cRgsu_te-o5HU",
+    "formattedAddress": "Kostelecká 823, 196 00 Praha-Čakovice",
+    "location": {
+      "latitude": 50.1512513,
+      "longitude": 14.505601200000001
+    },
+    "displayName": {
+      "text": "Cakovice Globus",
+      "languageCode": "ru"
+    }
+  },
+  {
+    "id": "ChIJdTHG8FvtC0cRdyB8zIozDcs",
+    "formattedAddress": "Chlumecká 765/6, Černý Most, 198 19 Praha-Praha 14",
+    "location": {
+      "latitude": 50.1079936,
+      "longitude": 14.581658099999999
+    },
+    "displayName": {
+      "text": "Westfield Černý Most",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJHxuW4nK-C0cRLEPh895UMFY",
+    "formattedAddress": "7, Sárská 124, 155 00 Praha-Zličín",
+    "location": {
+      "latitude": 50.052667899999996,
+      "longitude": 14.2923903
+    },
+    "displayName": {
+      "text": "Globus CR K.s.",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJizLrvX7sC0cR4HWabsYq2YM",
+    "formattedAddress": "Kostelecká 823/77, 196 00 Praha-Praha-Čakovice",
+    "location": {
+      "latitude": 50.1510776,
+      "longitude": 14.5111127
+    },
+    "displayName": {
+      "text": "Globus čerpací stanice",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJd3WqR5eTC0cRUz-s3L4l5yo",
+    "formattedAddress": "Hrudičkova 13, 148 00 Praha 11-Chodov",
+    "location": {
+      "latitude": 50.034299399999995,
+      "longitude": 14.478592999999998
+    },
+    "displayName": {
+      "text": "Potraviny-PhuVanNgo",
+      "languageCode": "cs"
+    }
+  },
+  {
+    "id": "ChIJo7L37sKECUcRoGgNy16plCM",
+    "formattedAddress": "Tyršova 869, 400 04 Trmice",
+    "location": {
+      "latitude": 50.6510967,
+      "longitude": 14.0012988
+    },
+    "displayName": {
+      "text": "Globus Hypermarket",
+      "languageCode": "cs"
+    }
+  }
+]
