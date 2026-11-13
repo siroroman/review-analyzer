@@ -1,6 +1,7 @@
 """Places: autocomplete, branches of a chain and the user-confirmed set of Places that is a Company."""
 
 from app.places._google import SERVICE, GooglePlacesClient
+from app.places._places import Places
 from app.places._types import (
     AutocompleteRequest,
     DetailsRequest,
@@ -26,6 +27,7 @@ __all__ = [
     "OtherSourceSearch",
     "OtherSourceUnavailable",
     "PlaceNotFound",
+    "Places",
     "PlacesUnavailable",
     "Suggestion",
     "TextSearchRequest",

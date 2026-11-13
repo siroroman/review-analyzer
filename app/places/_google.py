@@ -7,9 +7,8 @@ from typing import Any
 
 from pydantic import SecretStr, ValidationError
 
-from app.budget import Units
 from app.domain import Place, Source
-from app.gateway import ClientError, ClientResponse, ClientTimeout, Usage
+from app.gateway import ClientError, ClientResponse, ClientTimeout, Units, Usage
 from app.places._types import AutocompleteRequest, DetailsRequest, GooglePage, Suggestion, TextSearchRequest
 from app.transport import HttpError, HttpRequest, HttpResponse, HttpTimeout, HttpTransport
 
