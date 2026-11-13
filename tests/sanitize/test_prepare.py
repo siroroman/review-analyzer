@@ -122,6 +122,12 @@ def test_same_external_id_on_another_source_is_kept() -> None:
     assert len(result.clean) == 2
 
 
+def test_same_external_id_at_another_place_is_a_duplicate() -> None:
+    result = prepare([raw("Jedna", "r1", place="p1"), raw("Dvě", "r1", place="p2")], FakeInjectionDetector())
+    assert [r.text for r in result.clean] == ["Jedna"]
+    assert result.duplicates == 1
+
+
 def test_same_text_hash_is_deduplicated() -> None:
     result = prepare([raw("Skvělé!", "r1"), raw("  skvělé!  ", "r2")], FakeInjectionDetector())
     assert [r.external_id for r in result.clean] == ["r1"]

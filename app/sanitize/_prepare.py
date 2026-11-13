@@ -16,12 +16,12 @@ def prepare(raw: Sequence[RawReview], detector: InjectionDetector) -> PreparedRe
     """Turn Raw Reviews into clean and Flagged reviews: no HTML, hidden characters or contacts, no repeats."""
     clean: list[Review] = []
     flagged: list[Review] = []
-    seen_ids: set[tuple[str, str, str]] = set()
+    seen_ids: set[tuple[str, str]] = set()
     seen_texts: set[tuple[str, str, str, int, object]] = set()
     duplicates = 0
     empty = 0
     for item in raw:
-        id_key = (item.source, item.place_external_id, item.external_id)
+        id_key = (item.source, item.external_id)  # storage is UNIQUE on exactly this pair
         if id_key in seen_ids:
             duplicates += 1
             continue
