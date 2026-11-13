@@ -2,7 +2,7 @@
 
 Date read: 2026-11-13. Ticket: #16 (T14). Feeds: the Source list in `docs/specification.md` (Firmy.cz row and the "Review dates" row), and the `sources` and `places` modules.
 
-Desk research only. No shell, no Apify or Google calls were possible, so everything that needs a real run is marked **needs a human run** with exact steps.
+Desk research from primary sources, then a real run by the owner on 2026-11-13 (see Run results). What is still open is listed under Not verified.
 
 ## Question
 
@@ -14,11 +14,11 @@ Desk research only. No shell, no Apify or Google calls were possible, so everyth
 
 ## Answer
 
-- Firmy.cz actors: **undecided from documentation, leaning no-go for production.** Neither actor page documents a review record (date, ID). jupri/firmy has a `review_num` input and no stated cap of 3; oodoow/mapy-com-ppe has `scrapeReviews` but scrapes Mapy.com, not Firmy.cz, so it is a different data set. Whether either returns the date and a stable ID needs a human run.
+- Firmy.cz actors: the actor pages document no review record (date, ID). The real run shows that oodoow/mapy-com-ppe returns the Firmy.cz profiles (same Place id) with all Reviews and an ISO date, but no review ID and a 0-100 rating. jupri/firmy was not run. Whether Firmy.cz may be a Source stays **open** (terms not read).
 - Terms of use: I could not read the operative Czech terms ("Podmínky využívání služby Firmy.cz"; the URL I guessed returned 404). The English terms page I could read has no scraping clause, and `robots.txt` on firmy.cz disallows everything for unlisted crawlers (including ours). Go/no-go therefore stays **open for the owner**; until it is read, treat Firmy.cz as "not cleared".
-- Google Maps side is well documented: compass returns `publishedAtDate` (ISO), `reviewId` always, and filter `reviewsStartDate`. Comparing old dates with Google Maps needs a human run.
-- Branch discovery: Places (New) Text Search is documented (up to 20 per page, 60 in total, field mask required). Precision on 3 real companies needs a human run; steps below.
-- Fixtures and precision numbers: none recorded. Nothing was invented.
+- Google Maps side is well documented: compass returns `publishedAtDate` (ISO), `reviewId` always, and filter `reviewsStartDate`. The real run did not prove the exactness of old dates (see Run results).
+- Branch discovery: Places (New) Text Search is documented (up to 20 per page, 60 in total, field mask required). Measured on 3 real companies in the run (see Run results).
+- Fixtures and precision numbers are recorded under Run results; recall and old-date exactness are not measured.
 
 ## Run results (owner runs, 2026-11-13)
 
@@ -29,7 +29,7 @@ Three Places: Globus Hypermarket Praha-Čakovice (Firmy.cz 193554), Camp Velo Vr
 - **compass/google-maps-reviews-scraper**: 20 Reviews per Place requested, 20 returned each. `reviewId` present and unique in all 60, `publishedAtDate` ISO with milliseconds, `publishAt` relative Czech text, `placeId`, `stars`, `text`, `language`. Empty `text`: 18 of 20 (Globus), 2 (Camp Velo), 4 (U Bílého Anděla). The run reached back only to July 2026, and `publishedAtDate` carries milliseconds (for example `...09:46:30.439Z`), so it is probably computed from the relative text: **exactness of old dates is still unproven**.
 - **Text Search** (`textQuery` = name, `regionCode` CZ, `languageCode` cs): Globus returned 15 results, of which 5 are Globus hypermarkets (4 in Prague, 1 in Trmice); the rest are Globus Fresh, restaurants and petrol stations of the same chain, or unrelated Places. Precision for hypermarkets is about 5/15, so user confirmation is required. Camp Velo and U Bílého Anděla returned exactly 1 correct Place each. Recall for Globus was not measured (no official branch list compared).
 
-Mapping to `RawReview` (`app/domain/_reviews.py`): Google Maps gives every field. Mapy.com lacks `external_id`; the adapter derives it as a hash of `date`, `reviewer` and `text` (the reviewer name is used only for the hash and never reaches `Review`).
+Mapping to `RawReview` (`app/domain/_reviews.py`): Google Maps gives every field. Mapy.com differs in two fields: it has no `external_id` (the adapter derives it as a hash of `date`, `reviewer` and `text`; the reviewer name is used only for the hash and never reaches `Review`), and its `rating` is on a **0-100 scale** (the fixture has 100, 90 and 40; the Place rating is 4.9). `Rating` accepts only whole numbers 1 to 5, so the adapter must convert, for example `round(rating / 20)` clamped to 1..5; the rule needs a test in #19 or its successor.
 
 Fixtures: `tests/fixtures/sources/google_maps/2026-11-13-camp-velo.json` (20 Reviews, 2 empty), `tests/fixtures/sources/mapy_com/2026-11-13-camp-velo.json` (12 Reviews, 1 empty), `tests/fixtures/places/2026-11-13-text-search-globus.json` (15 Places, business data only). Reviewer names and texts are replaced by placeholders.
 
@@ -46,7 +46,7 @@ Fixtures: `tests/fixtures/sources/google_maps/2026-11-13-camp-velo.json` (20 Rev
 
 - Searches `query` plus `city` (both required) on Mapy.com. `scrapeReviews` (default true) scrapes reviews for each place; `translateReviews` (default true, set it to false for Czech text); `maxResults`.
 - Pay per event from $1.50 per 1,000 points of interest.
-- Review date and review ID: **not documented**; the output schema only says "ratings, and reviews". Note the spec dropped Mapy.com as a Source for autocomplete; Mapy.com reviews may come from Firmy.cz profiles, but the pages do not say so. Not verified.
+- Review date and review ID: **not documented**; the output schema only says "ratings, and reviews". The spec dropped Mapy.com only as an autocomplete source. The pages do not say the Reviews come from Firmy.cz profiles; the real run shows they do (same Place id).
 - The place is found by query and city, not by Firmy.cz ID, so matching a branch needs a name plus address match.
 
 ### Firmy.cz terms of use, read 2026-11-13
@@ -69,17 +69,11 @@ Fixtures: `tests/fixtures/sources/google_maps/2026-11-13-camp-velo.json` (20 Rev
 - `pageSize` 1 to 20, at most 60 results over pages via `nextPageToken` (other parameters must be identical).
 - Implication for branches: a chain with more than 60 branches in a country cannot be listed by one query; use `locationBias`/`locationRestriction` or several queries. The docs do not say how to rank exact-name matches.
 
-## Needs a human run
+## Still needs a human run
 
-All of these need an Apify token or Google key, so I did not run them. Run them locally with keys in `.env`, never paste keys into the repo.
-
-1. **jupri/firmy**: input `{"query": "<Company name Firmy.cz URL>", "review_num": 20, "review_sort": "newest"}` (check the allowed values of `review_sort` on the input tab). Open the dataset JSON. Record: does each review have a date (and is it exact or relative), an ID, text, rating; are more than 3 returned without login. Use a Company with more than 10 Firmy.cz reviews.
-2. **oodoow/mapy-com-ppe**: input `{"query": "<name>", "city": "<city>", "scrapeReviews": true, "translateReviews": false, "maxResults": 3}`. Record the same four things, and whether the reviews are the Firmy.cz ones.
-3. **Terms**: open the Firmy.cz footer, "Podmínky využívání služby Firmy.cz" and "Smluvní podmínky" (version in force), search for "automat", "robot", "databáze", "kopírov". Write the clause numbers here and state go/no-go.
-4. **Compass dates**: for 3 Places, run compass with `sort: newest` and `maxReviews: 50`; open the same Place on Google Maps (sorted by newest) and compare 10 old Reviews (at least 2 years old) by reviewer and text. Record how many `publishedAtDate` values match the Google Maps relative age ("a year ago", "2 years ago") and which are off.
-5. **Branch discovery**: pick 3 real chains with several branches (for example a pharmacy chain, a bank, a restaurant chain; choose ones with a known branch list on the company site). For each, call text search with `textQuery: "<name>"`, `regionCode: "CZ"`, `languageCode: "cs"`, field mask `places.id,places.displayName,places.formattedAddress,places.location`, all pages. Compare to the official branch list: precision = correct branches / returned, recall = found / official. Also note how many extra results are other firms. Add a table here (company, returned, correct, precision, recall).
-6. **Fixtures**: save one raw dataset per Source to `tests/fixtures/sources/<source>/<date>-<slug>.json`. Anonymize: replace reviewer names, profile URLs, photos and reviewer IDs with placeholders; keep dates, ratings, IDs of reviews and text shape. Keep the review text only if it contains no personal data. Include one fixture with more than 3 Reviews and one with an empty text.
-7. **Spending limit**: owner already set it in Apify (not checked by me, no account access).
+1. **Terms**: read "Podmínky využívání služby Firmy.cz" and "Smluvní podmínky" (version in force) in the Firmy.cz footer, search for "automat", "robot", "databáze", "kopírov", note the clause numbers and state go/no-go here.
+2. **Compass dates**: for a Place with many Reviews run compass with newest sorting and `maxReviews` 300; compare 10 Reviews older than 2 years with Google Maps (reviewer and text) and record how many `publishedAtDate` values match the relative age.
+3. **Branch discovery recall**: compare the Globus Text Search result with the official branch list; add 2 more chains (for example a pharmacy chain and a bank) and a table (company, returned, correct, precision, recall).
 
 ## Not verified
 
@@ -91,4 +85,4 @@ All of these need an Apify token or Google key, so I did not run them. Run them 
 
 ## Recommendation
 
-Do not mark Firmy.cz as a delivered Source yet. In the spec, keep Firmy.cz as "candidate, blocked by terms of use and a human test run", and make Google Maps (compass, documented `publishedAtDate` and `reviewId`) the only committed Source for the first release; the `sources` port should keep Source-specific field mapping so a second Source can be added later. After the owner reads the Firmy.cz terms and runs steps 1 and 2, decide: if the terms forbid automated access or neither actor returns date and ID, drop Firmy.cz (or ask Seznam about permission) and update the Source list and the "Firmy.cz" and "Review dates" decision rows in `docs/specification.md`. Branch discovery should be implemented as text search with the minimal field mask plus user confirmation (which the `places` module in #20 already assumes), and measured with step 5 before it is called reliable. No ADR is changed yet; an ADR would be needed only if Firmy.cz is dropped as a Source.
+Do not mark Firmy.cz as a decided Source yet. In the spec, keep Firmy.cz as "candidate, blocked by the terms of use" (technically feasible through oodoow/mapy-com-ppe), and make Google Maps (compass, documented `publishedAtDate` and `reviewId`) the only committed Source for the first release; the `sources` port should keep Source-specific field mapping so a second Source can be added later. After the owner reads the Firmy.cz terms, decide: if the terms forbid automated access, drop Firmy.cz (or ask Seznam about permission) and update the Source list and the "Firmy.cz" and "Review dates" decision rows in `docs/specification.md`. Branch discovery should be implemented as text search with the minimal field mask plus user confirmation (which the `places` module in #20 already assumes), and its recall measured (step 3 above) before it is called reliable. No ADR is changed yet; an ADR would be needed only if Firmy.cz is dropped as a Source.
