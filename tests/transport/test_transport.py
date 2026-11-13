@@ -172,3 +172,25 @@ def test_a_redirect_is_returned_and_never_followed_so_keys_stay_put() -> None:
     finally:
         redirector.shutdown()
         target.shutdown()
+
+
+def test_a_truncated_error_body_is_an_http_error() -> None:
+    import socket
+
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+
+    def serve() -> None:
+        conn, _ = listener.accept()
+        conn.recv(4096)
+        conn.sendall(b"HTTP/1.1 500 X\r\nContent-Length: 100\r\n\r\nshort")
+        conn.close()
+
+    threading.Thread(target=serve, daemon=True).start()
+    try:
+        with pytest.raises(HttpError):
+            UrllibTransport().send(post(f"http://127.0.0.1:{port}/x", timeout=2))
+    finally:
+        listener.close()

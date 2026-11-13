@@ -30,7 +30,10 @@ class UrllibTransport:
             with _OPENER.open(call, timeout=request.timeout) as answer:  # noqa: S310
                 return HttpResponse(answer.status, answer.read())
         except urllib.error.HTTPError as failure:
-            return HttpResponse(failure.code, failure.read())
+            try:
+                return HttpResponse(failure.code, failure.read())
+            except (OSError, http.client.HTTPException):
+                raise HttpError("connection failed") from None
         except TimeoutError:
             raise HttpTimeout("timeout") from None
         except urllib.error.URLError as failure:
