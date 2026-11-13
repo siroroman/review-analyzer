@@ -29,6 +29,11 @@ SAMPLES = [review("r1")]
         "Kurva, obsluha.",
         "Ten sráč nás ignoroval.",
         "Obsluha je šmejd.",
+        "Banda volů u pokladny.",
+        "Ty svině jedna.",
+        "Obsluha jsou svině.",
+        "S volem se nedalo mluvit.",
+        "Ten prase nás ignoroval.",
     ],
 )
 def test_personal_data_and_insults_are_removed_and_counted(text: str) -> None:
