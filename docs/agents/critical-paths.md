@@ -6,7 +6,7 @@ Whoever adds a module in one of these areas adds or fixes the glob in the same P
 
 | Area | Source globs | Test globs | What goes wrong |
 | --- | --- | --- | --- |
-| Prompt injection and PII | `app/sanitize/**`, `app/insights/**` | `tests/sanitize/**`, `tests/insights/**` | a Review steers the model, personal data is stored or shown |
+| Prompt injection and PII | `app/sanitize/**`, `app/insights/**`, `app/classification/**` | `tests/sanitize/**`, `tests/insights/**`, `tests/classification/**` | a Review steers the model, personal data is stored or shown |
 | Budget | `app/budget/**`, `app/gateway/**`, `app/llm/**` | `tests/budget/**`, `tests/gateway/**`, `tests/llm/**` | a Run or the 30 USD monthly cap is exceeded, a paid call bypasses the Gateway |
 | Grounding | `app/insights/**` | `tests/insights/**` | an Insight cites a non-existent Review ID |
 | Numbers and trends | `app/metrics/**` | `tests/metrics/**` | wrong average or Topic share, a false drop |
