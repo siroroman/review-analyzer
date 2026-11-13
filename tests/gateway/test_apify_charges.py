@@ -18,7 +18,7 @@ from app.gateway import (
 from app.transport import FakeTransport, HttpResponse, HttpTimeout
 
 
-def run(step: HttpResponse | HttpTimeout) -> tuple[FakeCallLog, Exception | None]:
+def run(step: HttpResponse | HttpTimeout) -> tuple[FakeCallLog, ClientError | None]:
     log = FakeCallLog()
     policy = ServicePolicy(frozenset({SCRAPE_GOOGLE_REVIEWS}), 10, timedelta(seconds=60), 2)
     clock = FakeClock(datetime(2026, 11, 13, 18, 0, tzinfo=UTC))
