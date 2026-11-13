@@ -1,0 +1,28 @@
+{
+  "places": [
+    {
+      "id": "ChIJL57JFF_tC0cREbKEGwlP04k",
+      "formattedAddress": "Chlumecká 765/6, Černý Most, 198 00 Praha-Praha 14",
+      "location": {
+        "latitude": 50.108029800000004,
+        "longitude": 14.5853593
+      },
+      "displayName": {
+        "text": "Globus Hypermarket",
+        "languageCode": "cs"
+      }
+    },
+    {
+      "id": "ChIJuX_Qd8KVC0cROFfVTancC5E",
+      "formattedAddress": "Petržílkova 2706/30, 158 00 Praha-Praha 13",
+      "location": {
+        "latitude": 50.0510722,
+        "longitude": 14.3435291
+      },
+      "displayName": {
+        "text": "Globus Fresh Stodůlky",
+        "languageCode": "cs"
+      }
+    }
+  ]
+}

@@ -41,3 +41,10 @@ def test_negative_usage_is_rejected() -> None:
         Units(service="apify", unit="review", count=-1)
     with pytest.raises(ValueError, match="negative"):
         Tokens(service="anthropic", model="claude-sonnet", input=-1, output=0)
+
+
+def test_a_places_text_search_is_priced_per_request() -> None:
+    # 100 text searches at 0.032 USD each (Places API Pro SKU).
+    usage = Units(service="google_places", unit="text_search_request", count=100)
+
+    assert estimate_cost(usage) == Decimal("3.2")

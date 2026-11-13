@@ -5,6 +5,15 @@ from app.gateway._anthropic import AnthropicClient
 from app.gateway._apify import SCRAPE_GOOGLE_REVIEWS, ApifyClient, ReviewScrape, ScrapedReview
 from app.gateway._fakes import FakeCallLog, FakeServiceClient
 from app.gateway._gateway import Gateway
+from app.gateway._google_places import (
+    GOOGLE_PLACES,
+    AutocompleteRequest,
+    DetailsRequest,
+    GooglePage,
+    GooglePlacesClient,
+    Suggestion,
+    TextSearchRequest,
+)
 from app.gateway._openrouter import OpenRouterClient
 from app.gateway._types import (
     CallLog,
@@ -23,9 +32,11 @@ from app.gateway._types import (
 )
 
 __all__ = [
+    "GOOGLE_PLACES",
     "SCRAPE_GOOGLE_REVIEWS",
     "AnthropicClient",
     "ApifyClient",
+    "AutocompleteRequest",
     "BudgetExceeded",
     "CallLog",
     "CallStatus",
@@ -33,18 +44,23 @@ __all__ = [
     "ClientResponse",
     "ClientTimeout",
     "DeniedReason",
+    "DetailsRequest",
     "FakeCallLog",
     "FakeServiceClient",
     "Gateway",
     "GatewayConfig",
     "GatewayDenied",
     "GatewayResponse",
+    "GooglePage",
+    "GooglePlacesClient",
     "OpenRouterClient",
     "ReviewScrape",
     "ScrapedReview",
     "ServiceCall",
     "ServiceClient",
     "ServicePolicy",
+    "Suggestion",
+    "TextSearchRequest",
     "Tokens",
     "Units",
     "Usage",
