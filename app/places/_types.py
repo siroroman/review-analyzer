@@ -1,41 +1,8 @@
 from collections.abc import Collection, Sequence
-from dataclasses import dataclass
 from datetime import timedelta
 from typing import Protocol
 
 from app.domain import Place
-
-
-@dataclass(frozen=True)
-class Suggestion:
-    """One autocomplete line: a Google Maps place the user may pick."""
-
-    place_id: str
-    text: str
-
-
-@dataclass(frozen=True)
-class AutocompleteRequest:
-    query: str
-
-
-@dataclass(frozen=True)
-class DetailsRequest:
-    place_id: str
-
-
-@dataclass(frozen=True)
-class TextSearchRequest:
-    query: str
-    page: str | None = None
-
-
-@dataclass(frozen=True)
-class GooglePage:
-    """One page of a text search, already mapped to Places."""
-
-    places: tuple[Place, ...]
-    next_page: str | None
 
 
 class PlacesUnavailable(Exception):  # noqa: N818 - a result for the caller, not a fault
@@ -51,7 +18,11 @@ class PlaceNotFound(LookupError):
     """Google Maps has no place with this id."""
 
 
-class EmptyCompany(ValueError):
+class InvalidCompany(ValueError):
+    """The input of `confirm` cannot make a Company; raised before any paid call."""
+
+
+class EmptyCompany(InvalidCompany):
     """A Company needs at least one Place."""
 
 

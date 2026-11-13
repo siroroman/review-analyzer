@@ -3,26 +3,35 @@ import unicodedata
 from collections.abc import Collection, Sequence
 from difflib import SequenceMatcher
 
-from app.domain import Company, Place
-from app.gateway import BudgetExceeded, ClientError, Gateway, GatewayDenied
-from app.places._google import SERVICE
-from app.places._types import (
+from app.domain import Company, Place, Source
+from app.gateway import (
+    GOOGLE_PLACES,
     AutocompleteRequest,
+    BudgetExceeded,
+    ClientError,
     DetailsRequest,
-    EmptyCompany,
+    Gateway,
+    GatewayDenied,
     GooglePage,
+    Suggestion,
+    TextSearchRequest,
+)
+from app.places._types import (
+    EmptyCompany,
+    InvalidCompany,
     OtherSourceSearch,
     OtherSourceUnavailable,
     PlaceNotFound,
     PlacesUnavailable,
-    Suggestion,
-    TextSearchRequest,
 )
 
 MAX_PAGES = 3  # Google lists at most 60 places for one query: 3 pages of 20.
 MATCH_THRESHOLD = 0.6
 _NAME_WEIGHT = 0.6
 _WAIT = {"rate_limited", "concurrency_limit"}
+# Failures of Google that may pass: try later. Any other kind is a fault in our request or key.
+_NOT_FOUND = {"not_found", "bad_request"}  # an id Google does not know, or one that is not an id
+_LATER = {"timeout", "network", "unavailable", "rate_limited"}
 
 
 def _normal(text: str) -> str:
@@ -107,6 +116,11 @@ class Places:
         unique = tuple(dict.fromkeys(place_ids))
         if not unique and not also:
             raise EmptyCompany("a Company needs at least one Place")
+        if not name.strip() or not industry.strip():
+            raise InvalidCompany("a Company needs a name and an industry")
+        taken = {(place.source, place.external_id) for place in also}
+        if len(taken) != len(also) or any((Source.GOOGLE_MAPS, place_id) in taken for place_id in unique):
+            raise InvalidCompany("a Company lists each Place once")
         resolved = tuple(self.resolve(place_id, run_id=run_id) for place_id in unique)
         return Company(name=name, industry=industry, places=resolved + tuple(also))
 
@@ -122,7 +136,7 @@ class Places:
 
     def _call(self, operation: str, request: object, run_id: str, *, not_found: bool = False) -> object:
         try:
-            return self._gateway.call(SERVICE, operation, request, run_id=run_id).payload
+            return self._gateway.call(GOOGLE_PLACES, operation, request, run_id=run_id).payload
         except BudgetExceeded as exceeded:
             raise PlacesUnavailable("budget_exceeded") from exceeded
         except GatewayDenied as denied:
@@ -130,6 +144,8 @@ class Places:
                 raise  # a configuration fault, not something to try later
             raise PlacesUnavailable(denied.reason, denied.retry_after) from denied
         except ClientError as failure:
-            if not_found and failure.kind == "not_found":
+            if not_found and failure.kind in _NOT_FOUND:
                 raise PlaceNotFound(request) from failure
+            if failure.kind not in _LATER:
+                raise  # the request or the key is wrong: waiting does not help
             raise PlacesUnavailable(failure.kind) from failure

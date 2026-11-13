@@ -5,14 +5,16 @@ import pytest
 from pydantic import SecretStr
 
 from app.domain import Place, Source
-from app.gateway import ClientError, ClientTimeout, Units
-from app.places import (
+from app.gateway import (
     AutocompleteRequest,
+    ClientError,
+    ClientTimeout,
     DetailsRequest,
     GooglePage,
     GooglePlacesClient,
     Suggestion,
     TextSearchRequest,
+    Units,
 )
 from app.transport import FakeTransport, HttpError, HttpResponse, HttpTimeout
 from tests.adapters.helpers import body_of, fixture
@@ -185,3 +187,29 @@ def test_the_estimate_is_one_request_of_the_operation() -> None:
 
 def test_a_request_never_shows_the_key() -> None:
     assert KEY not in repr(GooglePlacesClient(SecretStr(KEY), FakeTransport()))
+
+
+@pytest.mark.parametrize(
+    ("operation", "body"),
+    [
+        ("autocomplete", b'{"suggestions": [{"placePrediction": {"text": {"text": "x"}}}]}'),
+        ("autocomplete", b'{"suggestions": [{"placePrediction": {"placeId": "p", "text": {}}}]}'),
+        ("text_search", b'{"places": "x"}'),
+        ("text_search", b'{"places": ["x"]}'),
+        ("text_search", b'{"places": [{"id": "", "displayName": {"text": "x"}}]}'),
+        ("text_search", b'{"places": [], "nextPageToken": 5}'),
+        ("details", b'{"id": "p"}'),
+    ],
+)
+def test_a_place_or_suggestion_that_is_not_the_documented_shape_is_a_bad_response(
+    operation: str, body: bytes
+) -> None:
+    requests = {
+        "autocomplete": AutocompleteRequest("x"),
+        "text_search": TextSearchRequest("x"),
+        "details": DetailsRequest("p"),
+    }
+    adapter, _ = client(HttpResponse(200, body))
+    with pytest.raises(ClientError) as failure:
+        adapter.call(operation, requests[operation])
+    assert failure.value.kind == "bad_response"

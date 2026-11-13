@@ -3,16 +3,17 @@
 import json
 import re
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from pydantic import SecretStr, ValidationError
 
+from app.budget import Units
 from app.domain import Place, Source
-from app.gateway import ClientError, ClientResponse, ClientTimeout, Units, Usage
-from app.places._types import AutocompleteRequest, DetailsRequest, GooglePage, Suggestion, TextSearchRequest
+from app.gateway._types import ClientError, ClientResponse, ClientTimeout, Usage
 from app.transport import HttpError, HttpRequest, HttpResponse, HttpTimeout, HttpTransport
 
-SERVICE = "google_places"
+GOOGLE_PLACES = "google_places"
 _BASE = "https://places.googleapis.com/v1"
 _ID = re.compile(r"[A-Za-z0-9_-]{1,300}")
 _PAGE_SIZE = 20
@@ -22,6 +23,38 @@ _UNITS = {
     "text_search": "text_search_request",
 }
 _STATUS_KIND = {404: "not_found", 429: "rate_limited"}
+
+
+@dataclass(frozen=True)
+class Suggestion:
+    """One autocomplete line: a Google Maps place the user may pick."""
+
+    place_id: str
+    text: str
+
+
+@dataclass(frozen=True)
+class AutocompleteRequest:
+    query: str
+
+
+@dataclass(frozen=True)
+class DetailsRequest:
+    place_id: str
+
+
+@dataclass(frozen=True)
+class TextSearchRequest:
+    query: str
+    page: str | None = None
+
+
+@dataclass(frozen=True)
+class GooglePage:
+    """One page of a text search, already mapped to Places."""
+
+    places: tuple[Place, ...]
+    next_page: str | None
 
 
 class GooglePlacesClient:
@@ -40,7 +73,7 @@ class GooglePlacesClient:
         unit = _UNITS.get(operation)
         if unit is None:
             raise ClientError("unsupported_operation")
-        return Units(SERVICE, unit, 1)
+        return Units(GOOGLE_PLACES, unit, 1)
 
     def call(self, operation: str, request: object) -> ClientResponse:
         usage = self.estimate(operation, request)

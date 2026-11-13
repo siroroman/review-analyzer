@@ -5,23 +5,21 @@ from decimal import Decimal
 from app.budget import Units
 from app.domain import FakeClock, Place, Source
 from app.gateway import (
+    GOOGLE_PLACES,
+    AutocompleteRequest,
+    ClientError,
     ClientResponse,
+    DetailsRequest,
     FakeCallLog,
     FakeServiceClient,
     Gateway,
     GatewayConfig,
-    ServicePolicy,
-)
-from app.places import (
-    SERVICE,
-    AutocompleteRequest,
-    DetailsRequest,
-    FakeOtherSource,
     GooglePage,
-    Places,
+    ServicePolicy,
     Suggestion,
     TextSearchRequest,
 )
+from app.places import FakeOtherSource, Places
 
 START = datetime(2026, 11, 13, 9, 0, tzinfo=UTC)
 RUN = "run-1"
@@ -44,17 +42,15 @@ class Google:
         self.known: dict[str, Place] = {}
         self.pages: list[GooglePage] = []
         self.error: Exception | None = None
-        self.client = FakeServiceClient(Units(SERVICE, "details_request", 1), self._respond)
+        self.client = FakeServiceClient(Units(GOOGLE_PLACES, "details_request", 1), self._respond)
 
     def _respond(self, operation: str, request: object) -> ClientResponse:
         if self.error is not None:
             raise self.error
-        usage = Units(SERVICE, "details_request", 1)
+        usage = Units(GOOGLE_PLACES, "details_request", 1)
         if operation == "autocomplete" and isinstance(request, AutocompleteRequest):
             return ClientResponse(self.suggestions.get(request.query, ()), usage)
         if operation == "details" and isinstance(request, DetailsRequest):
-            from app.gateway import ClientError
-
             if request.place_id not in self.known:
                 raise ClientError("not_found")
             return ClientResponse(self.known[request.place_id], usage)
@@ -83,8 +79,8 @@ class Setup:
         self.other = FakeOtherSource(candidates, fail=other_fails)
         policy = ServicePolicy(OPERATIONS, max_calls, timedelta(seconds=60), 4)
         gateway = Gateway(
-            GatewayConfig({SERVICE: policy}, Decimal(run_cap), Decimal(30)),
-            {SERVICE: self.google.client},
+            GatewayConfig({GOOGLE_PLACES: policy}, Decimal(run_cap), Decimal(30)),
+            {GOOGLE_PLACES: self.google.client},
             self.clock,
             self.log,
         )

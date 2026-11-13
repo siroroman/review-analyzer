@@ -3,14 +3,8 @@ from datetime import timedelta
 import pytest
 
 from app.domain import Company
-from app.gateway import ClientError, ClientTimeout
-from app.places import (
-    EmptyCompany,
-    PlaceNotFound,
-    PlacesUnavailable,
-    Suggestion,
-    TextSearchRequest,
-)
+from app.gateway import ClientError, ClientTimeout, Suggestion, TextSearchRequest
+from app.places import EmptyCompany, InvalidCompany, PlaceNotFound, PlacesUnavailable
 from tests.places.helpers import RUN, Setup, firmy, google, pages
 
 
@@ -182,4 +176,47 @@ def test_an_exceeded_budget_is_a_try_later_result_and_makes_no_call() -> None:
     with pytest.raises(PlacesUnavailable) as later:
         setup.places.resolve("g1", run_id=RUN)
     assert later.value.reason == "budget_exceeded"
+    assert setup.google.client.calls == []
+
+
+def test_a_request_or_key_google_rejects_is_a_fault_not_a_try_later() -> None:
+    setup = Setup()
+    setup.google.error = ClientError("rejected")
+    with pytest.raises(ClientError):
+        setup.places.suggest("glob", run_id=RUN)
+
+
+def test_an_id_that_is_not_an_id_is_place_not_found() -> None:
+    setup = Setup()
+    setup.google.error = ClientError("bad_request")
+    with pytest.raises(PlaceNotFound):
+        setup.places.resolve("not/an/id", run_id=RUN)
+
+
+@pytest.mark.parametrize(("name", "industry"), [(" ", "retail"), ("Globus", "")])
+def test_a_company_without_a_name_or_industry_is_rejected_before_any_paid_call(
+    name: str, industry: str
+) -> None:
+    setup = Setup()
+    with pytest.raises(InvalidCompany):
+        setup.places.confirm(["g1"], name=name, industry=industry, run_id=RUN)
+    assert setup.google.client.calls == []
+
+
+def test_a_place_listed_twice_is_rejected_before_any_paid_call() -> None:
+    setup = Setup()
+    twice = firmy("f1", "Globus", "Praha")
+    with pytest.raises(InvalidCompany):
+        setup.places.confirm(["g1"], name="G", industry="retail", run_id=RUN, also=[twice, twice])
+    with pytest.raises(InvalidCompany):
+        setup.places.confirm(["g1"], name="G", industry="retail", run_id=RUN, also=[google("g1")])
+    assert setup.google.client.calls == []
+
+
+def test_a_company_of_only_other_source_places_needs_no_google_call() -> None:
+    setup = Setup()
+    company = setup.places.confirm(
+        [], name="G", industry="retail", run_id=RUN, also=[firmy("f1", "G", "Praha")]
+    )
+    assert [place.external_id for place in company.places] == ["f1"]
     assert setup.google.client.calls == []
