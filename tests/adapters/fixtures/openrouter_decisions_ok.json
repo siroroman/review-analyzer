@@ -1,0 +1,13 @@
+{
+  "model": "typesafe/jev-1.14",
+  "answers": {
+    "sentiment": {
+      "type": "choice",
+      "choice": "negative",
+      "confidence": 0.93,
+      "probabilities": {"positive": 0.03, "neutral": 0.04, "negative": 0.93}
+    },
+    "injection": {"type": "noul", "noul": 0.04, "confidence": 0.9}
+  },
+  "usage": {"input_tokens": 412, "output_tokens": 6, "cost": 0.0000173}
+}
