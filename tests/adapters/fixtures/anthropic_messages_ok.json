@@ -1,0 +1,14 @@
+{
+  "id": "msg_01Fixture",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-haiku-5-5",
+  "content": [{"type": "text", "text": "{\"sentiment\": \"negative\", \"injection\": false}"}],
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 120,
+    "cache_creation_input_tokens": 30,
+    "cache_read_input_tokens": 50,
+    "output_tokens": 14
+  }
+}

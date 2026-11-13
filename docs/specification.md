@@ -79,6 +79,8 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 | `llm` | `complete(task, prompt, schema) -> T` | model routing, retry, fallback, prompt caching, Langfuse tracing; provider calls go through `gateway` | fake gateway |
 | `gateway` | `call(service, operation, request) -> response`, `GatewayDenied`, `BudgetExceeded` | allow-list of services and operations, rate limit and concurrency per service, `budget.reserve` before and `record` after every call, a record of every call (no request or response bodies), provider adapters (OpenRouter, Anthropic, Apify, Google Places) | fake `ServiceClient`s, fake `Clock`, fake `CallLog` |
 | `budget` | `reserve(estimate)`, `record(cost)`, `BudgetExceeded` | cost estimate, cap per run, monthly cap, for every paid service | pure functions; called by `gateway` only |
+| `transport` | `HttpTransport.send(request) -> response`, `read_secret(environ, name)` | the HTTP call on the standard library, where keys are read from configuration; no key in a `repr`, error or log | local test server, fake transport |
+| `tracing` | `LangfuseTracer` (the `llm` `Tracer` port) | one Langfuse generation per model call with tokens and price; a Langfuse failure never fails a Run | fake transport, recorded Langfuse answers |
 | `storage` | repositories: `ReviewRepo`, `RunRepo`, `InsightRepo`, `TrendRepo`, `ServiceCallRepo` (the Call log; implements the `CallLog` port of `gateway`) | SQL, migrations, cache with TTL | integration tests on PostgreSQL (testcontainers); in-memory implementation for the other modules |
 | `pipeline` | `run(run_id) -> RunResult` | order of steps, run state machine, retry, partial result when the budget is exceeded | all ports as fakes, a whole run without a network |
 

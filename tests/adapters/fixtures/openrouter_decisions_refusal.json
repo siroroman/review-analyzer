@@ -1,0 +1,8 @@
+{
+  "model": "typesafe/jev-1.14",
+  "answers": {
+    "sentiment": {"type": "refusal", "refusal": "declined"},
+    "injection": {"type": "noul", "noul": 0.9, "confidence": 0.9}
+  },
+  "usage": {"input_tokens": 300, "output_tokens": 2, "cost": 0.0000126}
+}
