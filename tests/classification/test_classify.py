@@ -1,6 +1,9 @@
+import pytest
+
 from app.classification import BATCH_SIZE, Classifier
 from app.domain import Company, Place, Review, ReviewTopic, Sentiment, Source
-from app.llm import CompletionRequest
+from app.gateway import BudgetExceeded, ClientError, GatewayDenied
+from app.llm import CompletionRequest, ModelRef, Route
 from app.storage import Storage, in_memory_storage
 from tests.classification.helpers import (
     PLACE,
@@ -16,8 +19,14 @@ from tests.llm.helpers import Setup
 
 
 class World:
-    def __init__(self, jev: list[str | Exception], haiku: list[str | Exception] | None = None) -> None:
-        self.setup: Setup = setup(jev, haiku)
+    def __init__(
+        self,
+        jev: list[str | Exception],
+        haiku: list[str | Exception] | None = None,
+        routes: dict[str, Route] | None = None,
+        run_cap: str = "5",
+    ) -> None:
+        self.setup: Setup = setup(jev, haiku, routes, run_cap)
         self.storage: Storage = in_memory_storage(self.setup.clock)
         self.storage.companies.get_or_create(
             Company(
@@ -191,3 +200,60 @@ def test_a_review_still_missing_after_the_follow_up_becomes_unclassified() -> No
     assert world.topics()[-1] == ReviewTopic(
         review_external_id="r002", topic_key="unclassified", sentiment=Sentiment.NEUTRAL, confidence=0
     )
+
+
+def test_the_fallback_model_answers_when_the_fast_model_fails() -> None:
+    world = World([ClientError("bad_request")], [full_answer(1, key="prices")])
+    world.add(review(1))
+    assert world.run() == (1, 0)
+    assert len(requests(world.setup.anthropic)) == 1
+    assert [t.topic_key for t in world.topics()] == ["prices"]
+
+
+def test_a_batch_both_models_fail_on_becomes_unclassified_and_the_next_batch_still_runs() -> None:
+    world = World(
+        [ClientError("bad_request"), full_answer(1)],
+        [ClientError("bad_request")],
+    )
+    world.add(*(review(i) for i in range(BATCH_SIZE + 1)))
+    assert world.run() == (1, BATCH_SIZE)
+    by_review = {t.review_external_id: t for t in world.topics()}
+    assert len(by_review) == BATCH_SIZE + 1
+    assert [t.topic_key for t in by_review.values()].count("unclassified") == BATCH_SIZE
+    assert by_review["r000"].sentiment is Sentiment.NEUTRAL
+    assert by_review["r000"].confidence == 0
+    assert by_review[f"r{BATCH_SIZE:03d}"].topic_key == "staff"
+
+
+def test_invalid_output_from_both_models_becomes_unclassified() -> None:
+    world = World(["not json", "still not json"], ["nope", "nope again"])
+    world.add(review(1))
+    assert world.run() == (0, 1)
+    assert [t.topic_key for t in world.topics()] == ["unclassified"]
+
+
+def test_an_exceeded_budget_stops_the_run_and_keeps_the_batches_already_saved() -> None:
+    world = World([full_answer(BATCH_SIZE), full_answer(1)], run_cap="0.0015")  # a fast call is 0.001
+    world.add(*(review(i) for i in range(BATCH_SIZE + 1)))
+    with pytest.raises(BudgetExceeded):
+        world.run()
+    assert len(world.topics()) == BATCH_SIZE
+    assert len(world.jev_requests) == 1
+
+
+def test_a_denied_call_is_not_turned_into_unclassified() -> None:
+    world = World([], routes={"classification": Route(ModelRef("mistral", "large"), None)})
+    world.add(review(1))
+    with pytest.raises(GatewayDenied):
+        world.run()
+    assert world.topics() == []
+
+
+def test_a_failed_follow_up_leaves_the_missing_reviews_unclassified() -> None:
+    world = World(
+        [answer(entry("1", ("staff", "positive", 0.9))), ClientError("bad_request")],
+        [ClientError("bad_request")],
+    )
+    world.add(review(1), review(2))
+    assert world.run() == (1, 1)
+    assert [t.topic_key for t in world.topics()] == ["staff", "unclassified"]

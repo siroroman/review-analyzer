@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from pydantic import BaseModel, ConfigDict
 
 from app.domain import Review, ReviewTopic, Sentiment, Source
-from app.llm import Llm
+from app.gateway import ClientError
+from app.llm import InvalidOutput, Llm
 from app.storage import ReviewRepo, StoredTaxonomy
 from app.taxonomy import UNCLASSIFIED_KEY
 
@@ -84,23 +85,38 @@ class Classifier:
         unclassified = 0
         for start in range(0, len(todo), BATCH_SIZE):
             batch = todo[start : start + BATCH_SIZE]
-            topics, missing = self._ask(batch, taxonomy, run_id)
-            if missing:
-                more, missing = self._ask(missing, taxonomy, run_id)
-                topics += more
+            topics, missing = self._classify_batch(batch, taxonomy, run_id)
             topics += [_unclassified(review) for review in missing]
             self._reviews.save_topics(source, taxonomy, topics)
             classified += len(batch) - len(missing)
             unclassified += len(missing)
         return ClassificationResult(classified, unclassified)
 
-    def _ask(
+    def _classify_batch(
         self, batch: Sequence[Review], taxonomy: StoredTaxonomy, run_id: str
     ) -> tuple[list[ReviewTopic], list[Review]]:
-        """One model call for `batch`: the valid ReviewTopics and the Reviews that got none."""
-        answer = self._llm.complete(
-            TASK, _prompt(batch), _Answer, run_id=run_id, system=_system(taxonomy), cache_system=True
-        )
+        """The valid ReviewTopics of `batch` and the Reviews that got none, after one follow-up for those."""
+        first = self._ask(batch, taxonomy, run_id)
+        if first is None:
+            return [], list(batch)  # both models failed: asking again would only cost more
+        topics, missing = first
+        if missing and (second := self._ask(missing, taxonomy, run_id)) is not None:
+            topics += second[0]
+            missing = second[1]
+        return topics, missing
+
+    def _ask(
+        self, batch: Sequence[Review], taxonomy: StoredTaxonomy, run_id: str
+    ) -> tuple[list[ReviewTopic], list[Review]] | None:
+        """One model call for `batch`; `None` when both models failed."""
+        try:
+            answer = self._llm.complete(
+                TASK, _prompt(batch), _Answer, run_id=run_id, system=_system(taxonomy), cache_system=True
+            )
+        except (InvalidOutput, ClientError):
+            # Both models failed. `llm` already retried and fell back; BudgetExceeded and GatewayDenied
+            # are not caught here: they stop the run.
+            return None
         return _to_topics(batch, answer, {topic.key for topic in taxonomy.taxonomy.topics})
 
 

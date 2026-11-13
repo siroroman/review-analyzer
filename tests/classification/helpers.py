@@ -55,11 +55,17 @@ def full_answer(count: int, key: str = "staff") -> str:
     return answer(*(entry(str(i), (key, "positive", 0.9)) for i in range(1, count + 1)))
 
 
-def setup(jev: list[Step], haiku: list[Step] | None = None) -> Setup:
+def setup(
+    jev: list[Step],
+    haiku: list[Step] | None = None,
+    routes: dict[str, Route] | None = None,
+    run_cap: str = "5",
+) -> Setup:
     return Setup(
         jev=lambda clock: scripted(JEV_USAGE, *jev, clock=clock),
         haiku=lambda clock: scripted(HAIKU_USAGE, *(haiku or []), clock=clock),
-        routes=ROUTES,
+        routes=routes or ROUTES,
+        run_cap=run_cap,
     )
 
 
