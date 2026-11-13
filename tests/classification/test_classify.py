@@ -257,3 +257,10 @@ def test_a_failed_follow_up_leaves_the_missing_reviews_unclassified() -> None:
     world.add(review(1), review(2))
     assert world.run() == (1, 1)
     assert [t.topic_key for t in world.topics()] == ["staff", "unclassified"]
+
+
+def test_a_repeated_topic_that_is_less_confident_is_dropped() -> None:
+    world = World([answer(entry("1", ("staff", "positive", 0.9), ("staff", "negative", 0.5)))])
+    world.add(review(1))
+    world.run()
+    assert [(t.sentiment, t.confidence) for t in world.topics()] == [(Sentiment.POSITIVE, 0.9)]

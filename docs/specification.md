@@ -73,7 +73,7 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 | `sources` | `fetch_reviews(place, since, limit) -> list[RawReview]` | Apify actors (called through `gateway`), polling, pagination, field mapping, dates | fake gateway, fake Apify client, fixtures from real outputs |
 | `sanitize` | `prepare(raw) -> PreparedReviews(clean, flagged)` | removal of HTML and hidden characters, PII, deduplication (hash), prompt injection detector | pure functions, fake detector, property-based tests |
 | `taxonomy` | `get_taxonomy(industry) -> Taxonomy` | generating topics from a sample, freezing them | fake LLM port |
-| `classification` | `classify(reviews, taxonomy) -> list[ReviewTopic]` | batching, Jev with fallback to Haiku, retry, schema validation | fake LLM port |
+| `classification` | `classify(source, place_id, taxonomy, run_id) -> ClassificationResult(classified, unclassified)` | only Reviews without a ReviewTopic for the Taxonomy version, batching, delimited prompt, validation of the answer, `unclassified` when both models fail; Jev with fallback to Haiku is `llm`'s routing | fake `llm` over fake gateway, in-memory storage |
 | `metrics` | `compute(reviews, topics) -> Metrics` (averages, `TrendPoint`, topic shares, drops and rises) | all computations and anomaly detection | pure functions, no mocks |
 | `insights` | `generate(metrics, samples) -> Insights` | prompts, Sonnet, schema validation, grounding check (the review IDs exist), content check | fake LLM port |
 | `llm` | `complete(task, prompt, schema) -> T` | model routing, retry, fallback, prompt caching, Langfuse tracing; provider calls go through `gateway` | fake gateway |
