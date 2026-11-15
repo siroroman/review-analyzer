@@ -51,8 +51,8 @@ class RunResult:
 class RunReport:
     """Everything the dashboard shows of one Run.
 
-    `metrics.trend` is the timeline the Run saved and `metrics.changes` keeps only the changes in its months,
-    so both match the Run's Insights; the other numbers are computed from the Reviews stored now.
+    `metrics.trend` is the timeline the Run saved, so it matches the Run's Insights. `metrics.changes` is
+    always empty: changes are not saved with a Run. The other numbers are computed from Reviews stored now.
     """
 
     result: RunResult

@@ -49,7 +49,7 @@ def test_a_report_of_an_unknown_run_raises() -> None:
         World().pipeline.report("nope")
 
 
-def test_a_report_shows_no_change_in_a_month_the_runs_trend_does_not_have() -> None:
+def test_a_report_carries_no_changes_even_when_later_reviews_would_make_a_drop() -> None:
     world = World()
     result = world.run()
     world.storage.reviews.add(
@@ -60,15 +60,15 @@ def test_a_report_shows_no_change_in_a_month_the_runs_trend_does_not_have() -> N
                 external_id=f"bad-{index}",
                 rating=1,
                 text=f"bad {index}",
-                published_on=date(2026, 11, 2),
+                published_on=date(2026, 10, 25),
                 date_precision=DatePrecision.DAY,
                 language="cs",
                 text_hash=f"bad-hash-{index}",
                 flagged=False,
             )
-            for index in range(6)
+            for index in range(10)
         ]
     )
     report = world.pipeline.report(result.run_id)
-    assert [point.period_start for point in report.metrics.trend] == [date(2026, 10, 1)]
     assert report.metrics.changes == ()
+    assert [point.period_start for point in report.metrics.trend] == [date(2026, 10, 1)]

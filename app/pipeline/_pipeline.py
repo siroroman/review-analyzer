@@ -128,11 +128,9 @@ class Pipeline:
         if company is None:
             raise RuntimeError(f"Run {run_id} has no stored Company")
         saved = tuple(self._storage.trends.for_run(run_id))
-        months = {(point.source, point.period_start) for point in saved}
-        now = self._metrics(company.company)
-        # A change belongs to a month on the Run's own timeline, so it never contradicts the Run's Insights.
-        changes = tuple(c for c in now.changes if (c.source, c.period_start) in months)
-        metrics = now.model_copy(update={"trend": saved, "changes": changes})
+        # Changes are not saved with a Run, and one computed from today's Reviews could contradict the
+        # Run's saved trend and Insights, so a report carries none.
+        metrics = self._metrics(company.company).model_copy(update={"trend": saved, "changes": ()})
         return RunReport(
             result=self._result(record, company.company),
             company=company.company,
