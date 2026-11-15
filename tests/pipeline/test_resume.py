@@ -88,3 +88,18 @@ def test_a_crash_while_reusing_the_cache_does_not_copy_the_result_twice() -> Non
     second = world.pipeline.run(run_id)
     assert second.status is RunStatus.DONE
     assert (second.insights, second.trend_points) == (1, 1)
+
+
+def test_a_half_copied_result_is_finished_even_when_the_cache_went_stale() -> None:
+    world = World()
+    first = world.run()
+    world.clock.advance(timedelta(hours=1))
+    run_id = world.new_run()
+    # the worker died after copying the Insights, before the Run became done ...
+    world.storage.insights.save(run_id, world.storage.insights.for_run(first.run_id))
+    world.clock.advance(timedelta(days=2))  # ... and the redelivery came after the cache expired
+    before = world.service_calls()
+    second = world.pipeline.run(run_id)
+    assert second.status is RunStatus.DONE
+    assert world.service_calls() == before
+    assert (second.insights, second.trend_points) == (1, 1)
