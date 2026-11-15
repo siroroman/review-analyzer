@@ -70,3 +70,14 @@ def test_no_found_topic_means_no_sentiment_accuracy() -> None:
     assert scores.sentiment_accuracy is None
     assert scores.unclassified_share == 1.0  # no answer at all
     assert scores.topics["food"].recall == 0.0
+
+
+def test_unclassified_is_left_out_of_the_sentiment_numbers() -> None:
+    scores = score(
+        [item("e001", ("unclassified", "neutral")), item("e002", ("food", "positive"))],
+        [got("e001", "unclassified", "neutral"), got("e002", "food", "negative")],
+    )
+
+    assert scores.topics["unclassified"].recall == 1.0
+    assert scores.topics["unclassified"].sentiment_accuracy is None
+    assert scores.sentiment_accuracy == 0.0  # only food counts

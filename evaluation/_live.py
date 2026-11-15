@@ -35,6 +35,7 @@ class _Sleeper:
 def live_llm() -> tuple[Llm, Clock, str]:
     """Raises `MissingSecret` (names the variable, never a value) when a key is not set."""
     clock = _SystemClock()
+    # Known deviation from ADR-0005/0006: this Call log is in memory, so the monthly total starts at 0.
     transport = UrllibTransport()
     openrouter = OpenRouterClient(
         read_secret(os.environ, "OPENROUTER_API_KEY"), transport, {"jev-1.14": "typesafe/jev-1.14"}

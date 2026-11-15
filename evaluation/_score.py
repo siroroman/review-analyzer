@@ -3,7 +3,8 @@
 For every Topic (counted over the whole set):
 - recall: of the Reviews that expect the Topic, the share that got it;
 - precision: of the Reviews that got the Topic, the share that expects it;
-- sentiment accuracy: of the Reviews that got an expected Topic, the share with the expected sentiment.
+- sentiment accuracy: of the Reviews that got an expected Topic, the share with the expected sentiment
+  (`unclassified` has no sentiment of its own and is left out of it).
 A value is `None` when its denominator is 0. The overall sentiment accuracy pools all found Topics.
 `unclassified_share` is the share of Reviews whose answer is only `unclassified` (or missing).
 """
@@ -70,6 +71,8 @@ def score(items: Sequence[SetItem], actual: Sequence[ReviewTopic]) -> Scores:
             if match is None:
                 continue
             topics[expected.topic].found += 1
+            if expected.topic == UNCLASSIFIED_KEY:
+                continue  # its sentiment is always neutral: counting it would only inflate the sentiment numbers
             found += 1
             if match.sentiment == expected.sentiment:
                 topics[expected.topic].sentiment_right += 1

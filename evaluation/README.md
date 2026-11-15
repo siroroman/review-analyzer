@@ -15,6 +15,8 @@ make evaluate ARGS="--data evaluation/data/sample.jsonl --taxonomy evaluation/da
 
 The sample files are eight invented Reviews, only to try the command and to feed the tests. Numbers from them mean nothing.
 
+**Money:** the command's Call log is in memory, so the spend of a run is not added to the monthly 30 USD total and is not in the stored Call log (ADR-0005, ADR-0006). The run cap of 1 USD still applies to each run. Keep the month's other spend in mind before running it often.
+
 ## What the numbers mean
 
 Per Topic: **recall** (of the Reviews that expect the Topic, how many got it), **precision** (of the Reviews that got it, how many expect it), **sentiment accuracy** (of the Reviews that got an expected Topic, how many have the expected sentiment). Overall: sentiment accuracy over all found Topics and the share of Reviews that ended `unclassified`. A fall of more than 5 percentage points against the last report is marked `DROP`. Definitions: `evaluation/_score.py`.
