@@ -1,0 +1,868 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Review Analyzer API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/places/suggest": {
+      "get": {
+        "summary": "Suggest",
+        "operationId": "suggest_places_suggest_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "pattern": "^[\\w\\s.,'&/()\\-]+$",
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SuggestionOut"
+                  },
+                  "title": "Response Suggest Places Suggest Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/places/{place_id}/branches": {
+      "get": {
+        "summary": "Branches",
+        "operationId": "branches_places__place_id__branches_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "place_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300,
+              "pattern": "^[A-Za-z0-9_\\-]+$",
+              "title": "Place Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BranchOut"
+                  },
+                  "title": "Response Branches Places  Place Id  Branches Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs": {
+      "post": {
+        "summary": "Create Run",
+        "operationId": "create_run_runs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/runs/{run_id}": {
+      "get": {
+        "summary": "Run Status",
+        "operationId": "run_status_runs__run_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}/result": {
+      "get": {
+        "summary": "Run Result",
+        "operationId": "run_result_runs__run_id__result_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BranchOut": {
+        "properties": {
+          "place_id": {
+            "type": "string",
+            "title": "Place Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "place_id",
+          "name",
+          "address"
+        ],
+        "title": "BranchOut"
+      },
+      "Change": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ChangeKind"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Period Start"
+          },
+          "delta": {
+            "type": "number",
+            "title": "Delta"
+          },
+          "main_topic_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Main Topic Key"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "source",
+          "period_start",
+          "delta"
+        ],
+        "title": "Change",
+        "description": "A detected drop or rise of the average rating of one Source in one period."
+      },
+      "ChangeKind": {
+        "type": "string",
+        "enum": [
+          "drop",
+          "rise"
+        ],
+        "title": "ChangeKind"
+      },
+      "Company": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "industry": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Industry"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Places"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "industry",
+          "places"
+        ],
+        "title": "Company",
+        "description": "A set of Places the user confirmed as belonging together; the same set is the same Company."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Insight": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/InsightType"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Period Start"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date",
+            "title": "Period End"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Text"
+          },
+          "review_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Review Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "period_start",
+          "period_end",
+          "text",
+          "review_ids"
+        ],
+        "title": "Insight",
+        "description": "A statement by the strong model that cites the IDs of the Reviews it rests on."
+      },
+      "InsightType": {
+        "type": "string",
+        "enum": [
+          "summary",
+          "anomaly",
+          "suggestion"
+        ],
+        "title": "InsightType"
+      },
+      "Metrics": {
+        "properties": {
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/TrendPoint"
+            },
+            "type": "array",
+            "title": "Trend"
+          },
+          "topic_shares": {
+            "items": {
+              "$ref": "#/components/schemas/TopicShare"
+            },
+            "type": "array",
+            "title": "Topic Shares"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/Change"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "overall": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RatingSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "per_source": {
+            "items": {
+              "$ref": "#/components/schemas/SourceSummary"
+            },
+            "type": "array",
+            "title": "Per Source",
+            "default": []
+          },
+          "per_place": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceSummary"
+            },
+            "type": "array",
+            "title": "Per Place",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trend",
+          "topic_shares",
+          "changes"
+        ],
+        "title": "Metrics",
+        "description": "Everything computed by code from Reviews and ReviewTopics."
+      },
+      "Place": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "external_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "External Id"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "external_id",
+          "name",
+          "address"
+        ],
+        "title": "Place",
+        "description": "One branch of a Company on one Source, identified by that Source's external ID."
+      },
+      "PlaceSummary": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "place_external_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Place External Id"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/RatingSummary"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "place_external_id",
+          "summary"
+        ],
+        "title": "PlaceSummary",
+        "description": "The RatingSummary of one Place, for the comparison of Places."
+      },
+      "RatingSummary": {
+        "properties": {
+          "average_rating": {
+            "type": "number",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Average Rating"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "average_rating",
+          "count"
+        ],
+        "title": "RatingSummary",
+        "description": "The average rating and the number of Reviews of one group (all, one Source or one Place)."
+      },
+      "ResultOut": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "company": {
+            "$ref": "#/components/schemas/Company"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/Metrics"
+          },
+          "insights": {
+            "items": {
+              "$ref": "#/components/schemas/Insight"
+            },
+            "type": "array",
+            "title": "Insights"
+          },
+          "reviews": {
+            "type": "integer",
+            "title": "Reviews"
+          },
+          "flagged": {
+            "type": "integer",
+            "title": "Flagged"
+          },
+          "unclassified": {
+            "type": "integer",
+            "title": "Unclassified"
+          },
+          "cost": {
+            "type": "string",
+            "title": "Cost"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "status",
+          "company",
+          "metrics",
+          "insights",
+          "reviews",
+          "flagged",
+          "unclassified",
+          "cost"
+        ],
+        "title": "ResultOut"
+      },
+      "RunIn": {
+        "properties": {
+          "place_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 300,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_\\-]+$"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Place Ids"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[\\w\\s.,'&/()\\-]+$",
+            "title": "Name"
+          },
+          "industry": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "pattern": "^[\\w\\s.,'&/()\\-]+$",
+            "title": "Industry"
+          }
+        },
+        "type": "object",
+        "required": [
+          "place_ids",
+          "name",
+          "industry"
+        ],
+        "title": "RunIn"
+      },
+      "RunOut": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "reused": {
+            "type": "boolean",
+            "title": "Reused",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "status"
+        ],
+        "title": "RunOut"
+      },
+      "RunStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "downloading",
+          "classifying",
+          "analyzing",
+          "done",
+          "partial",
+          "failed"
+        ],
+        "title": "RunStatus",
+        "description": "Where a Run is. A Run only moves forward; `done`, `partial` and `failed` are final."
+      },
+      "Source": {
+        "type": "string",
+        "enum": [
+          "google_maps",
+          "firmy_cz"
+        ],
+        "title": "Source",
+        "description": "A public site that hosts reviews."
+      },
+      "SourceSummary": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/RatingSummary"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "summary"
+        ],
+        "title": "SourceSummary",
+        "description": "The RatingSummary of one Source."
+      },
+      "StatusOut": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "finished": {
+            "type": "boolean",
+            "title": "Finished"
+          },
+          "cost": {
+            "type": "string",
+            "title": "Cost"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "status",
+          "finished",
+          "cost"
+        ],
+        "title": "StatusOut"
+      },
+      "SuggestionOut": {
+        "properties": {
+          "place_id": {
+            "type": "string",
+            "title": "Place Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "place_id",
+          "text"
+        ],
+        "title": "SuggestionOut"
+      },
+      "TopicShare": {
+        "properties": {
+          "topic_key": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Topic Key"
+          },
+          "positive": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Positive"
+          },
+          "neutral": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Neutral"
+          },
+          "negative": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Negative"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "topic_key",
+          "positive",
+          "neutral",
+          "negative"
+        ],
+        "title": "TopicShare",
+        "description": "How many mentions of one Topic were positive, neutral and negative."
+      },
+      "TrendPoint": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Period Start"
+          },
+          "average_rating": {
+            "type": "number",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Average Rating"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count"
+          },
+          "sentiment": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Sentiment"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "period_start",
+          "average_rating",
+          "count",
+          "sentiment"
+        ],
+        "title": "TrendPoint",
+        "description": "The average rating, count and sentiment of one Source in one period; a point of the timeline."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
