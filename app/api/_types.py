@@ -38,7 +38,7 @@ class ApiConfig(BaseModel):
     runs_per_day: int = Field(default=5, gt=0)
     cache_ttl: timedelta = timedelta(hours=24)
     run_cap: str = "1"
-    autocomplete_run_id: str = "autocomplete"
+    autocomplete_run_id: str = "autocomplete"  # prefix: each search or confirm gets "<prefix>-<n>"
 
     @classmethod
     def from_environ(cls, environ: Mapping[str, str]) -> Self:

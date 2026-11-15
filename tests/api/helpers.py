@@ -29,8 +29,8 @@ def config(**changes: object) -> ApiConfig:
 class Api:
     """The app over in-memory storage, `places` over a fake Google, a fake queue and a fake clock."""
 
-    def __init__(self, *, known: Sequence[Place] = (), **changes: object) -> None:
-        self.setup = Setup()
+    def __init__(self, *, known: Sequence[Place] = (), run_cap: str = "5", **changes: object) -> None:
+        self.setup = Setup(run_cap=run_cap)
         self.clock: Clock = self.setup.clock
         self.storage: Storage = in_memory_storage(self.clock)
         self.queue = FakeQueue()

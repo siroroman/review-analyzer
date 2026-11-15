@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
 from tests.api.helpers import HEADERS, OTHER_DEMO, Api, cafe
@@ -62,3 +63,18 @@ def test_the_daily_limit_resets_on_the_next_utc_day() -> None:
     assert api.client.post("/runs", json={**RUN, "place_ids": ["g2"]}, headers=HEADERS).status_code == 429
     api.advance(timedelta(days=1))
     assert api.client.post("/runs", json={**RUN, "place_ids": ["g2"]}, headers=HEADERS).status_code == 202
+
+
+def test_concurrent_requests_cannot_get_past_the_daily_limit() -> None:
+    places = [cafe(f"g{index}") for index in range(5)]
+    api = Api(known=places, runs_per_day=1)
+    api.setup.google.delay = 0.05
+
+    def post(place_id: str) -> int:
+        body = {**RUN, "place_ids": [place_id]}
+        return int(api.client.post("/runs", json=body, headers=HEADERS).status_code)
+
+    with ThreadPoolExecutor(5) as pool:
+        codes = sorted(pool.map(post, [place.external_id for place in places]))
+    assert codes == [202, 429, 429, 429, 429]
+    assert len(api.queue.enqueued) == 1

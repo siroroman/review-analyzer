@@ -1,4 +1,6 @@
 import hmac
+import threading
+from itertools import count
 from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from decimal import Decimal
@@ -73,6 +75,14 @@ def create_app(*, storage: Storage, places: Places, queue: Queue, clock: Clock, 
     bearer = HTTPBearer(auto_error=False)
     window = SlidingWindow(clock, config.requests_per_minute, timedelta(minutes=1))
     daily = DailyCounter(clock, config.runs_per_day)
+    # `Budget` and a database connection are not thread-safe, and the daily limit is a check then a count:
+    # the endpoints (run in a thread pool) take this lock for the whole of their work.
+    work = threading.Lock()
+    search_ids = count(1)
+
+    def search_run() -> str:
+        """A new id for each search or confirm, so no shared Budget bucket fills up for good."""
+        return f"{config.autocomplete_run_id}-{next(search_ids)}"
 
     @app.middleware("http")
     async def gate(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
@@ -104,27 +114,30 @@ def create_app(*, storage: Storage, places: Places, queue: Queue, clock: Clock, 
     def suggest(
         _: Demo, q: Annotated[str, Query(min_length=1, max_length=100, pattern=_TEXT)]
     ) -> list[SuggestionOut]:
-        found = _unavailable(lambda: places.suggest(q, run_id=config.autocomplete_run_id))
+        with work:
+            found = _unavailable(lambda: places.suggest(q, run_id=search_run()))
         return [SuggestionOut(place_id=item.place_id, text=item.text) for item in found]
 
     @app.post("/runs")
     def create_run(token: Demo, body: RunIn, response: Response) -> RunOut:
-        if daily.exhausted(token):
-            raise HTTPException(429, "daily limit of Runs reached")
-        company = _unavailable(lambda: _confirm(places, body, config.autocomplete_run_id))
-        stored = storage.companies.get_or_create(company)
-        fresh = storage.runs.fresh_for(stored.id, config.cache_ttl)
-        if fresh is not None:
-            return RunOut(run_id=fresh.id, status=fresh.status, reused=True)
-        record = storage.runs.create(stored.id, Decimal(config.run_cap))
-        daily.count(token)
-        queue.enqueue(record.id)
-        response.status_code = 202
-        return RunOut(run_id=record.id, status=record.status)
+        with work:
+            if daily.exhausted(token):
+                raise HTTPException(429, "daily limit of Runs reached")
+            company = _unavailable(lambda: _confirm(places, body, search_run()))
+            stored = storage.companies.get_or_create(company)
+            fresh = storage.runs.fresh_for(stored.id, config.cache_ttl)
+            if fresh is not None:
+                return RunOut(run_id=fresh.id, status=fresh.status, reused=True)
+            record = storage.runs.create(stored.id, Decimal(config.run_cap))
+            daily.count(token)
+            queue.enqueue(record.id)
+            response.status_code = 202
+            return RunOut(run_id=record.id, status=record.status)
 
     @app.get("/runs/{run_id}")
     def run_status(_: Demo, run_id: str) -> StatusOut:
-        record = _run(storage, run_id)
+        with work:
+            record = _run(storage, run_id)
         return StatusOut(run_id=record.id, status=record.status, finished=record.finished_at is not None)
 
     @app.get("/runs/{run_id}/result")

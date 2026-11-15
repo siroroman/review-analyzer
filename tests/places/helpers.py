@@ -1,3 +1,4 @@
+import time
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -42,9 +43,11 @@ class Google:
         self.known: dict[str, Place] = {}
         self.pages: list[GooglePage] = []
         self.error: Exception | None = None
+        self.delay = 0.0  # seconds a call takes; lets a test overlap requests
         self.client = FakeServiceClient(Units(GOOGLE_PLACES, "details_request", 1), self._respond)
 
     def _respond(self, operation: str, request: object) -> ClientResponse:
+        time.sleep(self.delay)
         if self.error is not None:
             raise self.error
         usage = Units(GOOGLE_PLACES, "details_request", 1)
