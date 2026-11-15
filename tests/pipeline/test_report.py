@@ -47,3 +47,28 @@ def test_the_trend_of_a_report_is_the_one_the_run_saved_not_a_new_one() -> None:
 def test_a_report_of_an_unknown_run_raises() -> None:
     with pytest.raises(UnknownRun):
         World().pipeline.report("nope")
+
+
+def test_a_report_shows_no_change_in_a_month_the_runs_trend_does_not_have() -> None:
+    world = World()
+    result = world.run()
+    world.storage.reviews.add(
+        [
+            Review(
+                source=Source.GOOGLE_MAPS,
+                place_external_id=PLACE.external_id,
+                external_id=f"bad-{index}",
+                rating=1,
+                text=f"bad {index}",
+                published_on=date(2026, 11, 2),
+                date_precision=DatePrecision.DAY,
+                language="cs",
+                text_hash=f"bad-hash-{index}",
+                flagged=False,
+            )
+            for index in range(6)
+        ]
+    )
+    report = world.pipeline.report(result.run_id)
+    assert [point.period_start for point in report.metrics.trend] == [date(2026, 10, 1)]
+    assert report.metrics.changes == ()
