@@ -12,7 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from app.api._limits import DailyCounter, SlidingWindow
-from app.api._types import ApiConfig, Queue, Reporter
+from app.api._types import ApiConfig, Reporter
 from app.domain import Clock, Company, Insight, Metrics, RunStatus
 from app.places import (
     InvalidCompany,
@@ -20,6 +20,7 @@ from app.places import (
     Places,
     PlacesUnavailable,
 )
+from app.queue import Queue
 from app.storage import RunRecord, Storage, UnknownRun
 
 _TEXT = r"^[\w\s.,'&/()\-]+$"  # letters (any language), digits, spaces and a little punctuation
