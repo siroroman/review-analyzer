@@ -67,7 +67,7 @@ def test_rejects_a_bad_row_and_names_its_id(tmp_path: Path, bad: dict[str, objec
     with pytest.raises(InvalidSet) as caught:
         load(write(tmp_path, bad))
 
-    assert bad["id"] in str(caught.value)
+    assert str(bad["id"]) in str(caught.value)
     assert why in str(caught.value)
 
 
