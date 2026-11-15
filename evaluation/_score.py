@@ -27,7 +27,8 @@ class TopicScore:
     expected: int = 0  # Reviews that expect the Topic
     predicted: int = 0  # Reviews that got the Topic
     found: int = 0  # both
-    sentiment_right: int = 0  # found, with the expected sentiment
+    rated: int = 0  # found, and with a sentiment of its own (not `unclassified`)
+    sentiment_right: int = 0  # rated, with the expected sentiment
 
     @property
     def recall(self) -> float | None:
@@ -39,7 +40,7 @@ class TopicScore:
 
     @property
     def sentiment_accuracy(self) -> float | None:
-        return _ratio(self.sentiment_right, self.found)
+        return _ratio(self.sentiment_right, self.rated)
 
 
 @dataclass
@@ -73,6 +74,7 @@ def score(items: Sequence[SetItem], actual: Sequence[ReviewTopic]) -> Scores:
             topics[expected.topic].found += 1
             if expected.topic == UNCLASSIFIED_KEY:
                 continue  # always neutral: it would only inflate sentiment accuracy
+            topics[expected.topic].rated += 1
             found += 1
             if match.sentiment == expected.sentiment:
                 topics[expected.topic].sentiment_right += 1
