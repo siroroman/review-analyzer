@@ -62,6 +62,10 @@ _Avoid_: Validation, fact-checking
 One execution of the pipeline for a Company, with a status, a Budget and a measured cost.
 _Avoid_: Job, analysis, task (a task is a queue message)
 
+**Message**:
+What the queue delivers to the worker: the id of one queued Run, nothing else. Delivery is at least once, so the same Message can arrive again; a repeat must not pay for or store a Run twice.
+_Avoid_: Task, job
+
 **Fresh Run**:
 The newest `done` Run of a Company that finished less than the cache time (24 hours) ago. `POST /runs` returns it instead of starting a duplicate.
 _Avoid_: Cached run, latest run

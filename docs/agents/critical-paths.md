@@ -12,6 +12,7 @@ Whoever adds a module in one of these areas adds or fixes the glob in the same P
 | Numbers and trends | `app/metrics/**` | `tests/metrics/**` | wrong average or Topic share, a false drop |
 | Access and abuse | `app/api/**` | `tests/api/**` | a missing token is accepted, a Demo token opens `/admin/*`, a limit lets paid Runs through |
 | Data identity | `app/storage/**`, `app/sources/**` | `tests/storage/**`, `tests/sources/**` | duplicate Reviews, broken cache, a changed `external_id` |
+| Duplicate cost | `app/worker/**`, `app/queue/**` | `tests/worker/**`, `tests/adapters/**` | a redelivered message pays or stores a Run twice, a message is lost |
 
 Modules with a 95 % coverage threshold: `metrics`, `sanitize`, `budget`, `gateway`, `llm`.
 
