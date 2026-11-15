@@ -138,3 +138,65 @@ def test_results_of_an_unknown_run_are_refused(storage: Storage) -> None:
         storage.insights.save("nope", [])
     with pytest.raises(UnknownRun):
         storage.trends.save("nope", [])
+
+
+def _finished_run_with_results(storage: Storage) -> str:
+    run_id = _new_run(storage)
+    storage.insights.save(
+        run_id,
+        [
+            Insight(
+                type=InsightType.SUMMARY,
+                period_start=date(2026, 10, 1),
+                period_end=date(2026, 10, 31),
+                text="Hosté chválí obsluhu.",
+                review_ids=("r1",),
+            )
+        ],
+    )
+    storage.trends.save(
+        run_id,
+        [
+            TrendPoint(
+                source=Source.GOOGLE_MAPS,
+                period_start=date(2026, 10, 1),
+                average_rating=4.5,
+                count=10,
+                sentiment=0.5,
+            )
+        ],
+    )
+    return run_id
+
+
+def test_results_are_copied_to_another_run_in_one_step(storage: Storage) -> None:
+    source = _finished_run_with_results(storage)
+    target = _new_run(storage)
+    storage.runs.copy_results(source, target)
+    assert storage.insights.for_run(target) == storage.insights.for_run(source)
+    assert storage.trends.for_run(target) == storage.trends.for_run(source)
+    assert len(storage.insights.for_run(source)) == 1
+
+
+def test_copying_results_twice_copies_them_once(storage: Storage) -> None:
+    source = _finished_run_with_results(storage)
+    target = _new_run(storage)
+    storage.runs.copy_results(source, target)
+    storage.runs.copy_results(source, target)
+    assert len(storage.insights.for_run(target)) == 1
+    assert len(storage.trends.for_run(target)) == 1
+
+
+def test_results_are_not_copied_over_a_run_that_has_its_own(storage: Storage) -> None:
+    source = _finished_run_with_results(storage)
+    target = _finished_run_with_results(storage)
+    storage.runs.copy_results(source, target)
+    assert len(storage.insights.for_run(target)) == 1
+
+
+def test_copying_results_needs_two_known_runs(storage: Storage) -> None:
+    run_id = _new_run(storage)
+    with pytest.raises(UnknownRun):
+        storage.runs.copy_results("nope", run_id)
+    with pytest.raises(UnknownRun):
+        storage.runs.copy_results(run_id, "nope")

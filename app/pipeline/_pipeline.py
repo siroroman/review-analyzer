@@ -1,5 +1,5 @@
 from collections.abc import Callable, Sequence
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 from functools import partial
 from typing import Protocol
@@ -30,7 +30,6 @@ _RANK = {
     RunStatus.CLASSIFYING: 2,
     RunStatus.ANALYZING: 3,
 }
-_ANY_AGE = timedelta(days=36_500)
 _FINAL = (RunStatus.DONE, RunStatus.PARTIAL, RunStatus.FAILED)
 # A step failing like this ends the Run with what is finished. Anything else is a bug and propagates,
 # leaving the Run at its status so the queue's redelivery resumes it.
@@ -143,21 +142,22 @@ class Pipeline:
         return self._storage.runs.advance(run_id, status)
 
     def _reuse_fresh(self, record: RunRecord) -> bool:
+        """Give a queued Run the result of the Company's fresh `done` Run, all at once.
+
+        The copy is one storage step and a repeat is harmless, so a crash before the Run is `done` leaves
+        either nothing or the whole result. A queued Run that already holds one (an earlier attempt copied
+        it) is finished as it is, however old its source has become.
+        """
+        if self._holds_result(record.id):
+            return True
         fresh = self._storage.runs.fresh_for(record.company_id, self._config.cache_ttl)
-        if fresh is None and self._holds_copy(record.id):
-            # A queued Run holds rows only when a crash interrupted a copy (the steps write after they
-            # enter their status). Finish that copy from the newest `done` Run, however old it is now.
-            fresh = self._storage.runs.fresh_for(record.company_id, _ANY_AGE)
         if fresh is None:
             return False
-        # A crash between the copies leaves one of them behind; saving appends, so copy only what is missing.
-        if not self._storage.insights.for_run(record.id):
-            self._storage.insights.save(record.id, self._storage.insights.for_run(fresh.id))
-        if not self._storage.trends.for_run(record.id):
-            self._storage.trends.save(record.id, self._storage.trends.for_run(fresh.id))
+        self._storage.runs.copy_results(fresh.id, record.id)
         return True
 
-    def _holds_copy(self, run_id: str) -> bool:
+    def _holds_result(self, run_id: str) -> bool:
+        # Steps write only after they entered their status, so a queued Run can hold rows only as a copy.
         return bool(self._storage.insights.for_run(run_id) or self._storage.trends.for_run(run_id))
 
     def _attempt[T](self, step: Callable[[], T]) -> T:

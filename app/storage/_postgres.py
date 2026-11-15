@@ -361,6 +361,30 @@ class PostgresRuns:
             )
             return _run(_one(cur))
 
+    def copy_results(self, source_run_id: str, run_id: str) -> None:
+        with self._db.cursor() as cur:  # one transaction: both tables or neither
+            _require_run(cur, source_run_id)
+            _require_run(cur, run_id)
+            cur.execute(
+                "SELECT (SELECT count(*) FROM insights WHERE run_id = %s) "
+                "+ (SELECT count(*) FROM trend_points WHERE run_id = %s)",
+                (run_id, run_id),
+            )
+            if _one(cur)[0]:
+                return
+            cur.execute(
+                "INSERT INTO insights (run_id, type, period_start, period_end, text, review_ids) "
+                "SELECT %s, type, period_start, period_end, text, review_ids FROM insights "
+                "WHERE run_id = %s ORDER BY seq",
+                (run_id, source_run_id),
+            )
+            cur.execute(
+                "INSERT INTO trend_points (run_id, source, period_start, average_rating, count, sentiment) "
+                "SELECT %s, source, period_start, average_rating, count, sentiment FROM trend_points "
+                "WHERE run_id = %s ORDER BY seq",
+                (run_id, source_run_id),
+            )
+
     def fresh_for(self, company_id: int, ttl: timedelta) -> RunRecord | None:
         with self._db.cursor() as cur:
             cur.execute(

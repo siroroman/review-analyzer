@@ -134,6 +134,14 @@ class RunRepo(Protocol):
         """Move the Run forward by the rules of `domain.advance`. Raises `UnknownRun`, `InvalidTransition`."""
         ...
 
+    def copy_results(self, source_run_id: str, run_id: str) -> None:
+        """Copy the Insights and TrendPoints of one Run to another, all or nothing, in one step.
+
+        Does nothing when `run_id` already holds Insights or TrendPoints, so a repeat is harmless.
+        Raises `UnknownRun` for either id.
+        """
+        ...
+
     def fresh_for(self, company_id: int, ttl: timedelta) -> RunRecord | None:
         """The newest `done` Run of the Company that finished less than `ttl` ago by the Clock: the cache."""
         ...

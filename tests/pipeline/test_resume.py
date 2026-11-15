@@ -78,28 +78,32 @@ def test_a_stale_cache_fetches_only_new_reviews_and_classifies_only_those() -> N
     assert second.unclassified == 0
 
 
-def test_a_crash_while_reusing_the_cache_does_not_copy_the_result_twice() -> None:
+def test_a_crash_after_copying_the_cached_result_leaves_a_whole_result() -> None:
     world = World()
     first = world.run()
     world.clock.advance(timedelta(hours=1))
     run_id = world.new_run()
-    # the worker died after copying the Insights, before the Run became done
-    world.storage.insights.save(run_id, world.storage.insights.for_run(first.run_id))
-    second = world.pipeline.run(run_id)
-    assert second.status is RunStatus.DONE
-    assert (second.insights, second.trend_points) == (1, 1)
-
-
-def test_a_half_copied_result_is_finished_even_when_the_cache_went_stale() -> None:
-    world = World()
-    first = world.run()
-    world.clock.advance(timedelta(hours=1))
-    run_id = world.new_run()
-    # the worker died after copying the Insights, before the Run became done ...
-    world.storage.insights.save(run_id, world.storage.insights.for_run(first.run_id))
-    world.clock.advance(timedelta(days=2))  # ... and the redelivery came after the cache expired
+    world.storage.runs.copy_results(first.run_id, run_id)  # the worker died before the Run became done
     before = world.service_calls()
     second = world.pipeline.run(run_id)
     assert second.status is RunStatus.DONE
     assert world.service_calls() == before
     assert (second.insights, second.trend_points) == (1, 1)
+
+
+def test_a_copied_result_stays_whole_when_a_newer_run_finishes_before_the_redelivery() -> None:
+    world = World()
+    first = world.run()
+    world.clock.advance(timedelta(hours=1))
+    run_id = world.new_run()
+    world.storage.runs.copy_results(first.run_id, run_id)  # the worker died before the Run became done
+    world.clock.advance(timedelta(days=2))  # the cache expires ...
+    world.scraped = [*world.scraped, *(scraped(600 + i, date(2026, 11, 10)) for i in range(5))]
+    newer = world.run()  # ... and a newer Run finishes with its own result
+    assert newer.status is RunStatus.DONE
+    before = world.service_calls()
+    second = world.pipeline.run(run_id)
+    assert second.status is RunStatus.DONE
+    assert world.service_calls() == before
+    assert world.storage.insights.for_run(run_id) == world.storage.insights.for_run(first.run_id)
+    assert world.storage.trends.for_run(run_id) == world.storage.trends.for_run(first.run_id)
