@@ -1,0 +1,9 @@
+{
+  "industry": "cafe",
+  "topics": [
+    {"key": "staff", "name": "Staff", "description": "How staff treat guests"},
+    {"key": "waiting", "name": "Waiting", "description": "How long things take"},
+    {"key": "prices", "name": "Prices", "description": "Value for money"},
+    {"key": "food", "name": "Food and drink", "description": "Taste and quality of what is served"}
+  ]
+}

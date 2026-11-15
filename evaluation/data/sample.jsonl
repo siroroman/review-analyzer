@@ -1,0 +1,8 @@
+{"id": "e001", "text": "Obsluha byla milá a ochotná, ale na kávu jsme čekali skoro půl hodiny.", "rating": 3, "language": "cs", "expected": [{"topic": "staff", "sentiment": "positive"}, {"topic": "waiting", "sentiment": "negative"}]}
+{"id": "e002", "text": "Skvělý koláč a výborné cappuccino, určitě se vrátíme.", "rating": 5, "language": "cs", "expected": [{"topic": "food", "sentiment": "positive"}]}
+{"id": "e003", "text": "Za takovou cenu bych čekal víc, dezert byl malý a drahý.", "rating": 2, "language": "cs", "expected": [{"topic": "prices", "sentiment": "negative"}, {"topic": "food", "sentiment": "negative"}]}
+{"id": "e004", "text": "Pracovnice u pultu se na nás ani nepodívala, vůbec ji nezajímalo, co chceme.", "rating": 1, "language": "cs", "expected": [{"topic": "staff", "sentiment": "negative"}]}
+{"id": "e005", "text": "Objednávka přišla rychle, do pěti minut jsme měli všechno na stole.", "rating": 5, "language": "cs", "expected": [{"topic": "waiting", "sentiment": "positive"}]}
+{"id": "e006", "text": "Ceny běžné, nic zvláštního.", "rating": 3, "language": "cs", "expected": [{"topic": "prices", "sentiment": "neutral"}]}
+{"id": "e007", "text": "Parkování před kavárnou je hrozné.", "rating": 3, "language": "cs", "expected": [{"topic": "unclassified", "sentiment": "neutral"}]}
+{"id": "e008", "text": "Káva vlažná, číšník se omluvil a donesl novou, to oceňuji.", "rating": 4, "language": "cs", "expected": [{"topic": "food", "sentiment": "negative"}, {"topic": "staff", "sentiment": "positive"}]}
