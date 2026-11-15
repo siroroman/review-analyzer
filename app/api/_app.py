@@ -142,7 +142,7 @@ def create_app(
             record = _run(storage, run_id)
         return StatusOut(run_id=record.id, status=record.status, finished=record.finished_at is not None)
 
-    @app.get("/runs/{run_id}/result", response_model_exclude={"metrics": {"changes"}})
+    @app.get("/runs/{run_id}/result")
     def run_result(_: Demo, run_id: str) -> ResultOut:
         with work:
             record = _run(storage, run_id)

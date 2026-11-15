@@ -3,8 +3,9 @@ from datetime import date
 import pytest
 
 from app.domain import DatePrecision, Review, RunStatus, Source
+from app.metrics import compute
 from app.storage import UnknownRun
-from tests.pipeline.helpers import PLACE, World
+from tests.pipeline.helpers import PLACE, World, scraped
 
 
 def test_a_report_holds_the_result_the_company_and_what_the_run_saved() -> None:
@@ -50,7 +51,9 @@ def test_a_report_of_an_unknown_run_raises() -> None:
 
 
 def test_a_report_carries_no_changes_even_when_later_reviews_would_make_a_drop() -> None:
-    world = World()
+    first = [scraped(i, date(2026, 9, 1 + i)) for i in range(10)]
+    second = [scraped(10 + i, date(2026, 10, 1 + i)) for i in range(10)]
+    world = World(scraped_reviews=first + second)
     result = world.run()
     world.storage.reviews.add(
         [
@@ -69,6 +72,8 @@ def test_a_report_carries_no_changes_even_when_later_reviews_would_make_a_drop()
             for index in range(10)
         ]
     )
+    stored = world.storage.reviews.list_for_place(Source.GOOGLE_MAPS, PLACE.external_id)
+    assert compute(stored, []).changes  # today's Reviews do show a drop in October ...
     report = world.pipeline.report(result.run_id)
-    assert report.metrics.changes == ()
-    assert [point.period_start for point in report.metrics.trend] == [date(2026, 10, 1)]
+    assert report.metrics.changes == ()  # ... and the report, tied to the Run's trend, does not
+    assert [point.period_start for point in report.metrics.trend] == [date(2026, 9, 1), date(2026, 10, 1)]

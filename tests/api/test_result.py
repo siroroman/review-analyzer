@@ -64,7 +64,7 @@ def test_the_result_is_what_the_pipeline_reports() -> None:
     assert body["status"] == "done"
     assert (body["reviews"], body["flagged"], body["unclassified"]) == (3, 1, 2)
     assert body["metrics"]["overall"] == {"average_rating": 4.0, "count": 2}
-    assert "changes" not in body["metrics"]  # not saved with a Run, so never shown
+    assert body["metrics"]["changes"] == []  # changes are not saved with a Run, so none is reported
     assert [insight["text"] for insight in body["insights"]] == ["Guests like it."]
     assert Decimal(body["cost"]) == Decimal("0.25")
     assert body["company"]["name"] == "Kavárna"
