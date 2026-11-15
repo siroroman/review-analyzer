@@ -4,10 +4,11 @@ from datetime import timedelta
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from app.api import ApiConfig, FakeQueue, create_app
+from app.api import ApiConfig, create_app
 from app.domain import Clock, Place, Source
 from app.gateway import Suggestion
 from app.pipeline import RunReport
+from app.queue import FakeQueue
 from app.storage import Storage, UnknownRun, in_memory_storage
 from tests.places.helpers import Setup, google
 
