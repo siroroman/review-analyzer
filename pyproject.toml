@@ -4,13 +4,16 @@ version = "0.0.0"
 description = "Dashboard of public reviews of a Czech company"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "fastapi>=0.163.1",
     "psycopg[binary]>=3.2",
     "pydantic>=2.14.3",
+    "uvicorn>=0.54.0",
 ]
 
 [dependency-groups]
 dev = [
   "diff-cover>=9",
+  "httpx>=0.28.1",
   "hypothesis>=6",
   "import-linter>=2",
   "mypy>=1.13",

@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from decimal import Decimal
 
-from app.domain import RunStatus, Source
+from app.domain import Company, Insight, Metrics, RunStatus, Source
 
 
 @dataclass(frozen=True)
@@ -45,3 +45,21 @@ class RunResult:
     insights: int
     trend_points: int
     cost: Decimal
+
+
+@dataclass(frozen=True)
+class RunReport:
+    """Everything the dashboard shows of one Run.
+
+    `metrics.trend` is the timeline the Run saved, so it matches the Run's Insights. `metrics.changes` is
+    always empty: changes are not saved with a Run. The other numbers are computed from Reviews stored now.
+    """
+
+    result: RunResult
+    company: Company
+    metrics: Metrics
+    insights: tuple[Insight, ...]
+
+    @property
+    def status(self) -> RunStatus:
+        return self.result.status
