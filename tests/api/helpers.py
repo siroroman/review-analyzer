@@ -7,7 +7,8 @@ from pydantic import SecretStr
 from app.api import ApiConfig, FakeQueue, create_app
 from app.domain import Clock, Place, Source
 from app.gateway import Suggestion
-from app.storage import Storage, in_memory_storage
+from app.pipeline import RunReport
+from app.storage import Storage, UnknownRun, in_memory_storage
 from tests.places.helpers import Setup, google
 
 DEMO = "demo-token-1"
@@ -26,6 +27,18 @@ def config(**changes: object) -> ApiConfig:
     return base.model_copy(update=changes)
 
 
+class FakeReporter:
+    """A `Reporter` with the reports a test put in."""
+
+    def __init__(self) -> None:
+        self.reports: dict[str, RunReport] = {}
+
+    def report(self, run_id: str) -> RunReport:
+        if run_id not in self.reports:
+            raise UnknownRun(run_id)
+        return self.reports[run_id]
+
+
 class Api:
     """The app over in-memory storage, `places` over a fake Google, a fake queue and a fake clock."""
 
@@ -34,12 +47,14 @@ class Api:
         self.clock: Clock = self.setup.clock
         self.storage: Storage = in_memory_storage(self.clock)
         self.queue = FakeQueue()
+        self.reporter = FakeReporter()
         for place in known:
             self.setup.google.known[place.external_id] = place
         self.app = create_app(
             storage=self.storage,
             places=self.setup.places,
             queue=self.queue,
+            pipeline=self.reporter,
             clock=self.clock,
             config=config(**changes),
         )

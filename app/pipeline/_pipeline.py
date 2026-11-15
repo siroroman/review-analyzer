@@ -19,7 +19,7 @@ from app.gateway import BudgetExceeded, ClientError, GatewayDenied
 from app.insights import Insights
 from app.llm import LlmError, Sleeper
 from app.metrics import compute
-from app.pipeline._types import PipelineConfig, RunResult
+from app.pipeline._types import PipelineConfig, RunReport, RunResult
 from app.sanitize import InjectionDetector, prepare
 from app.storage import CallFilter, RunRecord, Storage, StoredTaxonomy, UnknownRun
 from app.taxonomy import UNCLASSIFIED_KEY, TaxonomyError
@@ -118,6 +118,23 @@ class Pipeline:
         empty = not self._reviews(company.company) and not isinstance(failure, BudgetExceeded)
         end = RunStatus.FAILED if empty else RunStatus.PARTIAL
         return self._result(self._advance(run_id, end), company.company)
+
+    def report(self, run_id: str) -> RunReport:
+        """What the dashboard shows of a Run, for any status. Raises `UnknownRun`."""
+        record = self._storage.runs.get(run_id)
+        if record is None:
+            raise UnknownRun(run_id)
+        company = self._storage.companies.by_id(record.company_id)
+        if company is None:
+            raise RuntimeError(f"Run {run_id} has no stored Company")
+        saved = tuple(self._storage.trends.for_run(run_id))
+        metrics = self._metrics(company.company).model_copy(update={"trend": saved})
+        return RunReport(
+            result=self._result(record, company.company),
+            company=company.company,
+            metrics=metrics,
+            insights=tuple(self._storage.insights.for_run(run_id)),
+        )
 
     def _steps(self, record: RunRecord, company: Company) -> Exception | None:
         run_id = record.id

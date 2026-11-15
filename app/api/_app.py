@@ -1,9 +1,9 @@
 import hmac
 import threading
-from itertools import count
 from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from decimal import Decimal
+from itertools import count
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
@@ -12,16 +12,15 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from app.api._limits import DailyCounter, SlidingWindow
-from app.api._types import ApiConfig, Queue
+from app.api._types import ApiConfig, Queue, Reporter
 from app.domain import Clock, Company, Insight, Metrics, RunStatus
-from app.metrics import compute
 from app.places import (
     InvalidCompany,
     PlaceNotFound,
     Places,
     PlacesUnavailable,
 )
-from app.storage import CallFilter, RunRecord, Storage
+from app.storage import RunRecord, Storage, UnknownRun
 
 _TEXT = r"^[\w\s.,'&/()\-]+$"  # letters (any language), digits, spaces and a little punctuation
 _PLACE_ID = r"^[A-Za-z0-9_\-]+$"
@@ -62,6 +61,7 @@ class ResultOut(BaseModel):
     insights: list[Insight]
     reviews: int
     flagged: int
+    unclassified: int
     cost: Decimal
 
 
@@ -69,7 +69,9 @@ def _equal(given: str, expected: str) -> bool:
     return hmac.compare_digest(given.encode(), expected.encode())
 
 
-def create_app(*, storage: Storage, places: Places, queue: Queue, clock: Clock, config: ApiConfig) -> FastAPI:
+def create_app(
+    *, storage: Storage, places: Places, queue: Queue, pipeline: Reporter, clock: Clock, config: ApiConfig
+) -> FastAPI:
     """The HTTP layer: it parses a request, calls a module and serializes the answer; no business logic."""
     app = FastAPI(title="Review Analyzer API")
     bearer = HTTPBearer(auto_error=False)
@@ -142,37 +144,24 @@ def create_app(*, storage: Storage, places: Places, queue: Queue, clock: Clock, 
 
     @app.get("/runs/{run_id}/result")
     def run_result(_: Demo, run_id: str) -> ResultOut:
-        record = _run(storage, run_id)
-        if record.status not in _FINISHED:
-            raise HTTPException(409, f"the Run is {record.status.value}")
-        stored = storage.companies.by_id(record.company_id)
-        if stored is None:
-            raise HTTPException(404, "unknown company")
-        reviews = [
-            review
-            for place in stored.company.places
-            for review in storage.reviews.list_for_place(place.source, place.external_id)
-        ]
-        taxonomy = storage.taxonomies.latest(stored.company.industry)
-        topics = (
-            [
-                topic
-                for place in stored.company.places
-                for topic in storage.reviews.topics_for_place(place.source, place.external_id, taxonomy)
-            ]
-            if taxonomy
-            else []
-        )
-        spent = storage.calls.cost_by_run(CallFilter(run_id=run_id)).get(run_id, Decimal(0))
+        with work:
+            record = _run(storage, run_id)
+            if record.status not in _FINISHED:
+                raise HTTPException(409, f"the Run is {record.status.value}")
+            try:
+                report = pipeline.report(run_id)
+            except UnknownRun as unknown:
+                raise HTTPException(404, "unknown Run") from unknown
         return ResultOut(
             run_id=run_id,
-            status=record.status,
-            company=stored.company,
-            metrics=compute(reviews, topics),
-            insights=storage.insights.for_run(run_id),
-            reviews=len(reviews),
-            flagged=sum(review.flagged for review in reviews),
-            cost=spent,
+            status=report.status,
+            company=report.company,
+            metrics=report.metrics,
+            insights=list(report.insights),
+            reviews=report.result.reviews,
+            flagged=report.result.flagged,
+            unclassified=report.result.unclassified,
+            cost=report.result.cost,
         )
 
     return app

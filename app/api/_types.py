@@ -4,6 +4,7 @@ from typing import Protocol, Self
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
+from app.pipeline import RunReport
 from app.transport import read_secret
 
 
@@ -11,6 +12,14 @@ class Queue(Protocol):
     """Port: hands a queued Run to the worker (#23). The API never runs a Run itself."""
 
     def enqueue(self, run_id: str) -> None: ...
+
+
+class Reporter(Protocol):
+    """The part of `pipeline` the API uses: what the dashboard shows of a Run."""
+
+    def report(self, run_id: str) -> RunReport:
+        """Raises `UnknownRun`."""
+        ...
 
 
 class FakeQueue:
