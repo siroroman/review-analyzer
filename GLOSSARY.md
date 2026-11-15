@@ -62,6 +62,10 @@ _Avoid_: Validation, fact-checking
 One execution of the pipeline for a Company, with a status, a Budget and a measured cost.
 _Avoid_: Job, analysis, task (a task is a queue message)
 
+**Fresh Run**:
+The newest `done` Run of a Company that finished less than the cache time (24 hours) ago. `POST /runs` returns it instead of starting a duplicate.
+_Avoid_: Cached run, latest run
+
 **Budget**:
 The cost cap of one Run (and the monthly cap across Runs) over all paid services; the Gateway enforces it, and exceeding it ends the Run with a partial result.
 _Avoid_: Quota, limit

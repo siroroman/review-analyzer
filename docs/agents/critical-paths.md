@@ -10,6 +10,7 @@ Whoever adds a module in one of these areas adds or fixes the glob in the same P
 | Budget | `app/budget/**`, `app/gateway/**`, `app/llm/**` | `tests/budget/**`, `tests/gateway/**`, `tests/llm/**` | a Run or the 30 USD monthly cap is exceeded, a paid call bypasses the Gateway |
 | Grounding | `app/insights/**` | `tests/insights/**` | an Insight cites a non-existent Review ID |
 | Numbers and trends | `app/metrics/**` | `tests/metrics/**` | wrong average or Topic share, a false drop |
+| Access and abuse | `app/api/**` | `tests/api/**` | a missing token is accepted, a Demo token opens `/admin/*`, a limit lets paid Runs through |
 | Data identity | `app/storage/**`, `app/sources/**` | `tests/storage/**`, `tests/sources/**` | duplicate Reviews, broken cache, a changed `external_id` |
 
 Modules with a 95 % coverage threshold: `metrics`, `sanitize`, `budget`, `gateway`, `llm`.
