@@ -72,7 +72,7 @@ def score(items: Sequence[SetItem], actual: Sequence[ReviewTopic]) -> Scores:
                 continue
             topics[expected.topic].found += 1
             if expected.topic == UNCLASSIFIED_KEY:
-                continue  # its sentiment is always neutral: counting it would only inflate the sentiment numbers
+                continue  # always neutral: it would only inflate sentiment accuracy
             found += 1
             if match.sentiment == expected.sentiment:
                 topics[expected.topic].sentiment_right += 1
