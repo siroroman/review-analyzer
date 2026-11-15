@@ -114,6 +114,12 @@ class PostgresCompanies:
             row = cur.fetchone()
             return None if row is None else self._load(cur, row[0])
 
+    def by_id(self, company_id: int) -> StoredCompany | None:
+        with self._db.cursor() as cur:
+            cur.execute("SELECT id FROM companies WHERE id = %s", (company_id,))
+            row = cur.fetchone()
+            return None if row is None else self._load(cur, row[0])
+
     def containing(self, source: Source, place_external_id: str) -> list[StoredCompany]:
         with self._db.cursor() as cur:
             cur.execute(

@@ -49,6 +49,12 @@ class MemoryCompanies:
     def get(self, places_key: str) -> StoredCompany | None:
         return self._build(places_key) if places_key in self._companies else None
 
+    def by_id(self, company_id: int) -> StoredCompany | None:
+        for key, entry in self._companies.items():
+            if entry[0] == company_id:
+                return self._build(key)
+        return None
+
     def containing(self, source: Source, place_external_id: str) -> list[StoredCompany]:
         return [
             self._build(key)

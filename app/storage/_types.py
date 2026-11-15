@@ -79,6 +79,10 @@ class CompanyRepo(Protocol):
 
     def get(self, places_key: str) -> StoredCompany | None: ...
 
+    def by_id(self, company_id: int) -> StoredCompany | None:
+        """The stored Company with this id, or `None`; a Run knows its Company only by this id."""
+        ...
+
     def containing(self, source: Source, place_external_id: str) -> list[StoredCompany]:
         """Every Company that lists this Place, oldest first."""
         ...
