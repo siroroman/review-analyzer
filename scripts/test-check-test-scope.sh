@@ -16,6 +16,8 @@ expect false false $'CLAUDE.md\n.claude/skills/start-task/SKILL.md\n.github/pull
 expect false false $'scripts/check-review.sh\nMakefile'
 expect true  false 'app/metrics/__init__.py'
 expect true  false 'tests/metrics/test_average.py'
+expect true  false 'evaluation/_score.py'
+expect false false 'evaluation/README.md'
 expect true  false 'pyproject.toml'
 expect true  false 'importlinter.ini'
 expect true  false '.coveragerc'

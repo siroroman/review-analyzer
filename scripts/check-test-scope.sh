@@ -25,7 +25,7 @@ while IFS= read -r path || [[ -n "$path" ]]; do
   [[ -n "$path" ]] || continue
   case "$path" in
     *.md) ;;
-    app/*|tests/*|pyproject.toml|uv.lock|importlinter.ini|.coveragerc) backend=true ;;
+    app/*|tests/*|evaluation/*|pyproject.toml|uv.lock|importlinter.ini|.coveragerc) backend=true ;;
     web/*) frontend=true ;;
   esac
 done
