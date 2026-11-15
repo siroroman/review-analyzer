@@ -38,3 +38,9 @@ def test_a_place_seen_again_takes_the_newest_name(storage: Storage) -> None:
     [solo, chain] = storage.companies.containing(Source.GOOGLE_MAPS, "g1")
     assert solo.company.places[0].name == "New"
     assert chain.company.places[0].name == "New"
+
+
+def test_by_id_finds_the_stored_company_and_misses_unknown(storage: Storage) -> None:
+    stored = storage.companies.get_or_create(company(place("g1"), place("g2")))
+    assert storage.companies.by_id(stored.id) == stored
+    assert storage.companies.by_id(stored.id + 100) is None

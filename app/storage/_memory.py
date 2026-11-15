@@ -2,6 +2,7 @@ from collections import defaultdict
 from collections.abc import Callable, Sequence
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 from app.domain import (
     Clock,
@@ -48,6 +49,12 @@ class MemoryCompanies:
 
     def get(self, places_key: str) -> StoredCompany | None:
         return self._build(places_key) if places_key in self._companies else None
+
+    def by_id(self, company_id: int) -> StoredCompany | None:
+        for key, entry in self._companies.items():
+            if entry[0] == company_id:
+                return self._build(key)
+        return None
 
     def containing(self, source: Source, place_external_id: str) -> list[StoredCompany]:
         return [
@@ -151,6 +158,16 @@ class MemoryRuns:
         self._clock = clock
         self._companies = companies
         self._runs: dict[str, RunRecord] = {}
+        self.results: list[MemoryResults[Any]] = []
+
+    def copy_results(self, source_run_id: str, run_id: str) -> None:
+        for known in (source_run_id, run_id):
+            if known not in self._runs:
+                raise UnknownRun(known)
+        if any(results.for_run(run_id) for results in self.results):
+            return
+        for results in self.results:
+            results.save(run_id, results.for_run(source_run_id))
 
     def create(self, company_id: int, budget_cap: Decimal) -> RunRecord:
         if company_id not in self._companies.ids():
@@ -195,6 +212,7 @@ class MemoryResults[T]:
 
     def __init__(self, runs: MemoryRuns) -> None:
         self._runs = runs
+        runs.results.append(self)
         self._by_run: dict[str, list[T]] = defaultdict(list)
 
     def save(self, run_id: str, items: Sequence[T]) -> None:

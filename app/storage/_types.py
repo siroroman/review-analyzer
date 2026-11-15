@@ -79,6 +79,10 @@ class CompanyRepo(Protocol):
 
     def get(self, places_key: str) -> StoredCompany | None: ...
 
+    def by_id(self, company_id: int) -> StoredCompany | None:
+        """The stored Company with this id, or `None`; a Run knows its Company only by this id."""
+        ...
+
     def containing(self, source: Source, place_external_id: str) -> list[StoredCompany]:
         """Every Company that lists this Place, oldest first."""
         ...
@@ -128,6 +132,14 @@ class RunRepo(Protocol):
 
     def advance(self, run_id: str, status: RunStatus) -> RunRecord:
         """Move the Run forward by the rules of `domain.advance`. Raises `UnknownRun`, `InvalidTransition`."""
+        ...
+
+    def copy_results(self, source_run_id: str, run_id: str) -> None:
+        """Copy the Insights and TrendPoints of one Run to another, all or nothing, in one step.
+
+        Does nothing when `run_id` already holds Insights or TrendPoints, so a repeat is harmless.
+        Raises `UnknownRun` for either id.
+        """
         ...
 
     def fresh_for(self, company_id: int, ttl: timedelta) -> RunRecord | None:
