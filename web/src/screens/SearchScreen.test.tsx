@@ -160,7 +160,7 @@ describe("choosing one Company", () => {
     await user.type(await screen.findByLabelText(/obor/i), "kavárna");
     expect(screen.getByRole("button", { name: /spustit analýzu/i })).toBeDisabled();
     expect(screen.getByText(/nejvýše 20 míst.*vybráno 26/i)).toBeInTheDocument();
-    for (let i = 0; i < 5; i++) await user.click(screen.getByRole("checkbox", { name: new RegExp(`pobočka ${i},`, "i") }));
+    for (let i = 0; i < 6; i++) await user.click(screen.getByRole("checkbox", { name: new RegExp(`pobočka ${i},`, "i") }));
     expect(screen.getByRole("button", { name: /spustit analýzu/i })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: /spustit analýzu/i }));
     await waitFor(() => expect(api.startRun).toHaveBeenCalled());
