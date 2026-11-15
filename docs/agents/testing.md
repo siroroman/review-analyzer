@@ -38,6 +38,7 @@ Which part of the repository is under which tests. CI decides from this table (`
 | Backend modules | `app/**` | unit, `tests/<module>/` | pytest, Hypothesis, fakes | 90 % overall, 80 % per file, 95 % for `metrics`, `sanitize`, `budget`, `gateway`, `llm`, 90 % of changed lines | `backend` |
 | Adapters | `app/**` (adapters) | contract, `tests/adapters/` | pytest, recorded fixtures | as above | `backend` |
 | Storage | `app/storage/**` | integration, `tests/storage/` | pytest, testcontainers | as above | `backend` |
+| Evaluation harness | `evaluation/**` | unit, `tests/evaluation/` | pytest, fakes | not counted (outside `app/`) | `backend` |
 | Pipeline | `app/pipeline/**` | end to end, `tests/pipeline/` | pytest, fake ports | as above | `backend` |
 | Backend config | `pyproject.toml`, `uv.lock`, `importlinter.ini`, `.coveragerc` | all backend tests | pytest | as above | `backend` |
 | Frontend | `web/**` | next to components | Vitest, Testing Library | 80 % | `frontend` |
@@ -53,7 +54,7 @@ Rules:
 
 ## Not in CI
 
-Live contract tests and the evaluation on 100 to 200 hand-labelled Reviews run manually or nightly and do not count toward coverage. CI never calls Apify or a model.
+Live contract tests and the evaluation on 100 to 200 hand-labelled Reviews run manually or nightly and do not count toward coverage. CI never calls Apify or a model. The evaluation is `make evaluate` (code and README in `evaluation/`, outside `app/` and so outside coverage); only its loader, scoring and report logic is tested in CI, with fakes.
 
 ## Coverage
 
