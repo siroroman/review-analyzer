@@ -6,14 +6,14 @@ from decimal import Decimal
 from itertools import count
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from app.api._limits import DailyCounter, SlidingWindow
 from app.api._types import ApiConfig, Reporter
-from app.domain import Clock, Company, Insight, Metrics, RunStatus
+from app.domain import Clock, Company, Insight, Metrics, Place, RunStatus
 from app.places import (
     InvalidCompany,
     PlaceNotFound,
@@ -21,7 +21,7 @@ from app.places import (
     PlacesUnavailable,
 )
 from app.queue import Queue
-from app.storage import RunRecord, Storage, UnknownRun
+from app.storage import CallFilter, RunRecord, Storage, UnknownRun
 
 _TEXT = r"^[\w\s.,'&/()\-]+$"  # letters (any language), digits, spaces and a little punctuation
 _PLACE_ID = r"^[A-Za-z0-9_\-]+$"
@@ -32,6 +32,12 @@ _FINISHED = (RunStatus.DONE, RunStatus.PARTIAL)
 class SuggestionOut(BaseModel):
     place_id: str
     text: str
+
+
+class BranchOut(BaseModel):
+    place_id: str
+    name: str
+    address: str
 
 
 class RunIn(BaseModel):
@@ -52,6 +58,7 @@ class StatusOut(BaseModel):
     run_id: str
     status: RunStatus
     finished: bool
+    cost: Decimal  # the sum of the Run's Service calls so far
 
 
 class ResultOut(BaseModel):
@@ -121,6 +128,14 @@ def create_app(
             found = _unavailable(lambda: places.suggest(q, run_id=search_run()))
         return [SuggestionOut(place_id=item.place_id, text=item.text) for item in found]
 
+    @app.get("/places/{place_id}/branches")
+    def branches(
+        _: Demo, place_id: Annotated[str, Path(min_length=1, max_length=300, pattern=_PLACE_ID)]
+    ) -> list[BranchOut]:
+        with work:
+            found = _unavailable(lambda: _branches(places, place_id, search_run()))
+        return [BranchOut(place_id=item.external_id, name=item.name, address=item.address) for item in found]
+
     @app.post("/runs")
     def create_run(token: Demo, body: RunIn, response: Response) -> RunOut:
         with work:
@@ -141,7 +156,10 @@ def create_app(
     def run_status(_: Demo, run_id: str) -> StatusOut:
         with work:
             record = _run(storage, run_id)
-        return StatusOut(run_id=record.id, status=record.status, finished=record.finished_at is not None)
+            cost = storage.calls.cost_by_run(CallFilter(run_id=run_id)).get(run_id, Decimal(0))
+        return StatusOut(
+            run_id=record.id, status=record.status, finished=record.finished_at is not None, cost=cost
+        )
 
     @app.get("/runs/{run_id}/result")
     def run_result(_: Demo, run_id: str) -> ResultOut:
@@ -187,6 +205,13 @@ def _confirm(places: Places, body: RunIn, run_id: str) -> Company:
         raise HTTPException(422, str(invalid)) from invalid
     except PlaceNotFound as missing:
         raise HTTPException(422, "unknown place") from missing
+
+
+def _branches(places: Places, place_id: str, run_id: str) -> list[Place]:
+    try:
+        return places.branches(places.resolve(place_id, run_id=run_id), run_id=run_id)
+    except PlaceNotFound as missing:
+        raise HTTPException(404, "unknown place") from missing
 
 
 def _unavailable[T](call: Callable[[], T]) -> T:
