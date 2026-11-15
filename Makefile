@@ -1,7 +1,7 @@
 # One command per check. `make lint` and `make test` need uv (brew install uv); `uv sync` runs on first use.
 SHELL := /bin/bash
 
-.PHONY: setup lint test coverage test-scripts
+.PHONY: setup lint test coverage test-scripts evaluate
 
 setup: ## Once per clone: turn on the git hooks, check the tools
 	@scripts/setup.sh
@@ -24,6 +24,9 @@ test: ## Python tests (fast, no network)
 coverage: ## Tests with the overall 90 % threshold, then the per-file and critical-module ones
 	uv run --frozen pytest --cov=app --cov-branch --cov-fail-under=90 --cov-report=term-missing --cov-report=json
 	jq . coverage.json | scripts/check-coverage.sh
+
+evaluate: ## Manual or nightly, never in CI: accuracy of classification on the hand-labelled set (calls paid models)
+	uv run --frozen python -m evaluation $(ARGS)
 
 test-scripts: ## Tests of the repo scripts and hooks
 	scripts/test-check-commit-msg.sh

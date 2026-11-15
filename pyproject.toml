@@ -30,7 +30,7 @@ addopts = "--strict-markers --strict-config"
 
 [tool.mypy]
 strict = true
-files = ["app", "tests"]
+files = ["app", "tests", "evaluation"]
 
 [tool.ruff]
 line-length = 110
