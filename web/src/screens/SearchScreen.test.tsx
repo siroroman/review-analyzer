@@ -151,6 +151,22 @@ describe("choosing one Company", () => {
     });
   });
 
+  it("does not start a Run with more than 20 Places until enough branches are removed", async () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({ place_id: `b${i}`, name: `Pobočka ${i}`, address: "Praha" }));
+    const api = fakeApi({ suggest: vi.fn(async () => [CAFE]), branches: vi.fn(async () => many) });
+    const { user } = setup(api);
+    await search(user);
+    await user.click(await screen.findByRole("button", { name: /celá firma/i }));
+    await user.type(await screen.findByLabelText(/obor/i), "kavárna");
+    expect(screen.getByRole("button", { name: /spustit analýzu/i })).toBeDisabled();
+    expect(screen.getByText(/nejvýše 20 míst.*vybráno 26/i)).toBeInTheDocument();
+    for (let i = 0; i < 5; i++) await user.click(screen.getByRole("checkbox", { name: new RegExp(`pobočka ${i},`, "i") }));
+    expect(screen.getByRole("button", { name: /spustit analýzu/i })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: /spustit analýzu/i }));
+    await waitFor(() => expect(api.startRun).toHaveBeenCalled());
+    expect(api.startRun.mock.calls[0]?.[0].place_ids).toHaveLength(20);
+  });
+
   it("keeps the chosen Place, which cannot be removed", async () => {
     const { user } = setup(fakeApi({ suggest: vi.fn(async () => [CAFE]), branches: vi.fn(async () => branches) }));
     await search(user);
