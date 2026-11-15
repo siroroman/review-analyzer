@@ -76,3 +76,15 @@ def test_a_stale_cache_fetches_only_new_reviews_and_classifies_only_those() -> N
     assert second.reviews == 42
     assert world.model_calls_of("classification") == classified_before + 1  # one batch of 2 new Reviews
     assert second.unclassified == 0
+
+
+def test_a_crash_while_reusing_the_cache_does_not_copy_the_result_twice() -> None:
+    world = World()
+    first = world.run()
+    world.clock.advance(timedelta(hours=1))
+    run_id = world.new_run()
+    # the worker died after copying the Insights, before the Run became done
+    world.storage.insights.save(run_id, world.storage.insights.for_run(first.run_id))
+    second = world.pipeline.run(run_id)
+    assert second.status is RunStatus.DONE
+    assert (second.insights, second.trend_points) == (1, 1)

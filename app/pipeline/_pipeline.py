@@ -145,8 +145,11 @@ class Pipeline:
         fresh = self._storage.runs.fresh_for(record.company_id, self._config.cache_ttl)
         if fresh is None:
             return False
-        self._storage.insights.save(record.id, self._storage.insights.for_run(fresh.id))
-        self._storage.trends.save(record.id, self._storage.trends.for_run(fresh.id))
+        # A crash between the copies leaves one of them behind; saving appends, so copy only what is missing.
+        if not self._storage.insights.for_run(record.id):
+            self._storage.insights.save(record.id, self._storage.insights.for_run(fresh.id))
+        if not self._storage.trends.for_run(record.id):
+            self._storage.trends.save(record.id, self._storage.trends.for_run(fresh.id))
         return True
 
     def _attempt[T](self, step: Callable[[], T]) -> T:
