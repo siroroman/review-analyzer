@@ -57,6 +57,7 @@ def test_the_status_of_a_run() -> None:
         "run_id": run_id,
         "status": "queued",
         "finished": False,
+        "cost": "0",
     }
     _finish(api, run_id)
     assert api.client.get(f"/runs/{run_id}", headers=HEADERS).json()["finished"] is True
