@@ -51,3 +51,10 @@ class FakeOtherSource:
         if self._fail:
             raise OtherSourceUnavailable
         return self._candidates
+
+
+class NoOtherSource:
+    """An `OtherSourceSearch` for a deployment with no second Source: it always reports it unavailable."""
+
+    def search(self, name: str, address: str) -> Collection[Place]:
+        raise OtherSourceUnavailable
