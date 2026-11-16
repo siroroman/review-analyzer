@@ -1111,6 +1111,17 @@
             "type": "string",
             "title": "Run Id"
           },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
           "status": {
             "$ref": "#/components/schemas/RunStatus"
           },
@@ -1183,6 +1194,7 @@
         "type": "object",
         "required": [
           "run_id",
+          "company_name",
           "status",
           "finished",
           "cost",

@@ -66,6 +66,7 @@ class StatusOut(BaseModel):
     """Progress of a Run: counts and costs only, never a Review or its text. `None` means not known yet."""
 
     run_id: str
+    company_name: str | None  # the Company the Run analyses; None when it is no longer stored
     status: RunStatus
     finished: bool
     cost: Decimal  # the sum of the Run's Service calls so far
@@ -310,6 +311,7 @@ def _run(storage: Storage, run_id: str) -> RunRecord:
 def _status(storage: Storage, record: RunRecord) -> StatusOut:
     """Progress from what is stored: Reviews, ReviewTopics and the Call log. Makes no paid call."""
     calls = storage.calls.query(CallFilter(run_id=record.id))
+    stored = storage.companies.by_id(record.company_id)
 
     def out(
         downloaded: dict[Source, int] | None = None,
@@ -319,6 +321,7 @@ def _status(storage: Storage, record: RunRecord) -> StatusOut:
     ) -> StatusOut:
         return StatusOut(
             run_id=record.id,
+            company_name=None if stored is None else stored.company.name,
             status=record.status,
             finished=record.finished_at is not None,
             cost=sum((c.cost for c in calls), Decimal(0)),
@@ -330,7 +333,6 @@ def _status(storage: Storage, record: RunRecord) -> StatusOut:
             step_cost=_step_cost(record, calls),
         )
 
-    stored = storage.companies.by_id(record.company_id)
     if record.status is RunStatus.QUEUED or stored is None:
         return out()
     reviews = {
