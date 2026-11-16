@@ -117,7 +117,8 @@ describe("Summary and suggestions", () => {
     const list = screen.getByRole("list", { name: "Doporučení" });
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(2);
-    expect(items[0]).toHaveTextContent("1");
+    expect(within(items[0]!).getByText("1", { selector: "span" })).toBeInTheDocument();
+    expect(within(items[1]!).getByText("2", { selector: "span" })).toBeInTheDocument();
     expect(items[0]).toHaveTextContent("Přidat druhou pokladnu.");
     expect(items[1]).toHaveTextContent("Zaškolit obsluhu.");
     expect(screen.getByText(/Každé tvrzení odkazuje na recenze/)).toBeInTheDocument();
@@ -182,6 +183,43 @@ describe("Branch comparison", () => {
     expect(rows[2]).toHaveTextContent("▼");
     expect(rows[2]).toHaveTextContent("Kavárna Smíchov");
     expect(rows[2]).toHaveTextContent("Obsluha");
+  });
+
+  it("shows one branch listed on both Sources as one row and so compares nothing", async () => {
+    const both = fakeResult({
+      company: {
+        name: "Kavárna U Mlýna",
+        industry: "cafe",
+        places: [
+          { source: "google_maps", external_id: "g1", name: "Kavárna Vinohrady", address: "Praha 2" },
+          { source: "firmy_cz", external_id: "f1", name: "Kavárna Vinohrady", address: " praha  2 " },
+        ],
+      },
+      metrics: {
+        ...fakeResult().metrics,
+        per_place: [
+          { source: "google_maps", place_external_id: "g1", summary: { average_rating: 4.4, count: 30 } },
+          { source: "firmy_cz", place_external_id: "f1", summary: { average_rating: 2.4, count: 10 } },
+        ],
+      },
+    });
+    setup(fakeApi({ runResult: vi.fn(async () => both) }));
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.queryByRole("table", { name: "Srovnání poboček" })).not.toBeInTheDocument();
+  });
+
+  it("merges the Sources of one branch into a weighted rating next to another branch", async () => {
+    const result = branches();
+    result.company.places.push({ source: "firmy_cz", external_id: "f1", name: "Kavárna Vinohrady", address: "Praha 2" });
+    result.company.places[0]!.address = "Praha 2";
+    result.metrics.per_place.push({ source: "firmy_cz", place_external_id: "f1", summary: { average_rating: 2.4, count: 10 } });
+    setup(fakeApi({ runResult: vi.fn(async () => result) }));
+    const table = await screen.findByRole("table", { name: "Srovnání poboček" });
+    const rows = within(table).getAllByRole("row");
+    expect(rows).toHaveLength(3);
+    expect(rows[1]).toHaveTextContent("Google Maps, Firmy.cz");
+    expect(rows[1]).toHaveTextContent("3,9");
+    expect(rows[1]).toHaveTextContent("40");
   });
 
   it("marks no branch as weakest when there is only one", async () => {
