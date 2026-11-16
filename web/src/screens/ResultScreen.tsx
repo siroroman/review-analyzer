@@ -1,11 +1,16 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, type RunResult } from "../api/client";
 import { useApi } from "../api/context";
 import { formatCost } from "../steps";
 import { describeError } from "./errors";
+import { BranchTable } from "./BranchTable";
+import { CostCard } from "./CostCard";
+import { Insights } from "./Insights";
+import { ReviewsPanel, type PanelRequest } from "./ReviewsPanel";
 import { Timeline } from "./Timeline";
-import { SOURCE_LABEL, changeAgainstPreviousYear, formatChange, formatCount, formatRating, type Source, type Summary } from "./result";
+import { TopicsCard } from "./TopicsCard";
+import { SOURCE_LABEL, topicName, changeAgainstPreviousYear, formatChange, formatCount, formatRating, type Source, type Summary } from "./result";
 
 const WHOLE_COMPANY = "all";
 
@@ -78,7 +83,13 @@ export function ResultScreen() {
 }
 
 function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onTab: (tab: string) => void }) {
+  const api = useApi();
   const { company, metrics } = result;
+  const [panel, setPanel] = useState<{ topic: string | null; request: PanelRequest } | null>(null);
+  const openTopic = (key: string) =>
+    setPanel({ topic: key, request: { title: `Recenze: ${topicName(result.topics, key)}`, load: () => api.reviews(result.run_id, { topic: key }) } });
+  const openInsight = (title: string, ids: string[]) => setPanel({ topic: null, request: { title, load: () => api.reviews(result.run_id, { ids }) } });
+  const closePanel = useMemo(() => () => setPanel(null), []);
   const places = company.places.map((place) => ({ ...place, key: `${place.source}:${place.external_id}` }));
   const place = places.find((candidate) => candidate.key === tab);
 
@@ -144,6 +155,13 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
           <Timeline trend={metrics.trend} changes={metrics.changes} topics={result.topics} />
         </>
       )}
+      <div className="mt-6 flex flex-col gap-4">
+        {metrics.topic_shares.length > 0 && <TopicsCard shares={metrics.topic_shares} topics={result.topics} selected={panel?.topic ?? null} onSelect={openTopic} />}
+        <Insights insights={result.insights} onOpen={openInsight} />
+        <BranchTable result={result} />
+        <CostCard byService={result.cost_by_service} flagged={result.flagged} />
+      </div>
+      {panel && <ReviewsPanel request={panel.request} onClose={closePanel} />}
     </>
   );
 }
