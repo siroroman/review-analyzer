@@ -23,5 +23,5 @@ it("keeps the token for the session, so a reopened Run link works", () => {
   sessionStorage.setItem("demo-token", "abc");
   window.history.replaceState(null, "", "/runs/run-1");
   render(<App />);
-  expect(screen.getByRole("heading", { name: /průběh analýzy/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /^analýza/i })).toBeInTheDocument();
 });

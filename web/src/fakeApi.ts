@@ -9,6 +9,7 @@ export function fakeApi(overrides: Partial<Api> = {}): { [K in keyof Api]: Retur
     startRun: vi.fn(async () => ({ run_id: "run-1", status: "queued" as const, reused: false })),
     runProgress: vi.fn(async () => ({
       run_id: "run-1",
+      company_name: "Kavárna",
       status: "queued" as const,
       finished: false,
       cost: "0",

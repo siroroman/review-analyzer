@@ -132,3 +132,8 @@ def test_the_status_never_carries_review_text() -> None:
     api.storage.runs.advance(run_id, RunStatus.DOWNLOADING)
     api.storage.reviews.add([review("r1")])
     assert "Dobrá káva" not in api.client.get(f"/runs/{run_id}", headers=HEADERS).text
+
+
+def test_the_status_names_the_company_even_while_the_run_is_queued() -> None:
+    api = Api(known=[cafe()])
+    assert _status(api, _start(api))["company_name"] == "Kavárna"
