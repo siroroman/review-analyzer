@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from datetime import timedelta
+from decimal import Decimal
 from typing import Protocol, Self
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
@@ -30,6 +31,7 @@ class ApiConfig(BaseModel):
     requests_per_minute: int = Field(default=60, gt=0)
     runs_per_day: int = Field(default=5, gt=0)
     cache_ttl: timedelta = timedelta(hours=24)
+    monthly_cap: Decimal = Field(default=Decimal(30), gt=0)  # USD, shown on the admin screen
     run_cap: str = "1"
     autocomplete_run_id: str = "autocomplete"  # prefix: each search or confirm gets "<prefix>-<n>"
 

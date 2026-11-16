@@ -1,7 +1,7 @@
 import hmac
 import threading
 from collections.abc import Awaitable, Callable
-from datetime import timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from itertools import count
 from typing import Annotated
@@ -9,11 +9,12 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 from app.api._limits import DailyCounter, SlidingWindow
 from app.api._types import ApiConfig, Reporter
 from app.domain import Clock, Company, Insight, Metrics, Place, RunStatus
+from app.gateway import CallStatus, ServiceCall
 from app.places import (
     InvalidCompany,
     PlaceNotFound,
@@ -71,6 +72,48 @@ class ResultOut(BaseModel):
     flagged: int
     unclassified: int
     cost: Decimal
+
+
+class SpendOut(BaseModel):
+    month_total: Decimal  # every Service call of the current calendar month (UTC)
+    monthly_cap: Decimal
+    share_of_cap: Decimal  # month_total / monthly_cap, 1 means the cap is used up
+    by_service: dict[str, Decimal]
+    by_day: dict[date, Decimal]
+    by_run: dict[str, Decimal]
+
+
+class CallOut(BaseModel):
+    service: str
+    operation: str
+    run_id: str
+    status: CallStatus
+    cost: Decimal
+    unit: str
+    units: int
+    latency_ms: int
+    error_kind: str | None
+    at: datetime
+
+
+class CallsOut(BaseModel):
+    total: int  # matching calls, before the page is cut
+    items: list[CallOut]
+
+
+def _call_out(call: ServiceCall) -> CallOut:
+    return CallOut(
+        service=call.service,
+        operation=call.operation,
+        run_id=call.run_id,
+        status=call.status,
+        cost=call.cost,
+        unit=call.unit,
+        units=call.units,
+        latency_ms=int(call.latency.total_seconds() * 1000),
+        error_kind=call.error_kind,
+        at=call.at,
+    )
 
 
 def _equal(given: str, expected: str) -> bool:
@@ -182,6 +225,50 @@ def create_app(
             unclassified=report.result.unclassified,
             cost=report.result.cost,
         )
+
+    @app.get(
+        "/admin/spend",
+        summary="Spend per service, day and Run, and the share of the monthly cap used",
+        description="Admin token only (`Authorization: Bearer <admin token>`); a Demo token gives 401.",
+        responses={401: {"description": "Missing or wrong Admin token"}},
+    )
+    def admin_spend(since: AwareDatetime | None = None, until: AwareDatetime | None = None) -> SpendOut:
+        where = CallFilter(since=since, until=until)
+        now = clock.now().astimezone(UTC)
+        with work:
+            month_total = storage.calls.total(date(now.year, now.month, 1))
+            return SpendOut(
+                month_total=month_total,
+                monthly_cap=config.monthly_cap,
+                share_of_cap=month_total / config.monthly_cap,
+                by_service=storage.calls.cost_by_service(where),
+                by_day=storage.calls.cost_by_day(where),
+                by_run=storage.calls.cost_by_run(where),
+            )
+
+    @app.get(
+        "/admin/calls",
+        summary="The Call log, oldest first, with filters and pagination",
+        description="Admin token only (`Authorization: Bearer <admin token>`); a Demo token gives 401. "
+        "No request or response bodies are stored or shown. `since <= at < until`.",
+        responses={401: {"description": "Missing or wrong Admin token"}},
+    )
+    def admin_calls(
+        service: str | None = None,
+        operation: str | None = None,
+        run_id: str | None = None,
+        status: CallStatus | None = None,
+        since: AwareDatetime | None = None,
+        until: AwareDatetime | None = None,
+        limit: Annotated[int, Query(ge=1, le=500)] = 50,
+        offset: Annotated[int, Query(ge=0)] = 0,
+    ) -> CallsOut:
+        where = CallFilter(
+            service=service, operation=operation, run_id=run_id, status=status, since=since, until=until
+        )
+        with work:
+            found = storage.calls.query(where)
+        return CallsOut(total=len(found), items=[_call_out(c) for c in found[offset : offset + limit]])
 
     return app
 
