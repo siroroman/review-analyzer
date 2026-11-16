@@ -213,7 +213,7 @@ it("shows the cost of each step: done with a check mark, running as running, wai
   setup(fakeApi({ runProgress: vi.fn(async () => withDetails("classifying", { step_cost })) }));
   await tick(0);
   expect(row("Stahování recenzí")).toHaveTextContent("Hotovo · 0,35 USD");
-  expect(row("Stahování recenzí")).toHaveTextContent("✓");
+  expect(row("Stahování recenzí").querySelector('[data-ring="done"] svg')).not.toBeNull();
   expect(row("Třídění recenzí do témat")).toHaveTextContent("Probíhá · 0,21 USD");
   expect(row("Analýza a doporučení")).toHaveTextContent(/^.*Čeká$/);
   expect(row("Analýza a doporučení")).toHaveTextContent("Trendy, poklesy, shrnutí");

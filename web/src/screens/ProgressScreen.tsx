@@ -45,7 +45,7 @@ function ClassifyBar({ progress }: { progress: RunProgress }) {
         aria-valuemin={0}
         aria-valuenow={classified}
         aria-valuemax={total}
-        className="mt-2 block h-2 overflow-hidden rounded-full bg-line"
+        className="mt-2 block h-2 overflow-hidden rounded-full bg-[#eceae3]"
       >
         <span data-testid="classify-fill" className="block h-full rounded-full bg-google-maps transition-[width] duration-700 ease-out" style={{ width: `${share}%` }} />
       </span>
@@ -67,15 +67,17 @@ function budgetShare({ cost, budget }: RunProgress): number {
 function Marker({ state }: { state: StepState }) {
   if (state === "done") {
     return (
-      <span aria-hidden="true" data-ring="done" className="flex size-7 flex-none items-center justify-center rounded-full bg-google-maps text-sm font-bold text-white">
-        ✓
+      <span aria-hidden="true" data-ring="done" className="flex size-7 flex-none items-center justify-center rounded-full bg-google-maps text-white">
+        <svg width="14" height="14" viewBox="0 0 14 14">
+          <path d="M2 7.5l3 3 7-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </span>
     );
   }
   if (state === "active") {
-    return <span aria-hidden="true" data-ring="active" className="size-7 flex-none rounded-full border-[3px] border-line border-t-google-maps motion-safe:animate-spin" />;
+    return <span aria-hidden="true" data-ring="active" className="size-7 flex-none rounded-full border-[3px] border-[#dce6fa] border-t-google-maps motion-safe:animate-spin" />;
   }
-  return <span aria-hidden="true" data-ring="todo" className="size-7 flex-none rounded-full border-2 border-line" />;
+  return <span aria-hidden="true" data-ring="todo" className="size-7 flex-none rounded-full border-2 border-[#cfcdc4]" />;
 }
 
 /** Where a Run is. The state lives on the server, so opening the same link again resumes the view. */
@@ -178,7 +180,7 @@ export function ProgressScreen() {
                 aria-valuemin={0}
                 aria-valuenow={Number(progress.cost)}
                 aria-valuemax={Number(progress.budget)}
-                className="mt-2.5 block h-2 overflow-hidden rounded-full bg-line"
+                className="mt-2.5 block h-2 overflow-hidden rounded-full bg-[#eceae3]"
               >
                 <span data-testid="budget-fill" className="block h-full rounded-full bg-ink transition-[width] duration-700 ease-out" style={{ width: `${budgetShare(progress)}%` }} />
               </span>
