@@ -44,3 +44,36 @@ def test_a_valid_token_of_the_queue_account_runs_the_handler() -> None:
 
     assert status == 200
     assert worker.handled == ["1"]
+
+
+def test_a_token_for_another_audience_is_401() -> None:
+    worker = RecordingWorker()
+    client, verifier = make_client(worker)
+
+    assert call(client, verifier.issue(email=ACCOUNT, audience="https://other.example")) == 401
+    assert worker.handled == []
+
+
+def test_a_token_of_another_account_is_401() -> None:
+    worker = RecordingWorker()
+    client, verifier = make_client(worker)
+
+    assert call(client, verifier.issue(email="attacker@example.com", audience=AUDIENCE)) == 401
+    assert call(client, verifier.issue(email=ACCOUNT, audience=AUDIENCE, email_verified=False)) == 401
+    assert worker.handled == []
+
+
+def test_an_expired_token_is_401() -> None:
+    worker = RecordingWorker()
+    client, verifier = make_client(worker)
+
+    assert call(client, verifier.issue(email=ACCOUNT, audience=AUDIENCE, expired=True)) == 401
+    assert worker.handled == []
+
+
+def test_a_token_nobody_issued_is_401() -> None:
+    worker = RecordingWorker()
+    client, _ = make_client(worker)
+
+    assert call(client, "forged") == 401
+    assert worker.handled == []
