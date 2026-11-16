@@ -128,6 +128,20 @@ it("lists a drop with its main Topic and a rise, and marks nothing when there ar
   expect(rise).not.toHaveTextContent("hlavní téma");
 });
 
+it("shades the month of a drop with an area that has a width", async () => {
+  const withDrop = fakeResult({
+    metrics: {
+      ...fakeResult().metrics,
+      changes: [{ kind: "drop", source: "google_maps", period_start: "2026-02-01", delta: -1, main_topic_key: "service" }],
+    },
+  });
+  const { container } = setup(fakeApi({ runResult: vi.fn(async () => withDrop) }));
+  await screen.findByRole("list", { name: "Poklesy a vzestupy" });
+  const area = container.querySelector(".recharts-reference-area-rect");
+  expect(area).not.toBeNull();
+  expect(Number(area!.getAttribute("width"))).toBeGreaterThan(0);
+});
+
 it("shows no list of changes when the Run found none", async () => {
   setup(fakeApi());
   await screen.findByRole("img", { name: /Vývoj hodnocení/ });

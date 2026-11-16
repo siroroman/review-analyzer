@@ -45,7 +45,7 @@ export function Timeline({ trend, changes }: { trend: Metrics["trend"]; changes:
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 640, height: 280 }}>
           <LineChart data={rows} margin={{ top: 24, right: 16, bottom: 4, left: 0 }}>
             <CartesianGrid stroke="#E3E2DC" vertical={false} />
-            <XAxis dataKey="month" tickFormatter={monthLabel} stroke="#5B616A" />
+            <XAxis dataKey="month" scale="band" tickFormatter={monthLabel} stroke="#5B616A" />
             <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} stroke="#5B616A" width={28} />
             {changes
               .filter((change) => change.kind === "drop")
