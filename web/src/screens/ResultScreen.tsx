@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, type RunResult } from "../api/client";
 import { useApi } from "../api/context";
+import { rememberRun } from "../recentRuns";
 import { formatCost } from "../steps";
 import { describeError } from "./errors";
 import { BranchTable } from "./BranchTable";
@@ -46,7 +47,11 @@ export function ResultScreen() {
     setError(null);
     setTab(WHOLE_COMPANY);
     api.runResult(id).then(
-      (loaded) => !stopped && setResult(loaded),
+      (loaded) => {
+        if (stopped) return;
+        setResult(loaded);
+        rememberRun(id, loaded.company.name);
+      },
       (failed) => !stopped && setError(failed),
     );
     return () => {
