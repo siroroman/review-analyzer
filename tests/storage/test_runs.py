@@ -4,6 +4,8 @@ from decimal import Decimal
 import pytest
 
 from app.domain import (
+    Change,
+    ChangeKind,
     FakeClock,
     Insight,
     InsightType,
@@ -133,11 +135,33 @@ def test_insights_and_trend_points_come_back_in_saved_order(storage: Storage) ->
     assert storage.insights.for_run("nope") == []
 
 
+def _changes() -> list[Change]:
+    return [
+        Change(
+            kind=ChangeKind.DROP,
+            source=Source.GOOGLE_MAPS,
+            period_start=date(2026, 10, 1),
+            delta=-0.75,
+            main_topic_key="staff",
+        ),
+        Change(kind=ChangeKind.RISE, source=Source.FIRMY_CZ, period_start=date(2026, 11, 1), delta=0.5),
+    ]
+
+
+def test_changes_come_back_in_saved_order(storage: Storage) -> None:
+    run_id = _new_run(storage)
+    storage.changes.save(run_id, _changes())
+    assert storage.changes.for_run(run_id) == _changes()
+    assert storage.changes.for_run("nope") == []
+
+
 def test_results_of_an_unknown_run_are_refused(storage: Storage) -> None:
     with pytest.raises(UnknownRun):
         storage.insights.save("nope", [])
     with pytest.raises(UnknownRun):
         storage.trends.save("nope", [])
+    with pytest.raises(UnknownRun):
+        storage.changes.save("nope", [])
 
 
 def _finished_run_with_results(storage: Storage) -> str:
@@ -166,6 +190,7 @@ def _finished_run_with_results(storage: Storage) -> str:
             )
         ],
     )
+    storage.changes.save(run_id, _changes())
     return run_id
 
 
@@ -175,6 +200,7 @@ def test_results_are_copied_to_another_run_in_one_step(storage: Storage) -> None
     storage.runs.copy_results(source, target)
     assert storage.insights.for_run(target) == storage.insights.for_run(source)
     assert storage.trends.for_run(target) == storage.trends.for_run(source)
+    assert storage.changes.for_run(target) == _changes()
     assert len(storage.insights.for_run(source)) == 1
 
 
@@ -185,6 +211,7 @@ def test_copying_results_twice_copies_them_once(storage: Storage) -> None:
     storage.runs.copy_results(source, target)
     assert len(storage.insights.for_run(target)) == 1
     assert len(storage.trends.for_run(target)) == 1
+    assert len(storage.changes.for_run(target)) == 2
 
 
 def test_results_are_not_copied_over_a_run_that_has_its_own(storage: Storage) -> None:

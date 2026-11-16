@@ -3,6 +3,7 @@
 from app.storage._storage import Storage, in_memory_storage, postgres_storage
 from app.storage._types import (
     CallFilter,
+    ChangeRepo,
     CompanyRepo,
     InsightRepo,
     ReviewRepo,
@@ -19,6 +20,7 @@ from app.storage._types import (
 
 __all__ = [
     "CallFilter",
+    "ChangeRepo",
     "CompanyRepo",
     "InsightRepo",
     "ReviewRepo",
