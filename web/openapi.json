@@ -237,6 +237,234 @@
           }
         }
       }
+    },
+    "/admin/spend": {
+      "get": {
+        "summary": "Spend per service, day and Run, and the share of the monthly cap used",
+        "description": "Admin token only (`Authorization: Bearer <admin token>`); a Demo token gives 401.",
+        "operationId": "admin_spend_admin_spend_get",
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong Admin token"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/calls": {
+      "get": {
+        "summary": "The Call log, oldest first, with filters and pagination",
+        "description": "Admin token only (`Authorization: Bearer <admin token>`); a Demo token gives 401. No request or response bodies are stored or shown. `since <= at < until`.",
+        "operationId": "admin_calls_admin_calls_get",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Service"
+            }
+          },
+          {
+            "name": "operation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operation"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "ok",
+                    "denied",
+                    "failed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong Admin token"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -263,6 +491,98 @@
           "address"
         ],
         "title": "BranchOut"
+      },
+      "CallOut": {
+        "properties": {
+          "service": {
+            "type": "string",
+            "title": "Service"
+          },
+          "operation": {
+            "type": "string",
+            "title": "Operation"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "denied",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "cost": {
+            "type": "string",
+            "title": "Cost"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "units": {
+            "type": "integer",
+            "title": "Units"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "error_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Kind"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service",
+          "operation",
+          "run_id",
+          "status",
+          "cost",
+          "unit",
+          "units",
+          "latency_ms",
+          "error_kind",
+          "at"
+        ],
+        "title": "CallOut"
+      },
+      "CallsOut": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CallOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "items"
+        ],
+        "title": "CallsOut"
       },
       "Change": {
         "properties": {
@@ -567,6 +887,13 @@
             "type": "array",
             "title": "Insights"
           },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/TopicOut"
+            },
+            "type": "array",
+            "title": "Topics"
+          },
           "reviews": {
             "type": "integer",
             "title": "Reviews"
@@ -591,6 +918,7 @@
           "company",
           "metrics",
           "insights",
+          "topics",
           "reviews",
           "flagged",
           "unclassified",
@@ -698,6 +1026,56 @@
         "title": "SourceSummary",
         "description": "The RatingSummary of one Source."
       },
+      "SpendOut": {
+        "properties": {
+          "month_total": {
+            "type": "string",
+            "title": "Month Total"
+          },
+          "monthly_cap": {
+            "type": "string",
+            "title": "Monthly Cap"
+          },
+          "share_of_cap": {
+            "type": "string",
+            "title": "Share Of Cap"
+          },
+          "by_service": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "By Service"
+          },
+          "by_day": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "format": "date"
+            },
+            "type": "object",
+            "title": "By Day"
+          },
+          "by_run": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "By Run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month_total",
+          "monthly_cap",
+          "share_of_cap",
+          "by_service",
+          "by_day",
+          "by_run"
+        ],
+        "title": "SpendOut"
+      },
       "StatusOut": {
         "properties": {
           "run_id": {
@@ -742,6 +1120,24 @@
           "text"
         ],
         "title": "SuggestionOut"
+      },
+      "TopicOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "TopicOut"
       },
       "TopicShare": {
         "properties": {

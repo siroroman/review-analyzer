@@ -14,6 +14,7 @@ from app.domain import (
     ReviewTopic,
     RunStatus,
     Source,
+    Topic,
 )
 from app.gateway import BudgetExceeded, ClientError, GatewayDenied
 from app.insights import Insights
@@ -127,16 +128,28 @@ class Pipeline:
         company = self._storage.companies.by_id(record.company_id)
         if company is None:
             raise RuntimeError(f"Run {run_id} has no stored Company")
-        saved = tuple(self._storage.trends.for_run(run_id))
-        # Changes are not saved with a Run, and one computed from today's Reviews could contradict the
-        # Run's saved trend and Insights, so a report carries none.
-        metrics = self._metrics(company.company).model_copy(update={"trend": saved, "changes": ()})
+        # The trend and the changes of today's Reviews could contradict the Run's Insights, so a report
+        # carries the ones the Run saved.
+        saved = {
+            "trend": tuple(self._storage.trends.for_run(run_id)),
+            "changes": tuple(self._storage.changes.for_run(run_id)),
+        }
+        metrics = self._metrics(company.company).model_copy(update=saved)
         return RunReport(
             result=self._result(record, company.company),
             company=company.company,
             metrics=metrics,
             insights=tuple(self._storage.insights.for_run(run_id)),
+            topics=self._mentioned_topics(company.company, metrics),
         )
+
+    def _mentioned_topics(self, company: Company, metrics: Metrics) -> tuple[Topic, ...]:
+        taxonomy = self._storage.taxonomies.latest(company.industry)
+        if taxonomy is None:
+            return ()
+        mentioned = {share.topic_key for share in metrics.topic_shares}
+        mentioned |= {c.main_topic_key for c in metrics.changes if c.main_topic_key}
+        return tuple(topic for topic in taxonomy.taxonomy.topics if topic.key in mentioned)
 
     def _steps(self, record: RunRecord, company: Company) -> Exception | None:
         run_id = record.id
@@ -237,6 +250,8 @@ class Pipeline:
     def _save_trend(self, run_id: str, metrics: Metrics) -> None:
         if metrics.trend and not self._storage.trends.for_run(run_id):
             self._storage.trends.save(run_id, metrics.trend)
+        if metrics.changes and not self._storage.changes.for_run(run_id):
+            self._storage.changes.save(run_id, metrics.changes)
 
     def _analyze(self, run_id: str, company: Company) -> None:
         metrics = self._metrics(company)

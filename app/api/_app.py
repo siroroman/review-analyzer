@@ -62,12 +62,18 @@ class StatusOut(BaseModel):
     cost: Decimal  # the sum of the Run's Service calls so far
 
 
+class TopicOut(BaseModel):
+    key: str
+    name: str  # the display name of the Topic
+
+
 class ResultOut(BaseModel):
     run_id: str
     status: RunStatus
     company: Company
     metrics: Metrics
     insights: list[Insight]
+    topics: list[TopicOut]  # a name for every `topic_key` the metrics mention
     reviews: int
     flagged: int
     unclassified: int
@@ -220,6 +226,7 @@ def create_app(
             company=report.company,
             metrics=report.metrics,
             insights=list(report.insights),
+            topics=[TopicOut(key=topic.key, name=topic.name) for topic in report.topics],
             reviews=report.result.reviews,
             flagged=report.result.flagged,
             unclassified=report.result.unclassified,

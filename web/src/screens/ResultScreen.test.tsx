@@ -110,8 +110,9 @@ it("describes the timeline in words for a screen reader", async () => {
   expect(chart).toHaveAccessibleName(expect.stringContaining("Google Maps: od 4,5 (01/2026) do 3,5 (02/2026)"));
 });
 
-it("lists a drop with its main Topic and a rise, and marks nothing when there are no changes", async () => {
+it("lists a drop with the name of its main Topic and a rise, and marks nothing when there are no changes", async () => {
   const withChanges = fakeResult({
+    topics: [{ key: "service", name: "Obsluha" }],
     metrics: {
       ...fakeResult().metrics,
       changes: [
@@ -123,9 +124,35 @@ it("lists a drop with its main Topic and a rise, and marks nothing when there ar
   setup(fakeApi({ runResult: vi.fn(async () => withChanges) }));
   const list = await screen.findByRole("list", { name: "Poklesy a vzestupy" });
   const [drop, rise] = within(list).getAllByRole("listitem");
-  expect(drop).toHaveTextContent("Pokles · Google Maps · 02/2026: −1,0 · hlavní téma: service");
+  expect(drop).toHaveTextContent("Pokles · Google Maps · 02/2026: −1,0 · hlavní téma: Obsluha");
+  expect(drop).not.toHaveTextContent("service");
   expect(rise).toHaveTextContent("Vzestup · Google Maps · 03/2026: +0,7");
   expect(rise).not.toHaveTextContent("hlavní téma");
+});
+
+it("falls back to the Topic key when the result has no name for it", async () => {
+  const unnamed = fakeResult({
+    metrics: {
+      ...fakeResult().metrics,
+      changes: [{ kind: "drop", source: "google_maps", period_start: "2026-02-01", delta: -1, main_topic_key: "service" }],
+    },
+  });
+  setup(fakeApi({ runResult: vi.fn(async () => unnamed) }));
+  const list = await screen.findByRole("list", { name: "Poklesy a vzestupy" });
+  expect(within(list).getByRole("listitem")).toHaveTextContent("hlavní téma: service");
+});
+
+it("names the main Topic of a drop in the callout on the chart", async () => {
+  const withDrop = fakeResult({
+    topics: [{ key: "service", name: "Obsluha" }],
+    metrics: {
+      ...fakeResult().metrics,
+      changes: [{ kind: "drop", source: "google_maps", period_start: "2026-02-01", delta: -1, main_topic_key: "service" }],
+    },
+  });
+  const { container } = setup(fakeApi({ runResult: vi.fn(async () => withDrop) }));
+  await screen.findByRole("list", { name: "Poklesy a vzestupy" });
+  expect(container.querySelector(".recharts-label")).toHaveTextContent("pokles + Obsluha");
 });
 
 it("shades the month of a drop with an area that has a width", async () => {

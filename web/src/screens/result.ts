@@ -6,6 +6,11 @@ type NonNull<T> = Exclude<T, null | undefined>;
 
 export const SOURCE_LABEL: Record<Source, string> = { google_maps: "Google Maps", firmy_cz: "Firmy.cz" };
 
+/** The display name of a Topic from the result's `topics`; the key itself when the result has no name for it. */
+export function topicName(topics: ReadonlyArray<{ key: string; name: string }>, key: string): string {
+  return topics.find((topic) => topic.key === key)?.name ?? key;
+}
+
 /** One decimal with a Czech comma, e.g. `4,4`. */
 export function formatRating(value: number): string {
   return value.toLocaleString("cs-CZ", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
