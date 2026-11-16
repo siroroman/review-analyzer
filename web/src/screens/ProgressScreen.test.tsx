@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, RouterProvider, Routes, createMemoryRouter } from "react-router-dom";
 import { ApiError, type RunProgress } from "../api/client";
 import { ApiProvider } from "../api/context";
@@ -243,4 +243,42 @@ it("shows the count of downloaded Reviews per Source", async () => {
   setup(fakeApi({ runProgress: vi.fn(async () => withDetails("downloading", { downloaded })) }));
   await tick(0);
   expect(row("Stahování recenzí")).toHaveTextContent("Google Maps 1 204 · Firmy.cz 980");
+});
+
+const classifying = (classified: number, to_classify: number, flagged = 7) =>
+  withDetails("classifying", { classified, to_classify, flagged });
+
+it("shows how far the classifying is: a bar as wide as classified over total, and the counts in words", async () => {
+  setup(fakeApi({ runProgress: vi.fn(async () => classifying(1352, 2184)) }));
+  await tick(0);
+  expect(row("Třídění recenzí do témat")).toHaveTextContent("1 352 z 2 184 recenzí · 7 podezřelých recenzí vyřazeno");
+  const bar = within(row("Třídění recenzí do témat")).getByRole("progressbar");
+  expect(bar).toHaveAttribute("aria-valuenow", "1352");
+  expect(bar).toHaveAttribute("aria-valuemax", "2184");
+  expect(screen.getByTestId("classify-fill").style.width).toBe("61.9%");
+});
+
+it("moves the bar between polls with a CSS transition", async () => {
+  const runProgress = vi
+    .fn()
+    .mockResolvedValueOnce(classifying(500, 2000))
+    .mockResolvedValue(classifying(1000, 2000));
+  setup(fakeApi({ runProgress }));
+  await tick(0);
+  expect(screen.getByTestId("classify-fill").style.width).toBe("25%");
+  expect(screen.getByTestId("classify-fill")).toHaveClass("transition-[width]");
+  await tick(2000);
+  expect(screen.getByTestId("classify-fill").style.width).toBe("50%");
+});
+
+it("shows an empty bar, not a broken one, when there is nothing to classify yet", async () => {
+  setup(fakeApi({ runProgress: vi.fn(async () => classifying(0, 0, 0)) }));
+  await tick(0);
+  expect(screen.getByTestId("classify-fill").style.width).toBe("0%");
+});
+
+it("shows no bar before the classifying counts are known", async () => {
+  setup(fakeApi({ runProgress: vi.fn(async () => at("classifying", "0.1")) }));
+  await tick(0);
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
 });

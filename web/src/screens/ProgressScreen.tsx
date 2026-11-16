@@ -36,6 +36,31 @@ function downloadedText(downloaded: RunProgress["downloaded"]): string | null {
   return parts.length ? parts.join(" · ") : null;
 }
 
+/** How many Reviews are classified, as a bar that glides between polls and as words. */
+function ClassifyBar({ progress }: { progress: RunProgress }) {
+  const { classified, to_classify: total, flagged } = progress;
+  if (classified === null || total === null) return null;
+  const share = total > 0 ? Math.min(100, Math.round((classified / total) * 1000) / 10) : 0;
+  return (
+    <>
+      <span
+        role="progressbar"
+        aria-label="Třídění recenzí"
+        aria-valuemin={0}
+        aria-valuenow={classified}
+        aria-valuemax={total}
+        className="mt-2 block h-2 overflow-hidden rounded-full bg-line"
+      >
+        <span data-testid="classify-fill" className="block h-full rounded-full bg-google-maps transition-[width] duration-700 ease-out" style={{ width: `${share}%` }} />
+      </span>
+      <span className="mt-1.5 block text-sm text-muted">
+        {formatCount(classified)} z {formatCount(total)} recenzí
+        {flagged ? ` · ${formatCount(flagged)} ${flagged === 1 ? "podezřelá recenze vyřazena" : flagged < 5 ? "podezřelé recenze vyřazeny" : "podezřelých recenzí vyřazeno"}` : ""}
+      </span>
+    </>
+  );
+}
+
 /** Done: a blue circle with a check. Running: a ring that spins, and stands still under reduced motion (the word says it). */
 function Marker({ state }: { state: StepState }) {
   if (state === "done") {
@@ -128,6 +153,7 @@ export function ProgressScreen() {
                     <span className="flex-1">
                       <span className={`block text-[15px] font-semibold ${state === "todo" ? "text-muted" : ""}`}>{step.label}</span>
                       {detail && <span className="block text-sm text-muted">{detail}</span>}
+                      {step.status === "classifying" && state !== "todo" && <ClassifyBar progress={progress} />}
                     </span>
                     <span className="text-sm text-muted">
                       {stateLabel[state]}
