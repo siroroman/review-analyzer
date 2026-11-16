@@ -39,9 +39,9 @@ describe("layout from the design", () => {
     expect(screen.getByLabelText("Firma nebo pobočka")).toBe(screen.getByRole("searchbox"));
   });
 
-  it("states the sources and the estimated cost up to the budget", () => {
+  it("states the sources and promises no cost the API did not send", () => {
     setup();
-    expect(screen.getByText(/Google Maps, Firmy\.cz/)).toHaveTextContent(/do 2,00 USD/);
+    expect(screen.getByText(/Google Maps, Firmy\.cz/)).not.toHaveTextContent(/USD/);
   });
 
   it("groups the found Places as Whole company and Single branch", async () => {

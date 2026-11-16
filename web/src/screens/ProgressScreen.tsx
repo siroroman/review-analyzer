@@ -7,9 +7,6 @@ import { FINAL, STEPS, formatCost } from "../steps";
 
 export const POLL_MS = 2000;
 
-/** The budget of one Run as the design shows it; the API does not send it yet. */
-const BUDGET_USD = 2;
-
 const ENDINGS = {
   done: "Hotovo. Analýza je dokončená.",
   partial: "Částečný výsledek: analýza skončila dřív (limit nákladů nebo chyba kroku), ukážeme, co se stihlo.",
@@ -70,8 +67,6 @@ export function ProgressScreen() {
   const current = progress ? STEPS.findIndex((step) => step.status === progress.status) : -1;
 
   const stateLabel = { done: "Hotovo", active: "Probíhá", todo: "Čeká" } as const;
-  const cost = progress ? Number(progress.cost) : 0;
-  const share = Math.min(100, Math.max(0, (cost / BUDGET_USD) * 100));
 
   return (
     <>
@@ -112,19 +107,7 @@ export function ProgressScreen() {
             <div className="rounded-card border border-line bg-card p-4">
               <div className="flex justify-between text-sm">
                 <span className="font-semibold">Průběžné náklady</span>
-                <span>
-                  <b>{formatCost(progress.cost)}</b> <span className="text-muted">z rozpočtu {BUDGET_USD.toFixed(2).replace(".", ",")} USD</span>
-                </span>
-              </div>
-              <div
-                role="progressbar"
-                aria-label="Náklady oproti rozpočtu"
-                aria-valuemin={0}
-                aria-valuemax={BUDGET_USD}
-                aria-valuenow={cost}
-                className="mt-2.5 h-2 rounded bg-[#ece9e3]"
-              >
-                <div className="h-2 rounded bg-ink" style={{ width: `${share}%` }} />
+                <b>{formatCost(progress.cost)}</b>
               </div>
               <p className="mt-2.5 text-sm text-muted">
                 Při překročení rozpočtu se analýza zastaví a dostanete částečný výsledek s tím, co se stihlo.

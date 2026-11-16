@@ -80,7 +80,7 @@ export function SearchScreen() {
           )}
           <p className="mt-2 text-sm text-muted">Návrhy pocházejí z Google Places. Vaše volba určí, zda se analyzuje celý řetězec, nebo jedna pobočka.</p>
         </div>
-        <p className="text-sm text-muted">Zdroje: Google Maps, Firmy.cz · odhad nákladů do 2,00 USD</p>
+        <p className="text-sm text-muted">Zdroje: Google Maps, Firmy.cz</p>
       </main>
     </>
   );

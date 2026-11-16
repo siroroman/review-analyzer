@@ -152,12 +152,11 @@ it("waits for every step while the Run is queued", async () => {
   expect(screen.getByText(/ve frontě/i)).toBeInTheDocument();
 });
 
-it("shows the running cost against the budget with the partial result note", async () => {
+it("shows the running cost and the partial result note, and no budget the API did not send", async () => {
   setup(fakeApi({ runProgress: vi.fn(async () => at("classifying", "0.56")) }));
   await tick(0);
-  const bar = screen.getByRole("progressbar", { name: /náklady/i });
-  expect(bar).toHaveAttribute("aria-valuenow", "0.56");
-  expect(bar).toHaveAttribute("aria-valuemax", "2");
-  expect(screen.getByText(/z rozpočtu 2,00 USD/)).toBeInTheDocument();
+  expect(screen.getByText(/0\.560 USD/)).toBeInTheDocument();
   expect(screen.getByText(/částečný výsledek/i)).toBeInTheDocument();
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  expect(screen.queryByText(/rozpočtu \d/)).not.toBeInTheDocument();
 });
