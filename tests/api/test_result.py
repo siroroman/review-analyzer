@@ -1,7 +1,18 @@
 from datetime import date
 from decimal import Decimal
 
-from app.domain import Company, Insight, InsightType, Metrics, RatingSummary, RunStatus
+from app.domain import (
+    Change,
+    ChangeKind,
+    Company,
+    Insight,
+    InsightType,
+    Metrics,
+    RatingSummary,
+    RunStatus,
+    Source,
+    Topic,
+)
 from app.pipeline import RunReport, RunResult
 from tests.api.helpers import HEADERS, Api, cafe
 
@@ -35,11 +46,19 @@ def _report(run_id: str, status: RunStatus) -> RunReport:
         trend_points=0,
         cost=Decimal("0.25"),
     )
+    drop = Change(
+        kind=ChangeKind.DROP,
+        source=Source.GOOGLE_MAPS,
+        period_start=date(2026, 10, 1),
+        delta=-0.8,
+        main_topic_key="staff",
+    )
     metrics = Metrics(
-        trend=(), topic_shares=(), changes=(), overall=RatingSummary(average_rating=4.0, count=2)
+        trend=(), topic_shares=(), changes=(drop,), overall=RatingSummary(average_rating=4.0, count=2)
     )
     company = Company(name="Kavárna", industry="cafe", places=(cafe(),))
-    return RunReport(result=result, company=company, metrics=metrics, insights=(insight,))
+    topics = (Topic(key="staff", name="Obsluha", description="Friendliness of the staff"),)
+    return RunReport(result=result, company=company, metrics=metrics, insights=(insight,), topics=topics)
 
 
 def test_a_run_that_is_not_finished_has_no_result_yet() -> None:
@@ -64,7 +83,16 @@ def test_the_result_is_what_the_pipeline_reports() -> None:
     assert body["status"] == "done"
     assert (body["reviews"], body["flagged"], body["unclassified"]) == (3, 1, 2)
     assert body["metrics"]["overall"] == {"average_rating": 4.0, "count": 2}
-    assert body["metrics"]["changes"] == []  # changes are not saved with a Run, so none is reported
+    assert body["metrics"]["changes"] == [
+        {
+            "kind": "drop",
+            "source": "google_maps",
+            "period_start": "2026-10-01",
+            "delta": -0.8,
+            "main_topic_key": "staff",
+        }
+    ]
+    assert body["topics"] == [{"key": "staff", "name": "Obsluha"}]
     assert [insight["text"] for insight in body["insights"]] == ["Guests like it."]
     assert Decimal(body["cost"]) == Decimal("0.25")
     assert body["company"]["name"] == "Kavárna"
