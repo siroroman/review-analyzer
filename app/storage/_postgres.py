@@ -326,11 +326,15 @@ def _run(row: tuple[Any, ...]) -> RunRecord:
         budget_cap=row[3],
         created_at=row[4],
         finished_at=row[5],
-        industry=row[6],
+        classifying_at=row[6],
+        analyzing_at=row[7],
+        industry=row[8],
     )
 
 
-_RUN_COLUMNS = "id, company_id, status, budget_cap, created_at, finished_at, industry"
+_RUN_COLUMNS = (
+    "id, company_id, status, budget_cap, created_at, finished_at, classifying_at, analyzing_at, industry"
+)
 
 
 class PostgresRuns:
@@ -364,9 +368,21 @@ class PostgresRuns:
             if row is None:
                 raise UnknownRun(run_id)
             target = advance(RunStatus(row[0]), status)
+            now = self._clock.now()
             cur.execute(
-                f"UPDATE runs SET status = %s, finished_at = %s WHERE id = %s RETURNING {_RUN_COLUMNS}",  # noqa: S608
-                (target.value, self._clock.now() if target in _FINAL else None, run_id),
+                "UPDATE runs SET status = %s, finished_at = %s, "  # noqa: S608
+                "classifying_at = CASE WHEN %s THEN %s ELSE classifying_at END, "
+                "analyzing_at = CASE WHEN %s THEN %s ELSE analyzing_at END "
+                f"WHERE id = %s RETURNING {_RUN_COLUMNS}",
+                (
+                    target.value,
+                    now if target in _FINAL else None,
+                    target is RunStatus.CLASSIFYING,
+                    now,
+                    target is RunStatus.ANALYZING,
+                    now,
+                    run_id,
+                ),
             )
             return _run(_one(cur))
 

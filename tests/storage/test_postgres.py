@@ -79,6 +79,7 @@ def test_migrations_run_once_and_connecting_again_changes_nothing(
     assert names == [
         "0001_init.sql",
         "0002_run_changes.sql",
-        "0003_company_industry_nullable.sql",
-        "0004_run_industry.sql",
+        "0003_run_step_times.sql",
+        "0004_company_industry_nullable.sql",
+        "0005_run_industry.sql",
     ]

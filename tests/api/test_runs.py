@@ -63,7 +63,8 @@ def test_when_places_is_unavailable_the_answer_is_503() -> None:
 def test_the_status_of_a_run() -> None:
     api = Api(known=[cafe()])
     run_id = api.client.post("/runs", json=RUN, headers=HEADERS).json()["run_id"]
-    assert api.client.get(f"/runs/{run_id}", headers=HEADERS).json() == {
+    status = api.client.get(f"/runs/{run_id}", headers=HEADERS).json()
+    assert {k: status[k] for k in ("run_id", "status", "finished", "cost")} == {
         "run_id": run_id,
         "status": "queued",
         "finished": False,

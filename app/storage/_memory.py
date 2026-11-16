@@ -201,7 +201,18 @@ class MemoryRuns:
             raise UnknownRun(run_id)
         target = advance(run.status, status)
         finished_at = self._clock.now() if target in _FINAL else None
-        moved = replace(run, status=target, finished_at=finished_at)
+        now = self._clock.now()
+        moved = RunRecord(
+            run.id,
+            run.company_id,
+            target,
+            run.budget_cap,
+            run.created_at,
+            finished_at,
+            now if target is RunStatus.CLASSIFYING else run.classifying_at,
+            now if target is RunStatus.ANALYZING else run.analyzing_at,
+            run.industry,
+        )
         self._runs[run_id] = moved
         return moved
 

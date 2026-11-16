@@ -10,6 +10,12 @@ const at = (status: RunProgress["status"], cost: string, finished = false): RunP
   status,
   finished,
   cost,
+  budget: "1",
+  downloaded: null,
+  flagged: null,
+  classified: null,
+  to_classify: null,
+  step_cost: { downloading: null, classifying: null, analysis: null },
 });
 
 function setup(api: ReturnType<typeof fakeApi>) {

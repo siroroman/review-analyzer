@@ -48,6 +48,30 @@ def test_run_moves_forward_and_final_status_stamps_the_time(storage: Storage, cl
     assert storage.runs.get(run_id) == done
 
 
+def test_run_stamps_when_classifying_and_analyzing_started(storage: Storage, clock: FakeClock) -> None:
+    run_id = _new_run(storage)
+    queued = storage.runs.get(run_id)
+    assert queued is not None
+    assert (queued.classifying_at, queued.analyzing_at) == (None, None)
+    storage.runs.advance(run_id, RunStatus.DOWNLOADING)
+    clock.advance(timedelta(minutes=1))
+    classifying_at = clock.now()
+    storage.runs.advance(run_id, RunStatus.CLASSIFYING)
+    clock.advance(timedelta(minutes=2))
+    analyzing_at = clock.now()
+    storage.runs.advance(run_id, RunStatus.ANALYZING)
+    clock.advance(timedelta(minutes=1))
+    done = storage.runs.advance(run_id, RunStatus.DONE)
+    assert (done.classifying_at, done.analyzing_at) == (classifying_at, analyzing_at)
+    assert storage.runs.get(run_id) == done
+
+
+def test_a_skipped_step_has_no_start_time(storage: Storage) -> None:
+    run_id = _new_run(storage)
+    analyzing = storage.runs.advance(run_id, RunStatus.ANALYZING)
+    assert (analyzing.classifying_at, analyzing.analyzing_at is None) == (None, False)
+
+
 def test_run_cannot_go_back_or_leave_a_final_status(storage: Storage) -> None:
     run_id = _new_run(storage)
     storage.runs.advance(run_id, RunStatus.CLASSIFYING)
