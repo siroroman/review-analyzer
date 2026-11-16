@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, type RunProgress } from "../api/client";
 import { useApi } from "../api/context";
 import { AppHeader } from "../components/AppHeader";
-import { FINAL, STEPS, formatCost } from "../steps";
+import { COST_KEY, FINAL, SOURCE_NAMES, STEPS, formatUsd, formatCount } from "../steps";
 
 export const POLL_MS = 2000;
 
@@ -29,6 +29,26 @@ function describe(status: number): { message: string; gone: boolean } {
   if (status === 429) return { message: "Příliš mnoho požadavků, chvíli počkáme a zkusíme to znovu.", gone: false };
   if (status >= 500) return { message: "Chyba na straně serveru, zkoušíme to znovu.", gone: false };
   return { message: "Spojení se serverem se přerušilo, zkoušíme to znovu.", gone: false };
+}
+
+function downloadedText(downloaded: RunProgress["downloaded"]): string | null {
+  const parts = Object.entries(downloaded ?? {}).map(([source, n]) => `${SOURCE_NAMES[source] ?? source} ${formatCount(n)}`);
+  return parts.length ? parts.join(" · ") : null;
+}
+
+/** Done: a blue circle with a check. Running: a ring that spins, and stands still under reduced motion (the word says it). */
+function Marker({ state }: { state: StepState }) {
+  if (state === "done") {
+    return (
+      <span aria-hidden="true" data-ring="done" className="flex size-7 flex-none items-center justify-center rounded-full bg-google-maps text-sm font-bold text-white">
+        ✓
+      </span>
+    );
+  }
+  if (state === "active") {
+    return <span aria-hidden="true" data-ring="active" className="size-7 flex-none rounded-full border-[3px] border-line border-t-google-maps motion-safe:animate-spin" />;
+  }
+  return <span aria-hidden="true" data-ring="todo" className="size-7 flex-none rounded-full border-2 border-line" />;
 }
 
 /** Where a Run is. The state lives on the server, so opening the same link again resumes the view. */
@@ -95,6 +115,8 @@ export function ProgressScreen() {
               {STEPS.map((step, index) => {
                 if (step.status === "queued") return null;
                 const state = stepState(index, current, final);
+                const cost = step.status in COST_KEY ? progress.step_cost[COST_KEY[step.status as keyof typeof COST_KEY]] : null;
+                const detail = step.status === "downloading" ? downloadedText(progress.downloaded) : step.hint;
                 return (
                   <li
                     key={step.status}
@@ -102,11 +124,15 @@ export function ProgressScreen() {
                     aria-current={state === "active" ? "step" : undefined}
                     className={`flex min-h-16 items-center gap-3.5 rounded-card bg-card p-4 ${state === "active" ? "border-2 border-google-maps" : "border border-line"}`}
                   >
-                    <span aria-hidden="true" className="flex size-7 flex-none items-center justify-center rounded-full border-2 border-line text-sm">
-                      {state === "done" ? "✓" : state === "active" ? "…" : ""}
+                    <Marker state={state} />
+                    <span className="flex-1">
+                      <span className={`block text-[15px] font-semibold ${state === "todo" ? "text-muted" : ""}`}>{step.label}</span>
+                      {detail && <span className="block text-sm text-muted">{detail}</span>}
                     </span>
-                    <span className={`flex-1 text-[15px] font-semibold ${state === "todo" ? "text-muted" : ""}`}>{step.label}</span>
-                    <span className="text-sm text-muted">{stateLabel[state]}</span>
+                    <span className="text-sm text-muted">
+                      {stateLabel[state]}
+                      {cost && state !== "todo" ? ` · ${formatUsd(cost)}` : ""}
+                    </span>
                   </li>
                 );
               })}
@@ -114,7 +140,7 @@ export function ProgressScreen() {
             <div className="rounded-card border border-line bg-card p-4">
               <div className="flex justify-between text-sm">
                 <span className="font-semibold">Průběžné náklady</span>
-                <b>{formatCost(progress.cost)}</b>
+                <b>{formatUsd(progress.cost)}</b>
               </div>
               <p className="mt-2.5 text-sm text-muted">
                 Při překročení rozpočtu se analýza zastaví a dostanete částečný výsledek s tím, co se stihlo.

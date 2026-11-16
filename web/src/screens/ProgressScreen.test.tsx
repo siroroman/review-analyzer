@@ -46,7 +46,7 @@ it("shows the current step and the running cost at once, and reads the Run it wa
   expect(screen.getByText("Třídění recenzí do témat").closest("li")).toHaveAttribute("aria-current", "step");
   expect(screen.getByText("Stahování recenzí").closest("li")).toHaveAttribute("data-state", "done");
   expect(screen.getByText("Analýza a doporučení").closest("li")).toHaveAttribute("data-state", "todo");
-  expect(screen.getByText(/0\.123 USD/)).toBeInTheDocument();
+  expect(screen.getByText(/0,12 USD/)).toBeInTheDocument();
 });
 
 it("polls every 2 seconds and shows the cost growing", async () => {
@@ -62,10 +62,10 @@ it("polls every 2 seconds and shows the cost growing", async () => {
   expect(runProgress).toHaveBeenCalledTimes(1);
   await tick(1);
   expect(runProgress).toHaveBeenCalledTimes(2);
-  expect(screen.getByText(/0\.200 USD/)).toBeInTheDocument();
+  expect(screen.getByText(/0,20 USD/)).toBeInTheDocument();
   await tick(2000);
   expect(runProgress).toHaveBeenCalledTimes(3);
-  expect(screen.getByText(/0\.300 USD/)).toBeInTheDocument();
+  expect(screen.getByText(/0,30 USD/)).toBeInTheDocument();
 });
 
 it.each(["done", "partial"] as const)("opens the result as soon as a Run turns %s, and stops polling", async (status) => {
@@ -174,7 +174,7 @@ it("keeps trying after a network error and recovers", async () => {
   expect(screen.getByRole("alert")).toHaveTextContent(/spojení/i);
   await tick(2000);
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  expect(screen.getByText(/0\.100 USD/)).toBeInTheDocument();
+  expect(screen.getByText(/0,10 USD/)).toBeInTheDocument();
 });
 
 it("stops polling when the screen closes", async () => {
@@ -208,8 +208,39 @@ it("waits for every step while the Run is queued", async () => {
 it("shows the running cost and the partial result note, and no budget the API did not send", async () => {
   setup(fakeApi({ runProgress: vi.fn(async () => at("classifying", "0.56")) }));
   await tick(0);
-  expect(screen.getByText(/0\.560 USD/)).toBeInTheDocument();
+  expect(screen.getByText(/0,56 USD/)).toBeInTheDocument();
   expect(screen.getByText(/částečný výsledek/i)).toBeInTheDocument();
   expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   expect(screen.queryByText(/rozpočtu \d/)).not.toBeInTheDocument();
+});
+
+const withDetails = (status: RunProgress["status"], extra: Partial<RunProgress>): RunProgress => ({ ...at(status, "0.56"), ...extra });
+const row = (name: string) => screen.getByText(name).closest("li") as HTMLElement;
+
+it("shows the cost of each step: done with a check mark, running as running, waiting without cost", async () => {
+  const step_cost = { downloading: "0.35", classifying: "0.21", analysis: null };
+  setup(fakeApi({ runProgress: vi.fn(async () => withDetails("classifying", { step_cost })) }));
+  await tick(0);
+  expect(row("Stahování recenzí")).toHaveTextContent("Hotovo · 0,35 USD");
+  expect(row("Stahování recenzí")).toHaveTextContent("✓");
+  expect(row("Třídění recenzí do témat")).toHaveTextContent("Probíhá · 0,21 USD");
+  expect(row("Analýza a doporučení")).toHaveTextContent(/^.*Čeká$/);
+  expect(row("Analýza a doporučení")).toHaveTextContent("Trendy, poklesy, shrnutí");
+});
+
+it("shows the running step as a spinning ring that stands still under reduced motion, with the word Probíhá", async () => {
+  setup(fakeApi({ runProgress: vi.fn(async () => at("downloading", "0.1")) }));
+  await tick(0);
+  const ring = row("Stahování recenzí").querySelector('[data-ring="active"]');
+  expect(ring).not.toBeNull();
+  expect(ring).toHaveClass("motion-safe:animate-spin");
+  expect(ring).not.toHaveClass("animate-spin");
+  expect(row("Stahování recenzí")).toHaveTextContent("Probíhá");
+});
+
+it("shows the count of downloaded Reviews per Source", async () => {
+  const downloaded = { google_maps: 1204, firmy_cz: 980 };
+  setup(fakeApi({ runProgress: vi.fn(async () => withDetails("downloading", { downloaded })) }));
+  await tick(0);
+  expect(row("Stahování recenzí")).toHaveTextContent("Google Maps 1 204 · Firmy.cz 980");
 });
