@@ -1,8 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, type RunResult } from "../api/client";
 import { useApi } from "../api/context";
+import { formatCost } from "../steps";
 import { describeError } from "./errors";
+import { SOURCE_LABEL, changeAgainstPreviousYear, formatChange, formatCount, formatRating, type Source, type Summary } from "./result";
+
+const WHOLE_COMPANY = "all";
+
+function Card({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div role="group" aria-label={label} className="min-w-40 flex-1 rounded-xl border border-[#E3E2DC] bg-white p-4">
+      <p className="mb-1 text-sm text-[#5B616A]">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+function Rating({ summary }: { summary: Summary | null | undefined }) {
+  return (
+    <>
+      <p className="text-3xl font-semibold">{summary ? formatRating(summary.average_rating) : "–"}</p>
+      <p className="text-sm text-[#5B616A]">{formatCount(summary?.count ?? 0)}</p>
+    </>
+  );
+}
 
 /** The result of a finished Run. The Run lives on the server, so opening the link again shows the same result. */
 export function ResultScreen() {
@@ -10,11 +32,13 @@ export function ResultScreen() {
   const { id = "" } = useParams();
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [tab, setTab] = useState(WHOLE_COMPANY);
 
   useEffect(() => {
     let stopped = false;
     setResult(null);
     setError(null);
+    setTab(WHOLE_COMPANY);
     api.runResult(id).then(
       (loaded) => !stopped && setResult(loaded),
       (failed) => !stopped && setError(failed),
@@ -47,7 +71,62 @@ export function ResultScreen() {
           )}
         </div>
       )}
-      {result && <h1 className="text-2xl font-semibold">{result.company.name}</h1>}
+      {result && <Dashboard result={result} tab={tab} onTab={setTab} />}
     </main>
+  );
+}
+
+function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onTab: (tab: string) => void }) {
+  const { company, metrics } = result;
+  const places = company.places.map((place) => ({ ...place, key: `${place.source}:${place.external_id}` }));
+  const place = places.find((candidate) => candidate.key === tab);
+
+  const summaryOf = (source: Source, externalId: string) =>
+    metrics.per_place.find((entry) => entry.source === source && entry.place_external_id === externalId)?.summary;
+
+  const overall = place ? summaryOf(place.source, place.external_id) : metrics.overall;
+  const sources: { source: Source; summary: Summary }[] = place
+    ? [{ source: place.source, summary: overall ?? { average_rating: 0, count: 0 } }]
+    : metrics.per_source;
+  const totalReviews = sources.reduce((sum, entry) => sum + entry.summary.count, 0);
+  const change = place ? null : changeAgainstPreviousYear(metrics.trend);
+
+  return (
+    <>
+      <h1 className="mb-3 text-2xl font-semibold">{company.name}</h1>
+      <div role="tablist" aria-label="Pobočky" className="mb-4 flex flex-wrap gap-2">
+        {[{ key: WHOLE_COMPANY, label: "Celá firma" }, ...places.map((entry) => ({ key: entry.key, label: `${entry.name} · ${SOURCE_LABEL[entry.source]}` }))].map(
+          (entry) => (
+            <button
+              key={entry.key}
+              role="tab"
+              aria-selected={tab === entry.key}
+              onClick={() => onTab(entry.key)}
+              className={`min-h-11 rounded-full border px-4 ${tab === entry.key ? "border-[#1B1F23] bg-[#1B1F23] text-white" : "border-[#E3E2DC] bg-white"}`}
+            >
+              {entry.label}
+            </button>
+          ),
+        )}
+      </div>
+      <div className="mb-6 flex flex-wrap gap-3">
+        <Card label="Celkové hodnocení">
+          <Rating summary={overall} />
+          {change !== null && <p className="text-sm">{formatChange(change)}</p>}
+        </Card>
+        {sources.map(({ source, summary }) => (
+          <Card key={source} label={SOURCE_LABEL[source]}>
+            <Rating summary={summary} />
+            <p className="text-sm">{totalReviews === 0 ? 0 : Math.round((summary.count / totalReviews) * 100)} %</p>
+            <div aria-hidden="true" className="mt-1 h-2 rounded bg-[#E3E2DC]">
+              <div className="h-2 rounded bg-[#1B1F23]" style={{ width: `${totalReviews === 0 ? 0 : (summary.count / totalReviews) * 100}%` }} />
+            </div>
+          </Card>
+        ))}
+        <Card label="Náklady analýzy">
+          <p className="text-3xl font-semibold">{formatCost(result.cost)}</p>
+        </Card>
+      </div>
+    </>
   );
 }
