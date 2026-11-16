@@ -99,6 +99,11 @@ export function ProgressScreen() {
           )}
         </>
       )}
+      {(final === "done" || final === "partial") && (
+        <Link to={`/runs/${id}/result`} className="mt-4 mr-4 inline-flex min-h-11 items-center font-semibold text-blue-700 underline">
+          Zobrazit výsledek
+        </Link>
+      )}
       {(final || problem === "Tato analýza neexistuje.") && (
         <Link to="/" className="mt-4 inline-block text-blue-700 underline">
           Nové hledání

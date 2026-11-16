@@ -6,6 +6,8 @@ export type Branch = components["schemas"]["BranchOut"];
 export type RunIn = components["schemas"]["RunIn"];
 export type RunOut = components["schemas"]["RunOut"];
 export type RunProgress = components["schemas"]["StatusOut"];
+export type RunResult = components["schemas"]["ResultOut"];
+export type Metrics = components["schemas"]["Metrics"];
 export type RunStatus = RunProgress["status"];
 
 /** An answer that is not a success. `status` is the HTTP status, or 0 when the server was not reached. */
@@ -21,6 +23,7 @@ export interface Api {
   branches(placeId: string): Promise<Branch[]>;
   startRun(input: RunIn): Promise<RunOut>;
   runProgress(runId: string): Promise<RunProgress>;
+  runResult(runId: string): Promise<RunResult>;
 }
 
 export function createApi(token: string, baseUrl = import.meta.env.VITE_API_URL ?? "/api"): Api {
@@ -43,5 +46,6 @@ export function createApi(token: string, baseUrl = import.meta.env.VITE_API_URL 
     branches: (placeId) => call(client.GET("/places/{place_id}/branches", { params: { path: { place_id: placeId } } })),
     startRun: (input) => call(client.POST("/runs", { body: input })),
     runProgress: (runId) => call(client.GET("/runs/{run_id}", { params: { path: { run_id: runId } } })),
+    runResult: (runId) => call(client.GET("/runs/{run_id}/result", { params: { path: { run_id: runId } } })),
   };
 }
