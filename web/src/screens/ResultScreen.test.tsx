@@ -104,6 +104,43 @@ it("shows a dash when no Review was found", async () => {
   expect(within(overall).getByText("–")).toBeInTheDocument();
 });
 
+it("describes the timeline in words for a screen reader", async () => {
+  setup(fakeApi());
+  const chart = await screen.findByRole("img", { name: /Vývoj hodnocení/ });
+  expect(chart).toHaveAccessibleName(expect.stringContaining("Google Maps: od 4,5 (01/2026) do 3,5 (02/2026)"));
+});
+
+it("lists a drop with its main Topic and a rise, and marks nothing when there are no changes", async () => {
+  const withChanges = fakeResult({
+    metrics: {
+      ...fakeResult().metrics,
+      changes: [
+        { kind: "drop", source: "google_maps", period_start: "2026-02-01", delta: -1, main_topic_key: "service" },
+        { kind: "rise", source: "google_maps", period_start: "2026-03-01", delta: 0.7, main_topic_key: null },
+      ],
+    },
+  });
+  setup(fakeApi({ runResult: vi.fn(async () => withChanges) }));
+  const list = await screen.findByRole("list", { name: "Poklesy a vzestupy" });
+  const [drop, rise] = within(list).getAllByRole("listitem");
+  expect(drop).toHaveTextContent("Pokles · Google Maps · 02/2026: −1,0 · hlavní téma: service");
+  expect(rise).toHaveTextContent("Vzestup · Google Maps · 03/2026: +0,7");
+  expect(rise).not.toHaveTextContent("hlavní téma");
+});
+
+it("shows no list of changes when the Run found none", async () => {
+  setup(fakeApi());
+  await screen.findByRole("img", { name: /Vývoj hodnocení/ });
+  expect(screen.queryByRole("list", { name: "Poklesy a vzestupy" })).not.toBeInTheDocument();
+});
+
+it("keeps the timeline on the whole Company when a Place tab is chosen", async () => {
+  const user = userEvent.setup();
+  setup(fakeApi());
+  await user.click((await screen.findAllByRole("tab"))[1]!);
+  expect(screen.getByText("Časová osa ukazuje celou firmu.")).toBeInTheDocument();
+});
+
 it("narrows the cards to one Place when its tab is chosen", async () => {
   const user = userEvent.setup();
   setup(fakeApi({ runResult: vi.fn(async () => twoSources()) }));

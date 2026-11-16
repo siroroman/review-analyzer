@@ -4,6 +4,7 @@ import { ApiError, type RunResult } from "../api/client";
 import { useApi } from "../api/context";
 import { formatCost } from "../steps";
 import { describeError } from "./errors";
+import { Timeline } from "./Timeline";
 import { SOURCE_LABEL, changeAgainstPreviousYear, formatChange, formatCount, formatRating, type Source, type Summary } from "./result";
 
 const WHOLE_COMPANY = "all";
@@ -127,6 +128,9 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
           <p className="text-3xl font-semibold">{formatCost(result.cost)}</p>
         </Card>
       </div>
+      <h2 className="mb-2 text-lg font-semibold">Vývoj hodnocení</h2>
+      {place && <p className="mb-2 text-sm text-[#5B616A]">Časová osa ukazuje celou firmu.</p>}
+      <Timeline trend={metrics.trend} changes={metrics.changes} />
     </>
   );
 }
