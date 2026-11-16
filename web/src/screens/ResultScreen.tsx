@@ -141,7 +141,7 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
       ) : (
         <>
           {months === 1 && <p className="mb-2 text-sm text-muted">Zatím je k dispozici jen jeden měsíc, vývoj nejde ukázat.</p>}
-          <Timeline trend={metrics.trend} changes={metrics.changes} />
+          <Timeline trend={metrics.trend} changes={metrics.changes} topics={result.topics} />
         </>
       )}
     </>

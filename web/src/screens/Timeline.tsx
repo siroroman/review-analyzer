@@ -1,6 +1,6 @@
 import { CartesianGrid, Line, LineChart, ReferenceArea, ReferenceDot, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import type { Metrics } from "../api/client";
-import { SOURCE_LABEL, formatRating, type Source } from "./result";
+import { SOURCE_LABEL, formatRating, topicName, type Source } from "./result";
 
 /** Line style tells the Sources apart as well as the hue: solid for Google Maps, dashed for Firmy.cz. */
 const LINES: Record<Source, { color: string; dash: string | undefined }> = {
@@ -30,7 +30,15 @@ function describe(trend: Metrics["trend"]): string {
 const signed = (delta: number) => `${delta < 0 ? "−" : "+"}${formatRating(Math.abs(delta))}`;
 
 /** Rating per month for each Source, with the drop and rise months marked and listed. */
-export function Timeline({ trend, changes }: { trend: Metrics["trend"]; changes: Metrics["changes"] }) {
+export function Timeline({
+  trend,
+  changes,
+  topics,
+}: {
+  trend: Metrics["trend"];
+  changes: Metrics["changes"];
+  topics: ReadonlyArray<{ key: string; name: string }>;
+}) {
   const months = [...new Set(trend.map((point) => point.period_start))].sort();
   const rows = months.map((month) => ({
     month,
@@ -67,7 +75,7 @@ export function Timeline({ trend, changes }: { trend: Metrics["trend"]; changes:
                   r={6}
                   fill={drop ? DROP : RISE}
                   stroke="#fff"
-                  label={{ value: drop ? `pokles${change.main_topic_key ? ` + ${change.main_topic_key}` : ""}` : "vzestup", position: "top", fill: drop ? DROP : RISE, fontSize: 12 }}
+                  label={{ value: drop ? `pokles${change.main_topic_key ? ` + ${topicName(topics, change.main_topic_key)}` : ""}` : "vzestup", position: "top", fill: drop ? DROP : RISE, fontSize: 12 }}
                 />
               );
             })}
@@ -79,7 +87,7 @@ export function Timeline({ trend, changes }: { trend: Metrics["trend"]; changes:
           {changes.map((change) => (
             <li key={`${change.kind}-${change.source}-${change.period_start}`}>
               {change.kind === "drop" ? "Pokles" : "Vzestup"} · {SOURCE_LABEL[change.source]} · {monthLabel(change.period_start)}: {signed(change.delta)}
-              {change.main_topic_key ? ` · hlavní téma: ${change.main_topic_key}` : ""}
+              {change.main_topic_key ? ` · hlavní téma: ${topicName(topics, change.main_topic_key)}` : ""}
             </li>
           ))}
         </ul>
