@@ -24,6 +24,7 @@ cp .env.example .env
 - `GOOGLE_PLACES_API_KEY`, `APIFY_TOKEN`, `ANTHROPIC_API_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`: your own keys.
 - `DEMO_TOKENS`: any string you choose; it is the access token for the web.
 - Delete the five lines `CLOUD_TASKS_PROJECT`, `CLOUD_TASKS_LOCATION`, `CLOUD_TASKS_QUEUE`, `WORKER_URL` and `WORKER_SERVICE_ACCOUNT`. With none set, the local queue is used; with only some set, the backend refuses to start.
+- Add the line `WORKER_AUTH_DISABLED=true`: the worker app is not used locally, and without its Cloud Tasks audience the backend refuses to start unless the check is switched off this way.
 
 **Commands** (in this order, the first three in the repo root):
 

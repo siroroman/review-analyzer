@@ -42,7 +42,7 @@ from app.storage import Storage, postgres_storage
 from app.taxonomy import Taxonomies
 from app.tracing import LangfuseConfig, LangfuseTracer, UuidIds
 from app.transport import HttpError, HttpRequest, HttpTransport, UrllibTransport, read_secret
-from app.worker import Worker, create_worker_app
+from app.worker import GoogleTokenVerifier, TokenVerifier, Worker, auth_from_env, create_worker_app
 
 # Cloud Tasks is used when any of these is set (then all must be); with none set, `LocalQueue` is used.
 CLOUD_TASKS_VARIABLES = (
@@ -159,9 +159,11 @@ def build_apps(
     transport: HttpTransport | None = None,
     storage: Storage | None = None,
     clock: Clock | None = None,
+    token_verifier: TokenVerifier | None = None,
 ) -> Apps:
     """Wire the API and the worker from `environ`. Raises `MissingSecret` (naming the variable, never its
-    value) before anything is connected. Tests pass a fake `transport`, `storage` and `clock`."""
+    value) before anything is connected. Tests pass fakes for `transport`, `storage`, `clock` and
+    `token_verifier`."""
     api_config = ApiConfig.from_environ(environ)
     dsn = read_secret(environ, "DATABASE_URL")
     google_key = read_secret(environ, "GOOGLE_PLACES_API_KEY")
@@ -235,7 +237,13 @@ def build_apps(
         clock=clock,
         config=api_config,
     )
-    return Apps(api=api, worker=create_worker_app(worker), queue=queue)
+    return Apps(
+        api=api,
+        worker=create_worker_app(
+            worker, auth=auth_from_env(environ, token_verifier or GoogleTokenVerifier())
+        ),
+        queue=queue,
+    )
 
 
 def api_app() -> FastAPI:
