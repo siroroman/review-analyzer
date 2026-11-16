@@ -44,6 +44,7 @@ class RunRecord:
     budget_cap: Decimal
     created_at: datetime
     finished_at: datetime | None
+    industry: str | None = None  # the industry the Run used: what its Taxonomy and notes are about
 
 
 @dataclass(frozen=True)
@@ -142,8 +143,15 @@ class RunRepo(Protocol):
         """Move the Run forward by the rules of `domain.advance`. Raises `UnknownRun`, `InvalidTransition`."""
         ...
 
+    def set_industry(self, run_id: str, industry: str) -> RunRecord:
+        """Record the industry this Run used, so its result stays the same when the Company's changes.
+
+        Raises `UnknownRun`.
+        """
+        ...
+
     def copy_results(self, source_run_id: str, run_id: str) -> None:
-        """Copy the Insights and TrendPoints of one Run to another, all or nothing, in one step.
+        """Copy the Insights, TrendPoints and the industry of one Run to another, all or nothing, in one step.
 
         Does nothing when `run_id` already holds Insights or TrendPoints, so a repeat is harmless.
         Raises `UnknownRun` for either id.

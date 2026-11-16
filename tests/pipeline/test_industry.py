@@ -104,3 +104,14 @@ def test_flagged_reviews_never_reach_the_industry_prompt() -> None:
     world = World(industry=None, scraped_reviews=with_injection(month_of_reviews(40)))
     world.run()
     assert INJECTION not in world.prompts["industry"]
+
+
+def test_a_fallback_run_keeps_its_note_after_a_later_run_infers_a_real_industry() -> None:
+    world = World(industry=None, industry_answer='{"label": "???"}')
+    first = world.run()
+    world.industry_answer = '{"label": "cafe"}'
+    world.clock.advance(timedelta(days=2))
+    second = world.run()
+    assert second.notes == ()
+    assert world.pipeline.report(first.run_id).result.notes == (NOTE_INDUSTRY_FALLBACK,)
+    assert world.pipeline.run(first.run_id).notes == (NOTE_INDUSTRY_FALLBACK,)

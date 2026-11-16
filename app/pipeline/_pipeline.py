@@ -107,14 +107,13 @@ class Pipeline:
         record = self._storage.runs.get(run_id)
         if record is None:
             raise UnknownRun(run_id)
-        company = self._storage.companies.by_id(record.company_id)
-        if company is None:
-            raise RuntimeError(f"Run {run_id} has no stored Company")
+        company = self._company(record)
         if record.status in _FINAL:
-            return self._result(record, company.company)
+            return self._result(record, company)
         if record.status is RunStatus.QUEUED and self._reuse_fresh(record):
-            return self._result(self._advance(record.id, RunStatus.DONE), company.company)
-        failure = self._steps(record, company.company)
+            done = self._advance(record.id, RunStatus.DONE)
+            return self._result(done, self._company(done))
+        failure = self._steps(record, company)
         known = self._company(record)  # the industry may have been inferred meanwhile
         if failure is None:
             return self._result(self._advance(run_id, RunStatus.DONE), known)
@@ -124,32 +123,35 @@ class Pipeline:
         return self._result(self._advance(run_id, end), known)
 
     def _company(self, record: RunRecord) -> Company:
+        """The stored Company, with the industry this Run used; a Run before that was recorded has the
+        Company's own."""
         stored = self._storage.companies.by_id(record.company_id)
-        if stored is None:
+        fresh = self._storage.runs.get(record.id)
+        if stored is None or fresh is None:
             raise RuntimeError(f"Run {record.id} has no stored Company")
-        return stored.company
+        if fresh.industry is None:
+            return stored.company
+        return stored.company.model_copy(update={"industry": fresh.industry})
 
     def report(self, run_id: str) -> RunReport:
         """What the dashboard shows of a Run, for any status. Raises `UnknownRun`."""
         record = self._storage.runs.get(run_id)
         if record is None:
             raise UnknownRun(run_id)
-        company = self._storage.companies.by_id(record.company_id)
-        if company is None:
-            raise RuntimeError(f"Run {run_id} has no stored Company")
+        company = self._company(record)
         # The trend and the changes of today's Reviews could contradict the Run's Insights, so a report
         # carries the ones the Run saved.
         saved = {
             "trend": tuple(self._storage.trends.for_run(run_id)),
             "changes": tuple(self._storage.changes.for_run(run_id)),
         }
-        metrics = self._metrics(company.company).model_copy(update=saved)
+        metrics = self._metrics(company).model_copy(update=saved)
         return RunReport(
-            result=self._result(record, company.company),
-            company=company.company,
+            result=self._result(record, company),
+            company=company,
             metrics=metrics,
             insights=tuple(self._storage.insights.for_run(run_id)),
-            topics=self._mentioned_topics(company.company, metrics),
+            topics=self._mentioned_topics(company, metrics),
         )
 
     def _mentioned_topics(self, company: Company, metrics: Metrics) -> tuple[Topic, ...]:
@@ -259,6 +261,7 @@ class Pipeline:
     def _classify(self, record: RunRecord, company: Company) -> None:
         run_id = record.id
         industry = self._industry(record, company)
+        self._storage.runs.set_industry(run_id, industry)
         taxonomy = self._attempt(
             lambda: self._taxonomies.get_taxonomy(
                 industry, sample=lambda: self._reviews(company), run_id=run_id
