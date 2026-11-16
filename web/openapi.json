@@ -1092,6 +1092,63 @@
           "cost": {
             "type": "string",
             "title": "Cost"
+          },
+          "budget": {
+            "type": "string",
+            "title": "Budget"
+          },
+          "downloaded": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "propertyNames": {
+                  "$ref": "#/components/schemas/Source"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Downloaded"
+          },
+          "flagged": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flagged"
+          },
+          "classified": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classified"
+          },
+          "to_classify": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Classify"
+          },
+          "step_cost": {
+            "$ref": "#/components/schemas/StepCostOut"
           }
         },
         "type": "object",
@@ -1099,9 +1156,61 @@
           "run_id",
           "status",
           "finished",
-          "cost"
+          "cost",
+          "budget",
+          "downloaded",
+          "flagged",
+          "classified",
+          "to_classify",
+          "step_cost"
         ],
-        "title": "StatusOut"
+        "title": "StatusOut",
+        "description": "Progress of a Run: counts and costs only, never a Review or its text. `None` means not known yet."
+      },
+      "StepCostOut": {
+        "properties": {
+          "downloading": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Downloading"
+          },
+          "classifying": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classifying"
+          },
+          "analysis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "downloading",
+          "classifying",
+          "analysis"
+        ],
+        "title": "StepCostOut",
+        "description": "What the Run's Service calls cost in each step; `None` for a step that has not started."
       },
       "SuggestionOut": {
         "properties": {

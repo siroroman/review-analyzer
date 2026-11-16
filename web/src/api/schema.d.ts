@@ -380,7 +380,10 @@ export interface components {
                 [key: string]: string;
             };
         };
-        /** StatusOut */
+        /**
+         * StatusOut
+         * @description Progress of a Run: counts and costs only, never a Review or its text. `None` means not known yet.
+         */
         StatusOut: {
             /** Run Id */
             run_id: string;
@@ -389,6 +392,31 @@ export interface components {
             finished: boolean;
             /** Cost */
             cost: string;
+            /** Budget */
+            budget: string;
+            /** Downloaded */
+            downloaded: {
+                [key: string]: number;
+            } | null;
+            /** Flagged */
+            flagged: number | null;
+            /** Classified */
+            classified: number | null;
+            /** To Classify */
+            to_classify: number | null;
+            step_cost: components["schemas"]["StepCostOut"];
+        };
+        /**
+         * StepCostOut
+         * @description What the Run's Service calls cost in each step; `None` for a step that has not started.
+         */
+        StepCostOut: {
+            /** Downloading */
+            downloading: string | null;
+            /** Classifying */
+            classifying: string | null;
+            /** Analysis */
+            analysis: string | null;
         };
         /** SuggestionOut */
         SuggestionOut: {
