@@ -1,22 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ApiError, type RunProgress } from "../api/client";
+import { ApiError, type RunProgress, type RunStatus } from "../api/client";
 import { useApi } from "../api/context";
 import { AppHeader } from "../components/AppHeader";
 import { COST_KEY, FINAL, SOURCE_NAMES, STEPS, formatUsd, formatCount } from "../steps";
 
 export const POLL_MS = 2000;
 
-const ENDINGS = {
-  done: "Hotovo. Analýza je dokončená.",
-  partial: "Částečný výsledek: analýza skončila dřív (limit nákladů nebo chyba kroku), ukážeme, co se stihlo.",
-  failed: "Analýza selhala.",
-} as const;
+const FAILED = "Analýza selhala.";
 
 type StepState = "done" | "active" | "todo";
 
 /** A finished Run has done every step; for a partial or failed one we do not know which, so none is claimed. */
-function stepState(index: number, current: number, final: keyof typeof ENDINGS | null): StepState {
+function stepState(index: number, current: number, final: RunStatus | null): StepState {
   if (final === "done") return "done";
   if (final) return "todo";
   return index < current ? "done" : index === current ? "active" : "todo";
@@ -59,6 +55,12 @@ function ClassifyBar({ progress }: { progress: RunProgress }) {
       </span>
     </>
   );
+}
+
+/** The share of the budget spent, 0 to 100. */
+function budgetShare({ cost, budget }: RunProgress): number {
+  const cap = Number(budget);
+  return cap > 0 ? Math.min(100, Math.round((Number(cost) / cap) * 1000) / 10) : 0;
 }
 
 /** Done: a blue circle with a check. Running: a ring that spins, and stands still under reduced motion (the word says it). */
@@ -115,7 +117,7 @@ export function ProgressScreen() {
     };
   }, [api, id, navigate]);
 
-  const final = progress && FINAL.includes(progress.status) ? (progress.status as keyof typeof ENDINGS) : null;
+  const final = progress && FINAL.includes(progress.status) ? progress.status : null;
   const current = progress ? STEPS.findIndex((step) => step.status === progress.status) : -1;
 
   const stateLabel = { done: "Hotovo", active: "Probíhá", todo: "Čeká" } as const;
@@ -125,7 +127,7 @@ export function ProgressScreen() {
       <AppHeader />
       <main className="mx-auto flex max-w-180 flex-col gap-6 px-6 pt-12 pb-12">
         <div>
-          <h1 className="text-3xl leading-tight font-bold">Průběh analýzy</h1>
+          <h1 className="text-3xl leading-tight font-bold">{progress?.company_name ? `Analýza: ${progress.company_name}` : "Analýza"}</h1>
           <p className="mt-2 text-[15px] text-muted">Stránku můžete zavřít. Výsledek zůstane dostupný na tomto odkazu.</p>
         </div>
         {problem && (
@@ -166,15 +168,27 @@ export function ProgressScreen() {
             <div className="rounded-card border border-line bg-card p-4">
               <div className="flex justify-between text-sm">
                 <span className="font-semibold">Průběžné náklady</span>
-                <b>{formatUsd(progress.cost)}</b>
+                <span>
+                  <b>{formatUsd(progress.cost)}</b> z rozpočtu {formatUsd(progress.budget)}
+                </span>
               </div>
+              <span
+                role="progressbar"
+                aria-label="Průběžné náklady"
+                aria-valuemin={0}
+                aria-valuenow={Number(progress.cost)}
+                aria-valuemax={Number(progress.budget)}
+                className="mt-2.5 block h-2 overflow-hidden rounded-full bg-line"
+              >
+                <span data-testid="budget-fill" className="block h-full rounded-full bg-ink transition-[width] duration-700 ease-out" style={{ width: `${budgetShare(progress)}%` }} />
+              </span>
               <p className="mt-2.5 text-sm text-muted">
                 Při překročení rozpočtu se analýza zastaví a dostanete částečný výsledek s tím, co se stihlo.
               </p>
             </div>
             {final && (
               <p role="status" className="rounded-card border border-line bg-card p-3">
-                {ENDINGS[final]}
+                {FAILED}
               </p>
             )}
           </>

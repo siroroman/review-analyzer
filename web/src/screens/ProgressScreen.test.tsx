@@ -205,15 +205,6 @@ it("waits for every step while the Run is queued", async () => {
   expect(screen.getByText(/ve frontě/i)).toBeInTheDocument();
 });
 
-it("shows the running cost and the partial result note, and no budget the API did not send", async () => {
-  setup(fakeApi({ runProgress: vi.fn(async () => at("classifying", "0.56")) }));
-  await tick(0);
-  expect(screen.getByText(/0,56 USD/)).toBeInTheDocument();
-  expect(screen.getByText(/částečný výsledek/i)).toBeInTheDocument();
-  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
-  expect(screen.queryByText(/rozpočtu \d/)).not.toBeInTheDocument();
-});
-
 const withDetails = (status: RunProgress["status"], extra: Partial<RunProgress>): RunProgress => ({ ...at(status, "0.56"), ...extra });
 const row = (name: string) => screen.getByText(name).closest("li") as HTMLElement;
 
@@ -280,5 +271,35 @@ it("shows an empty bar, not a broken one, when there is nothing to classify yet"
 it("shows no bar before the classifying counts are known", async () => {
   setup(fakeApi({ runProgress: vi.fn(async () => at("classifying", "0.1")) }));
   await tick(0);
-  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  expect(within(row("Třídění recenzí do témat")).queryByRole("progressbar")).not.toBeInTheDocument();
+});
+
+it("shows the spend against the budget with a dark bar and the partial result note", async () => {
+  setup(fakeApi({ runProgress: vi.fn(async () => ({ ...at("classifying", "0.56"), budget: "2" })) }));
+  await tick(0);
+  expect(screen.getByText("Průběžné náklady").closest("div")?.parentElement).toHaveTextContent("0,56 USD z rozpočtu 2,00 USD");
+  const bar = screen.getByRole("progressbar", { name: "Průběžné náklady" });
+  expect(bar).toHaveAttribute("aria-valuenow", "0.56");
+  expect(bar).toHaveAttribute("aria-valuemax", "2");
+  expect(within(bar).getByTestId("budget-fill").style.width).toBe("28%");
+  expect(screen.getByText(/částečný výsledek/i)).toBeInTheDocument();
+});
+
+it("never lets the budget bar overflow when the spend passes the budget", async () => {
+  setup(fakeApi({ runProgress: vi.fn(async () => ({ ...at("analyzing", "2.4"), budget: "2" })) }));
+  await tick(0);
+  expect(screen.getByTestId("budget-fill").style.width).toBe("100%");
+});
+
+it("names the company in the title and says the page can be closed", async () => {
+  setup(fakeApi({ runProgress: vi.fn(async () => ({ ...at("downloading", "0.1"), company_name: "Kavárna U Zlatého hada" })) }));
+  await tick(0);
+  expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Analýza: Kavárna U Zlatého hada");
+  expect(screen.getByText(/Stránku můžete zavřít/)).toBeInTheDocument();
+});
+
+it("shows a plain title until the company name is known", async () => {
+  setup(fakeApi({ runProgress: vi.fn(async () => Promise.reject(new ApiError(0))) }));
+  await tick(0);
+  expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/^Analýza$/);
 });
