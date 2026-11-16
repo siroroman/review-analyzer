@@ -38,6 +38,17 @@ it("reads the progress of a Run", async () => {
   expect(sent(fetchMock).url).toBe("http://api/runs/r1");
 });
 
+it("reads the result of a Run", async () => {
+  const fetchMock = respond({ run_id: "r1", status: "done", reviews: 12 });
+  expect((await createApi("tok", "http://api").runResult("r1")).reviews).toBe(12);
+  expect(sent(fetchMock).url).toBe("http://api/runs/r1/result");
+});
+
+it("reports a Run that is not finished as a 409", async () => {
+  respond({ detail: "the Run is queued" }, 409);
+  await expect(createApi("tok", "http://api").runResult("r1")).rejects.toMatchObject({ status: 409 });
+});
+
 it("turns an error answer into an ApiError with its status", async () => {
   respond({ detail: "unauthorized" }, 401);
   await expect(createApi("bad", "http://api").runProgress("r1")).rejects.toMatchObject({ status: 401 });
