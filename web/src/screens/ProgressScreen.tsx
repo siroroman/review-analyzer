@@ -188,7 +188,7 @@ export function ProgressScreen() {
                 Při překročení rozpočtu se analýza zastaví a dostanete částečný výsledek s tím, co se stihlo.
               </p>
             </div>
-            {final && (
+            {final === "failed" && (
               <p role="status" className="rounded-card border border-line bg-card p-3">
                 {FAILED}
               </p>

@@ -303,3 +303,19 @@ it("shows a plain title until the company name is known", async () => {
   await tick(0);
   expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/^Analýza$/);
 });
+
+it.each(["done", "partial"] as const)("never says the Run failed while a %s Run is being handed to the result", async (status) => {
+  vi.useFakeTimers();
+  render(
+    <ApiProvider api={fakeApi({ runProgress: vi.fn(async () => at(status, "0.5", true)) })}>
+      <MemoryRouter initialEntries={["/runs/run-1"]}>
+        <Routes>
+          <Route path="/runs/:id/*" element={<ProgressScreen />} />
+        </Routes>
+      </MemoryRouter>
+    </ApiProvider>,
+  );
+  await tick(0);
+  expect(screen.queryByText(/selhala/i)).not.toBeInTheDocument();
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+});
