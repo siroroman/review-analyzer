@@ -18,14 +18,23 @@ from app.main import (
 from app.queue import QueueError
 from app.storage import in_memory_storage
 from app.transport import FakeTransport, HttpError, HttpResponse, MissingSecret
+from app.worker import FakeTokenVerifier
 from tests.main.helpers import ACCESS_TOKEN, ENVIRON, PLACE_ID, Internet, clock
 
 DEMO = {"Authorization": "Bearer demo-token-1"}
+VERIFIER = FakeTokenVerifier()
+QUEUE_TOKEN = VERIFIER.issue(email=ENVIRON["WORKER_SERVICE_ACCOUNT"], audience=ENVIRON["WORKER_URL"])
 
 
 def apps(internet: Internet, environ: dict[str, str] | None = None) -> tuple[TestClient, TestClient]:
     wall = clock()
-    built = build_apps(environ or ENVIRON, transport=internet, storage=in_memory_storage(wall), clock=wall)
+    built = build_apps(
+        environ or ENVIRON,
+        transport=internet,
+        storage=in_memory_storage(wall),
+        clock=wall,
+        token_verifier=VERIFIER,
+    )
     return TestClient(built.api), TestClient(built.worker)
 
 
@@ -47,7 +56,12 @@ def test_search_start_a_run_the_worker_runs_it_and_the_result_shows() -> None:
     message = base64.b64decode(internet.tasks[0]["httpRequest"]["body"])  # type: ignore[index]
     assert json.loads(message) == {"run_id": run_id}
 
-    handled = worker.post("/tasks/run", json={"run_id": run_id})
+    refused = worker.post("/tasks/run", json={"run_id": run_id})
+    assert refused.status_code == 401
+
+    handled = worker.post(
+        "/tasks/run", json={"run_id": run_id}, headers={"Authorization": f"Bearer {QUEUE_TOKEN}"}
+    )
     assert handled.json() == {"outcome": "handled"}
 
     result = api.get(f"/runs/{run_id}/result", headers=DEMO)
