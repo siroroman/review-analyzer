@@ -20,6 +20,7 @@ export function fakeApi(overrides: Partial<Api> = {}): { [K in keyof Api]: Retur
       step_cost: { downloading: null, classifying: null, analysis: null },
     })),
     runResult: vi.fn(async () => fakeResult()),
+    reviews: vi.fn(async () => []),
     ...overrides,
   } as never;
 }

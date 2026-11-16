@@ -50,3 +50,17 @@ export function formatChange(change: number): string {
   if (rounded === 0) return "beze změny oproti předchozím 12 měsícům";
   return `${rounded > 0 ? "+" : "−"}${formatRating(Math.abs(rounded))} oproti předchozím 12 měsícům`;
 }
+
+const plural = (count: number, one: string, few: string, many: string) => (count === 1 ? one : count >= 2 && count <= 4 ? few : many);
+
+/** Czech plural of "zmínka": 1 zmínka, 2-4 zmínky, otherwise zmínek. */
+export function formatMentions(count: number): string {
+  return `${count} ${plural(count, "zmínka", "zmínky", "zmínek")}`;
+}
+
+/** The number of Flagged Reviews, which the analysis left out. */
+export function formatExcluded(count: number): string {
+  return `${count} ${plural(count, "podezřelá recenze vyřazena", "podezřelé recenze vyřazeny", "podezřelých recenzí vyřazeno")}`;
+}
+
+export const SERVICE_LABEL: Record<string, string> = { apify: "Apify", models: "Modely", google_places: "Google Places" };
