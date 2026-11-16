@@ -1,26 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useApi } from "../api/context";
 import type { Suggestion } from "../api/client";
+import { readRecent } from "../recentRuns";
 import { useDebounced } from "../useDebounced";
 import { AppHeader } from "../components/AppHeader";
-import { ConfirmStep } from "./ConfirmStep";
 import { describeError } from "./errors";
 
 export const DEBOUNCE_MS = 300;
 
-type Choice = { suggestion: Suggestion; company: boolean };
-
-/** Find a Place by its name; the user picks exactly one Place or one Company. */
+/** Find a Place by its name; the user picks exactly one Place and starts a Run for it. */
 export function SearchScreen() {
   const api = useApi();
+  const navigate = useNavigate();
   const [text, setText] = useState("");
   const query = useDebounced(text.trim(), DEBOUNCE_MS);
   const [found, setFound] = useState<Suggestion[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const [choice, setChoice] = useState<Choice | null>(null);
+  const [startProblem, setStartProblem] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<Suggestion | null>(null);
+  const [busy, setBusy] = useState(false);
+  /** The text we put into the input ourselves after a pick; it needs no new suggestions. */
+  const [recent] = useState(() => readRecent());
+  const filled = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!query) {
+    if (!query || query === filled.current) {
       setFound(null);
       setProblem(null);
       return;
@@ -41,7 +46,33 @@ export function SearchScreen() {
     return () => controller.abort();
   }, [api, query]);
 
-  if (choice) return <ConfirmStep {...choice} onBack={() => setChoice(null)} />;
+  function edit(value: string) {
+    setText(value);
+    setChosen(null);
+    setStartProblem(null);
+    filled.current = null;
+  }
+
+  function choose(suggestion: Suggestion) {
+    filled.current = suggestion.text.trim();
+    setText(suggestion.text);
+    setChosen(suggestion);
+    setFound(null);
+    setProblem(null);
+  }
+
+  async function start() {
+    if (!chosen) return;
+    setBusy(true);
+    setStartProblem(null);
+    try {
+      const run = await api.startRun({ place_ids: [chosen.place_id] });
+      navigate(`/runs/${run.run_id}`);
+    } catch (error) {
+      setStartProblem(describeError(error, "spustit analýzu"));
+      setBusy(false);
+    }
+  }
 
   return (
     <>
@@ -54,54 +85,58 @@ export function SearchScreen() {
           </p>
         </div>
         <div>
-          <label htmlFor="company-query" className="mb-1.5 block text-sm font-semibold">
-            Firma nebo pobočka
-          </label>
           <input
-            id="company-query"
             type="search"
             role="searchbox"
-            placeholder="Například název firmy"
+            aria-label="Název firmy"
+            placeholder="Např. Alza cz"
             value={text}
-            onChange={(event) => setText(event.target.value)}
+            onChange={(event) => edit(event.target.value)}
             className="min-h-13 w-full rounded-[10px] border-2 border-google-maps bg-card px-4 text-base font-medium"
           />
-          {problem && (
+          {(problem ?? startProblem) && (
             <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-drop">
-              {problem}
+              {problem ?? startProblem}
             </p>
           )}
           {found?.length === 0 && <p className="mt-3 text-muted">Nic jsme nenašli.</p>}
           {found && found.length > 0 && (
-            <div className="mt-1.5 overflow-hidden rounded-[10px] border border-line bg-card shadow-lg">
-              <Group title="Celá firma" suggestions={found} hint="Celá firma · všechny pobočky společně" onChoose={(suggestion) => setChoice({ suggestion, company: true })} />
-              <Group title="Jedna pobočka" suggestions={found} hint="Jen tato pobočka" onChoose={(suggestion) => setChoice({ suggestion, company: false })} />
-            </div>
+            <ul className="mt-1.5 overflow-hidden rounded-[10px] border border-line bg-card shadow-lg">
+              {found.map((suggestion) => (
+                <li key={suggestion.place_id} className="border-t border-line first:border-t-0">
+                  <button type="button" onClick={() => choose(suggestion)} className="block min-h-14 w-full px-4 py-2 text-left text-[15px] font-semibold hover:bg-[#eef3fd]">
+                    {suggestion.text}
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
-          <p className="mt-2 text-sm text-muted">Návrhy pocházejí z Google Places. Vaše volba určí, zda se analyzuje celý řetězec, nebo jedna pobočka.</p>
         </div>
-        <p className="text-sm text-muted">Zdroje: Google Maps, Firmy.cz</p>
+        <div>
+          <button
+            type="button"
+            disabled={!chosen || busy}
+            onClick={start}
+            className="inline-flex min-h-13 items-center justify-center rounded-[10px] bg-ink px-7 text-base font-semibold text-white disabled:opacity-50"
+          >
+            Analyzovat recenze
+          </button>
+        </div>
+        {recent.length > 0 && (
+          <div className="rounded-card border border-line bg-card p-4 text-sm leading-normal text-[#3a4048]">
+            <b>Nedávno analyzované (v cache 24 h)</b>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {recent.map((run) => (
+                <li key={run.run_id}>
+                  <Link to={`/runs/${run.run_id}/result`} className="inline-flex min-h-11 items-center rounded-lg border border-[#cfcdc4] px-3.5 font-medium text-ink no-underline">
+                    {run.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </main>
     </>
-  );
-}
-
-function Group({ title, suggestions, hint, onChoose }: { title: string; suggestions: Suggestion[]; hint: string; onChoose: (suggestion: Suggestion) => void }) {
-  return (
-    <div role="group" aria-label={title}>
-      <p aria-hidden="true" className="bg-page px-4 py-2 text-xs font-semibold tracking-wide text-muted uppercase">
-        {title}
-      </p>
-      <ul>
-        {suggestions.map((suggestion) => (
-          <li key={suggestion.place_id} className="border-t border-line first:border-t-0">
-            <button type="button" onClick={() => onChoose(suggestion)} className="block min-h-14 w-full px-4 py-2 text-left hover:bg-[#eef3fd]">
-              <span className="block text-[15px] font-semibold">{suggestion.text}</span>
-              <span className="block text-sm text-muted">{hint}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }

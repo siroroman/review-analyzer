@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { ApiProvider } from "../api/context";
 import { fakeApi, fakeResult } from "../fakeApi";
+import { readRecent } from "../recentRuns";
 import { ResultScreen } from "./ResultScreen";
 
 function setup(api: ReturnType<typeof fakeApi>) {
@@ -224,4 +225,11 @@ it("narrows the cards to one Place when its tab is chosen", async () => {
   expect(within(overall).getByText("2,5")).toBeInTheDocument();
   expect(screen.queryByRole("group", { name: "Google Maps" })).not.toBeInTheDocument();
   expect(screen.getByRole("group", { name: "Firmy.cz" })).toBeInTheDocument();
+});
+
+it("remembers the opened result for the Search screen", async () => {
+  localStorage.clear();
+  setup(fakeApi());
+  await screen.findByRole("heading", { level: 1, name: "Kavárna U Mlýna" });
+  expect(readRecent(Date.now())).toMatchObject([{ run_id: "run-1", name: "Kavárna U Mlýna" }]);
 });

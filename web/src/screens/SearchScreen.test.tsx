@@ -1,9 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { ApiProvider } from "../api/context";
 import { fakeApi } from "../fakeApi";
+import { rememberRun } from "../recentRuns";
 import { SearchScreen } from "./SearchScreen";
 
 const CAFE = { place_id: "g1", text: "Kavárna Slavia, Praha" };
@@ -24,6 +25,7 @@ function setup(api = fakeApi()) {
   return { api, user };
 }
 
+beforeEach(() => localStorage.clear());
 afterEach(() => vi.useRealTimers());
 
 async function search(user: ReturnType<typeof userEvent.setup>, text = "kav") {
@@ -32,26 +34,31 @@ async function search(user: ReturnType<typeof userEvent.setup>, text = "kav") {
 }
 
 describe("layout from the design", () => {
-  it("shows the app header and the headline with a labelled input", () => {
+  it("shows the app header and the headline with an input named only by aria-label", () => {
     setup();
     expect(screen.getByRole("banner")).toHaveTextContent("Review Analyzer");
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
-    expect(screen.getByLabelText("Firma nebo pobočka")).toBe(screen.getByRole("searchbox"));
+    const input = screen.getByRole("searchbox", { name: "Název firmy" });
+    expect(input).toHaveAttribute("aria-label", "Název firmy");
+    expect(input).toHaveAttribute("placeholder", "Např. Alza cz");
   });
 
-  it("states the sources and promises no cost the API did not send", () => {
+  it("has no visible label, no hint paragraph and no sources line", () => {
     setup();
-    expect(screen.getByText(/Google Maps, Firmy\.cz/)).not.toHaveTextContent(/USD/);
+    expect(screen.queryByText("Firma nebo pobočka")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Návrhy pocházejí/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Zdroje:/)).not.toBeInTheDocument();
   });
 
-  it("groups the found Places as Whole company and Single branch", async () => {
-    const { user } = setup(fakeApi({ suggest: vi.fn(async () => [CAFE]) }));
+  it("lists each found Place once, with no group headings", async () => {
+    const other = { place_id: "g2", text: "Kavárna Louvre, Praha" };
+    const { user } = setup(fakeApi({ suggest: vi.fn(async () => [CAFE, other]) }));
     await search(user);
-    const company = await screen.findByRole("group", { name: "Celá firma" });
-    const branch = screen.getByRole("group", { name: "Jedna pobočka" });
-    expect(within(company).getByRole("button", { name: /celá firma/i })).toBeInTheDocument();
-    expect(within(branch).getByRole("button", { name: /jen tato pobočka/i })).toBeInTheDocument();
-    expect(within(branch).getByText(CAFE.text)).toBeInTheDocument();
+    const list = await screen.findByRole("list");
+    expect(within(list).getAllByRole("button")).toHaveLength(2);
+    expect(within(list).getAllByText(CAFE.text)).toHaveLength(1);
+    expect(screen.queryByRole("group")).not.toBeInTheDocument();
+    expect(screen.queryByText(/celá firma|jedna pobočka|jen tato pobočka/i)).not.toBeInTheDocument();
   });
 });
 
@@ -106,100 +113,96 @@ describe("autocomplete", () => {
   });
 });
 
-describe("choosing exactly one Place", () => {
-  it("starts a Run for that Place only", async () => {
+describe("choosing one Place", () => {
+  const analyze = () => screen.getByRole("button", { name: "Analyzovat recenze" });
+  const pick = async (user: ReturnType<typeof userEvent.setup>) => user.click(await screen.findByRole("button", { name: new RegExp(CAFE.text) }));
+
+  it("keeps the button disabled until a suggestion is chosen", async () => {
+    const { user } = setup(fakeApi({ suggest: vi.fn(async () => [CAFE]) }));
+    expect(analyze()).toBeDisabled();
+    await search(user);
+    await screen.findByRole("list");
+    expect(analyze()).toBeDisabled();
+  });
+
+  it("fills the input with the choice, closes the list and enables the button", async () => {
+    const { user } = setup(fakeApi({ suggest: vi.fn(async () => [CAFE]) }));
+    await search(user);
+    await pick(user);
+    expect(screen.getByRole("searchbox")).toHaveValue(CAFE.text);
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    expect(analyze()).toBeEnabled();
+  });
+
+  it("does not ask for suggestions again for the text it filled in", async () => {
     const api = fakeApi({ suggest: vi.fn(async () => [CAFE]) });
     const { user } = setup(api);
     await search(user);
-    await user.click(await screen.findByRole("button", { name: /jen tato pobočka/i }));
-    await user.click(screen.getByRole("button", { name: /spustit analýzu/i }));
+    await pick(user);
+    vi.advanceTimersByTime(400);
+    await Promise.resolve();
+    expect(api.suggest).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+
+  it("disables the button again when the text is edited", async () => {
+    const { user } = setup(fakeApi({ suggest: vi.fn(async () => [CAFE]) }));
+    await search(user);
+    await pick(user);
+    await user.type(screen.getByRole("searchbox"), "x");
+    expect(analyze()).toBeDisabled();
+  });
+
+  it("starts a Run for that Place only and opens its progress", async () => {
+    const api = fakeApi({ suggest: vi.fn(async () => [CAFE]) });
+    const { user } = setup(api);
+    await search(user);
+    await pick(user);
+    await user.click(analyze());
     expect(api.startRun).toHaveBeenCalledWith({ place_ids: ["g1"] });
     expect(await screen.findByText("progress of the Run")).toBeInTheDocument();
     expect(api.branches).not.toHaveBeenCalled();
   });
 
-  it("asks for no name or industry", async () => {
+  it("asks for no branches, name or industry", async () => {
     const { user } = setup(fakeApi({ suggest: vi.fn(async () => [CAFE]) }));
     await search(user);
-    await user.click(await screen.findByRole("button", { name: /jen tato pobočka/i }));
-    expect(screen.queryByLabelText(/název/i)).not.toBeInTheDocument();
+    await pick(user);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^název$/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/obor/i)).not.toBeInTheDocument();
   });
 
-  it("goes back to the search", async () => {
-    const { user } = setup(fakeApi({ suggest: vi.fn(async () => [CAFE]) }));
-    await search(user);
-    await user.click(await screen.findByRole("button", { name: /jen tato pobočka/i }));
-    await user.click(screen.getByRole("button", { name: /zpět/i }));
-    expect(screen.getByRole("searchbox")).toBeInTheDocument();
-  });
-
-  it("shows why a Run could not start", async () => {
+  it("shows why a Run could not start and allows another try", async () => {
     const api = fakeApi({
       suggest: vi.fn(async () => [CAFE]),
       startRun: vi.fn(async () => Promise.reject(new ApiError(429))),
     });
     const { user } = setup(api);
     await search(user);
-    await user.click(await screen.findByRole("button", { name: /jen tato pobočka/i }));
-    await user.click(screen.getByRole("button", { name: /spustit analýzu/i }));
+    await pick(user);
+    await user.click(analyze());
     expect(await screen.findByRole("alert")).toHaveTextContent(/limit/i);
+    expect(analyze()).toBeEnabled();
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(/limit/i);
   });
 });
 
-describe("choosing one Company", () => {
-  const branches = [
-    { place_id: "g2", name: "Kavárna Slavia", address: "Brno" },
-    { place_id: "g3", name: "Hypermarket Kavárna", address: "Plzeň" },
-  ];
-
-  it("lets the user remove false branches before the Run starts", async () => {
-    const api = fakeApi({ suggest: vi.fn(async () => [CAFE]), branches: vi.fn(async () => branches) });
-    const { user } = setup(api);
-    await search(user);
-    await user.click(await screen.findByRole("button", { name: /celá firma/i }));
-    expect(api.branches).toHaveBeenCalledWith("g1");
-    await user.click(await screen.findByRole("checkbox", { name: /hypermarket kavárna/i }));
-    await user.click(screen.getByRole("button", { name: /spustit analýzu/i }));
-    await waitFor(() => expect(api.startRun).toHaveBeenCalled());
-    expect(api.startRun).toHaveBeenCalledWith({ place_ids: ["g1", "g2"] });
+describe("recently analyzed", () => {
+  it("is hidden when no result was opened", () => {
+    setup();
+    expect(screen.queryByText(/nedávno analyzované/i)).not.toBeInTheDocument();
   });
 
-  it("does not start a Run with more than 20 Places until enough branches are removed", async () => {
-    const many = Array.from({ length: 25 }, (_, i) => ({ place_id: `b${i}`, name: `Pobočka ${i}`, address: "Praha" }));
-    const api = fakeApi({ suggest: vi.fn(async () => [CAFE]), branches: vi.fn(async () => many) });
-    const { user } = setup(api);
-    await search(user);
-    await user.click(await screen.findByRole("button", { name: /celá firma/i }));
-    expect(screen.getByRole("button", { name: /spustit analýzu/i })).toBeDisabled();
-    expect(screen.getByText(/nejvýše 20 míst.*vybráno 26/i)).toBeInTheDocument();
-    for (let i = 0; i < 6; i++) await user.click(screen.getByRole("checkbox", { name: new RegExp(`pobočka ${i},`, "i") }));
-    expect(screen.getByRole("button", { name: /spustit analýzu/i })).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: /spustit analýzu/i }));
-    await waitFor(() => expect(api.startRun).toHaveBeenCalled());
-    expect(api.startRun.mock.calls[0]?.[0].place_ids).toHaveLength(20);
-  });
-
-  it("keeps the chosen Place, which cannot be removed", async () => {
-    const { user } = setup(fakeApi({ suggest: vi.fn(async () => [CAFE]), branches: vi.fn(async () => branches) }));
-    await search(user);
-    await user.click(await screen.findByRole("button", { name: /celá firma/i }));
-    expect(await screen.findByRole("checkbox", { name: /kavárna slavia, praha/i })).toBeDisabled();
-  });
-
-  it("works for a Company without other branches", async () => {
-    const { user } = setup(fakeApi({ suggest: vi.fn(async () => [CAFE]) }));
-    await search(user);
-    await user.click(await screen.findByRole("button", { name: /celá firma/i }));
-    expect(await screen.findByText(/žádné další pobočky/i)).toBeInTheDocument();
-  });
-
-  it("says when the branches could not be found", async () => {
-    const { user } = setup(
-      fakeApi({ suggest: vi.fn(async () => [CAFE]), branches: vi.fn(async () => Promise.reject(new ApiError(503))) }),
-    );
-    await search(user);
-    await user.click(await screen.findByRole("button", { name: /celá firma/i }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/pobočky/i);
+  it("links to the results opened in this browser, in the last 24 hours", () => {
+    rememberRun("run-7", "Alza.cz a.s.", Date.now());
+    rememberRun("run-old", "Stará firma", Date.now() - 25 * 3_600_000);
+    setup();
+    expect(screen.getByText("Nedávno analyzované (v cache 24 h)")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Alza.cz a.s." })).toHaveAttribute("href", "/runs/run-7/result");
+    expect(screen.queryByRole("link", { name: "Stará firma" })).not.toBeInTheDocument();
   });
 });
