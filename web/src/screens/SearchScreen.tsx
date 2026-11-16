@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useApi } from "../api/context";
 import type { Suggestion } from "../api/client";
+import { readRecent } from "../recentRuns";
 import { useDebounced } from "../useDebounced";
 import { AppHeader } from "../components/AppHeader";
 import { describeError } from "./errors";
@@ -19,6 +20,7 @@ export function SearchScreen() {
   const [chosen, setChosen] = useState<Suggestion | null>(null);
   const [busy, setBusy] = useState(false);
   /** The text we put into the input ourselves after a pick; it needs no new suggestions. */
+  const [recent] = useState(() => readRecent());
   const filled = useRef<string | null>(null);
 
   useEffect(() => {
@@ -117,6 +119,20 @@ export function SearchScreen() {
             Analyzovat recenze
           </button>
         </div>
+        {recent.length > 0 && (
+          <div className="rounded-card border border-line bg-card p-4 text-sm leading-normal text-[#3a4048]">
+            <b>Nedávno analyzované (v cache 24 h)</b>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {recent.map((run) => (
+                <li key={run.run_id}>
+                  <Link to={`/runs/${run.run_id}/result`} className="inline-flex min-h-11 items-center rounded-lg border border-[#cfcdc4] px-3.5 font-medium text-ink no-underline">
+                    {run.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </main>
     </>
   );

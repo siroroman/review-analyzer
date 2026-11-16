@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { ApiProvider } from "../api/context";
 import { fakeApi } from "../fakeApi";
+import { rememberRun } from "../recentRuns";
 import { SearchScreen } from "./SearchScreen";
 
 const CAFE = { place_id: "g1", text: "Kavárna Slavia, Praha" };
@@ -24,6 +25,7 @@ function setup(api = fakeApi()) {
   return { api, user };
 }
 
+beforeEach(() => localStorage.clear());
 afterEach(() => vi.useRealTimers());
 
 async function search(user: ReturnType<typeof userEvent.setup>, text = "kav") {
@@ -182,5 +184,21 @@ describe("choosing one Place", () => {
     await user.click(analyze());
     expect(await screen.findByRole("alert")).toHaveTextContent(/limit/i);
     expect(analyze()).toBeEnabled();
+  });
+});
+
+describe("recently analyzed", () => {
+  it("is hidden when no result was opened", () => {
+    setup();
+    expect(screen.queryByText(/nedávno analyzované/i)).not.toBeInTheDocument();
+  });
+
+  it("links to the results opened in this browser, in the last 24 hours", () => {
+    rememberRun("run-7", "Alza.cz a.s.", Date.now());
+    rememberRun("run-old", "Stará firma", Date.now() - 25 * 3_600_000);
+    setup();
+    expect(screen.getByText("Nedávno analyzované (v cache 24 h)")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Alza.cz a.s." })).toHaveAttribute("href", "/runs/run-7/result");
+    expect(screen.queryByRole("link", { name: "Stará firma" })).not.toBeInTheDocument();
   });
 });
