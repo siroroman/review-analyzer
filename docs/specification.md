@@ -188,7 +188,7 @@ A database is needed: the worker runs asynchronously, so run state, cache and al
 
 Three screens for users (search, run progress and result) and one admin screen for the owner.
 
-1. **Search:** a field with an autocomplete that offers companies and specific branches (name, address). The choice decides whether the whole chain or a single branch is analyzed. The user enters no name or industry; the industry is inferred during the Run.
+1. **Search:** a field with an autocomplete that offers one flat list of Places (name, address). The user picks one Place and starts a Run for it; the web UI does not offer whole-chain analysis (the API still takes several `place_ids`). The user enters no name or industry; the industry is inferred during the Run. A box lists the results opened in this browser in the last 24 hours (kept in `localStorage`).
 2. **Progress:** steps of the run (downloading, classification, analysis) with a running cost. `GET /runs/{id}` also returns the Budget, the downloaded Reviews per Source, the classified and to-classify counts, the Flagged count and the cost per step (`null` until known, never a Review or its text). The cost per step is priced from the times the Run entered classifying and analyzing.
 3. **Result:**
     - overall rating and rating by source (Google Maps vs. Firmy.cz) with the number of reviews
