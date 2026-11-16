@@ -85,7 +85,7 @@ export function Timeline({
           </li>
         ))}
       </ul>
-      <div role="img" aria-label={describe(trend)} className="h-72 rounded-card border border-line bg-card p-2">
+      <div role="img" aria-label={describe(trend)} className="h-72">
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 640, height: 280 }}>
           <LineChart data={rows} margin={{ top: 24, right: 16, bottom: 4, left: 0 }}>
             <CartesianGrid stroke="#E3E2DC" vertical={false} />

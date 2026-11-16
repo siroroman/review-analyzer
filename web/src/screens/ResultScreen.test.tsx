@@ -447,3 +447,21 @@ it("keeps the distribution on the whole Company when a Place tab is chosen", asy
   await user.click((await screen.findAllByRole("tab"))[1]!);
   expect(screen.getByText("Rozdělení ukazuje celou firmu.")).toBeInTheDocument();
 });
+
+it("puts the chart and the Topics side by side from the lg width and stacks them below", async () => {
+  const withTopics = fakeResult({
+    topics: [{ key: "service", name: "Obsluha" }],
+    metrics: { ...fakeResult().metrics, topic_shares: [{ topic_key: "service", positive: 3, neutral: 0, negative: 1 }] },
+  });
+  setup(fakeApi({ runResult: vi.fn(async () => withTopics) }));
+  const chart = (await screen.findByRole("heading", { name: "Vývoj hodnocení" })).closest("section")!;
+  const topics = screen.getByRole("heading", { name: "Témata" }).closest("section")!;
+  expect(chart.parentElement).toBe(topics.parentElement);
+  expect(chart.parentElement).toHaveClass("grid", "lg:grid-cols-[minmax(0,1fr)_340px]");
+  expect(chart.parentElement).not.toHaveClass("grid-cols-2");
+});
+
+it("uses the 1280 px wide page of the design", async () => {
+  setup(fakeApi());
+  expect(await screen.findByRole("main")).toHaveClass("max-w-7xl");
+});

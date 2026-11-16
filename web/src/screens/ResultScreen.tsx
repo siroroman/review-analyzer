@@ -92,7 +92,7 @@ export function ResultScreen() {
           Nové hledání
         </Link>
       </AppHeader>
-      <main className="mx-auto max-w-5xl p-4 sm:p-6">
+      <main className="mx-auto max-w-7xl px-4 pb-12 pt-7 sm:px-6">
       {error !== null && (
         <div role="alert" className="mb-4 rounded bg-red-50 p-3 text-red-800">
           {status === 404
@@ -187,19 +187,23 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
           <p className="text-3xl font-semibold">{formatCost(result.cost)}</p>
         </Card>
       </div>
-      <h2 className="mb-2 text-lg font-semibold">Vývoj hodnocení</h2>
-      {place && <p className="mb-2 text-sm text-muted">Časová osa ukazuje celou firmu.</p>}
-      {months === 0 ? (
-        <p className="rounded-card border border-line bg-card p-4">Nenašli jsme žádné recenze, není co zobrazit.</p>
-      ) : (
-        <>
-          {months === 1 && <p className="mb-2 text-sm text-muted">Zatím je k dispozici jen jeden měsíc, vývoj nejde ukázat.</p>}
-          <Timeline trend={metrics.trend} changes={metrics.changes} topics={result.topics} />
-        </>
-      )}
-      <div className="mt-6 flex flex-col gap-4">
-        <RatingDistribution counts={metrics.rating_counts} wholeCompany={place !== undefined} onSelect={openRating} />
+      <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="min-w-0 rounded-card border border-line bg-card p-5">
+          <h2 className="mb-2 text-base font-semibold">Vývoj hodnocení</h2>
+          {place && <p className="mb-2 text-sm text-muted">Časová osa ukazuje celou firmu.</p>}
+          {months === 0 ? (
+            <p>Nenašli jsme žádné recenze, není co zobrazit.</p>
+          ) : (
+            <>
+              {months === 1 && <p className="mb-2 text-sm text-muted">Zatím je k dispozici jen jeden měsíc, vývoj nejde ukázat.</p>}
+              <Timeline trend={metrics.trend} changes={metrics.changes} topics={result.topics} />
+            </>
+          )}
+        </section>
         {metrics.topic_shares.length > 0 && <TopicsCard shares={metrics.topic_shares} topics={result.topics} selected={panel?.topic ?? null} onSelect={openTopic} />}
+      </div>
+      <div className="mt-4 flex flex-col gap-4">
+        <RatingDistribution counts={metrics.rating_counts} wholeCompany={place !== undefined} onSelect={openRating} />
         <Insights insights={result.insights} onOpen={openInsight} />
         <BranchTable result={result} />
         <CostCard byService={result.cost_by_service} flagged={result.flagged} />
