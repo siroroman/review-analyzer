@@ -3,11 +3,13 @@
 from app.worker._auth import CallerClaims, InvalidToken, NoAuthCheck, OidcCheck, TokenVerifier
 from app.worker._config import WorkerAuthConfigError, auth_from_env
 from app.worker._fakes import FakeTokenVerifier
+from app.worker._google_oidc import GoogleTokenVerifier
 from app.worker._worker import Outcome, Runner, Worker, create_worker_app
 
 __all__ = [
     "CallerClaims",
     "FakeTokenVerifier",
+    "GoogleTokenVerifier",
     "InvalidToken",
     "NoAuthCheck",
     "OidcCheck",
