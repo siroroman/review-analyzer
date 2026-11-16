@@ -49,6 +49,7 @@ class RunRecord:
     finished_at: datetime | None
     classifying_at: datetime | None = None
     analyzing_at: datetime | None = None
+    industry: str | None = None  # the industry the Run used: what its Taxonomy and notes are about
 
 
 @dataclass(frozen=True)
@@ -91,6 +92,13 @@ class CompanyRepo(Protocol):
 
     def containing(self, source: Source, place_external_id: str) -> list[StoredCompany]:
         """Every Company that lists this Place, oldest first."""
+        ...
+
+    def set_industry(self, company_id: int, industry: str) -> None:
+        """Store the industry the pipeline inferred, replacing any earlier one.
+
+        Raises `LookupError` for an unknown id.
+        """
         ...
 
 
@@ -140,8 +148,15 @@ class RunRepo(Protocol):
         """Move the Run forward by the rules of `domain.advance`. Raises `UnknownRun`, `InvalidTransition`."""
         ...
 
+    def set_industry(self, run_id: str, industry: str) -> RunRecord:
+        """Record the industry this Run used, so its result stays the same when the Company's changes.
+
+        Raises `UnknownRun`.
+        """
+        ...
+
     def copy_results(self, source_run_id: str, run_id: str) -> None:
-        """Copy the Insights and TrendPoints of one Run to another, all or nothing, in one step.
+        """Copy the Insights, TrendPoints and the industry of one Run to another, all or nothing, in one step.
 
         Does nothing when `run_id` already holds Insights or TrendPoints, so a repeat is harmless.
         Raises `UnknownRun` for either id.

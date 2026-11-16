@@ -47,6 +47,7 @@ export function fakeResult(overrides: Partial<RunResult> = {}): RunResult {
     flagged: 0,
     unclassified: 0,
     cost: "0.42",
+    notes: [],
     ...overrides,
   };
 }

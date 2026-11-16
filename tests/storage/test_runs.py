@@ -251,3 +251,24 @@ def test_copying_results_needs_two_known_runs(storage: Storage) -> None:
         storage.runs.copy_results("nope", run_id)
     with pytest.raises(UnknownRun):
         storage.runs.copy_results(run_id, "nope")
+
+
+def test_a_run_has_no_industry_until_one_is_set_and_keeps_it_while_advancing(storage: Storage) -> None:
+    run_id = _new_run(storage)
+    assert storage.runs.get(run_id).industry is None  # type: ignore[union-attr]
+    storage.runs.set_industry(run_id, "general")
+    moved = storage.runs.advance(run_id, RunStatus.DOWNLOADING)
+    assert moved.industry == "general"
+    assert storage.runs.get(run_id) == moved
+
+
+def test_setting_the_industry_of_an_unknown_run_is_refused(storage: Storage) -> None:
+    with pytest.raises(UnknownRun):
+        storage.runs.set_industry("nope", "cafe")
+
+
+def test_copied_results_bring_the_industry_of_their_run(storage: Storage) -> None:
+    source, target = _new_run(storage), _new_run(storage)
+    storage.runs.set_industry(source, "general")
+    storage.runs.copy_results(source, target)
+    assert storage.runs.get(target).industry == "general"  # type: ignore[union-attr]

@@ -3,7 +3,7 @@ from datetime import timedelta
 
 from tests.api.helpers import HEADERS, OTHER_DEMO, Api, cafe
 
-RUN = {"place_ids": ["g1"], "name": "Kavárna", "industry": "cafe"}
+RUN = {"place_ids": ["g1"]}
 
 
 def _suggest(api: Api, headers: dict[str, str] | None = None) -> int:

@@ -131,6 +131,12 @@ class PostgresCompanies:
             )
             return [self._load(cur, row[0]) for row in cur.fetchall()]
 
+    def set_industry(self, company_id: int, industry: str) -> None:
+        with self._db.cursor() as cur:
+            cur.execute("UPDATE companies SET industry = %s WHERE id = %s", (industry, company_id))
+            if cur.rowcount == 0:
+                raise LookupError(f"no Company {company_id}")
+
     @staticmethod
     def _load(cur: "psycopg.Cursor[Any]", company_id: int) -> StoredCompany:
         cur.execute("SELECT name, industry FROM companies WHERE id = %s", (company_id,))
@@ -322,10 +328,13 @@ def _run(row: tuple[Any, ...]) -> RunRecord:
         finished_at=row[5],
         classifying_at=row[6],
         analyzing_at=row[7],
+        industry=row[8],
     )
 
 
-_RUN_COLUMNS = "id, company_id, status, budget_cap, created_at, finished_at, classifying_at, analyzing_at"
+_RUN_COLUMNS = (
+    "id, company_id, status, budget_cap, created_at, finished_at, classifying_at, analyzing_at, industry"
+)
 
 
 class PostgresRuns:
@@ -377,6 +386,17 @@ class PostgresRuns:
             )
             return _run(_one(cur))
 
+    def set_industry(self, run_id: str, industry: str) -> RunRecord:
+        with self._db.cursor() as cur:
+            cur.execute(
+                f"UPDATE runs SET industry = %s WHERE id = %s RETURNING {_RUN_COLUMNS}",  # noqa: S608
+                (industry, run_id),
+            )
+            row = cur.fetchone()
+            if row is None:
+                raise UnknownRun(run_id)
+            return _run(row)
+
     def copy_results(self, source_run_id: str, run_id: str) -> None:
         with self._db.cursor() as cur:  # one transaction: both tables or neither
             _require_run(cur, source_run_id)
@@ -389,6 +409,10 @@ class PostgresRuns:
             )
             if _one(cur)[0]:
                 return
+            cur.execute(
+                "UPDATE runs SET industry = (SELECT industry FROM runs WHERE id = %s) WHERE id = %s",
+                (source_run_id, run_id),
+            )
             cur.execute(
                 "INSERT INTO insights (run_id, type, period_start, period_end, text, review_ids) "
                 "SELECT %s, type, period_start, period_end, text, review_ids FROM insights "

@@ -68,6 +68,8 @@ def _model_answer(request: HttpRequest) -> HttpResponse:
     answer: dict[str, object]
     if "design a list of Topics" in system:
         answer = {"topics": [{"key": key, "name": key.title(), "description": key} for key in TOPICS]}
+    elif "name the industry" in system:
+        answer = {"label": "Hypermarket"}
     elif "classify public customer reviews" in system:
         items = json.loads(prompt.split("<reviews>\n", 1)[1].rsplit("\n</reviews>", 1)[0])
         answer = {

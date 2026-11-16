@@ -7,12 +7,13 @@ from app.storage import StoredTaxonomy
 from tests.api.helpers import HEADERS, Api, cafe
 from tests.storage.helpers import call, review
 
-RUN = {"place_ids": ["g1"], "name": "Kavárna", "industry": "cafe"}
+RUN = {"place_ids": ["g1"]}
 MINUTE = timedelta(minutes=1)
 
 
 def _start(api: Api) -> str:
     run_id: str = api.client.post("/runs", json=RUN, headers=HEADERS).json()["run_id"]
+    api.storage.runs.set_industry(run_id, "cafe")  # what the pipeline does after inferring it
     return run_id
 
 

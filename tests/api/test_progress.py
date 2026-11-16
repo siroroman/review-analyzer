@@ -3,7 +3,7 @@ from tests.api.helpers import HEADERS, Api, cafe
 from tests.places.helpers import google, pages
 from tests.storage.helpers import call
 
-RUN = {"place_ids": ["g1"], "name": "Kavárna", "industry": "cafe"}
+RUN = {"place_ids": ["g1"]}
 
 
 def test_branches_are_candidates_found_by_the_name_of_the_place() -> None:

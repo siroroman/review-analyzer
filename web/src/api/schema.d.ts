@@ -203,12 +203,14 @@ export interface components {
         /**
          * Company
          * @description A set of Places the user confirmed as belonging together; the same set is the same Company.
+         *
+         *     The industry is unknown until the pipeline infers it from the downloaded Reviews.
          */
         Company: {
             /** Name */
             name: string;
             /** Industry */
-            industry: string;
+            industry?: string | null;
             /** Places */
             places: components["schemas"]["Place"][];
         };
@@ -318,15 +320,13 @@ export interface components {
             unclassified: number;
             /** Cost */
             cost: string;
+            /** Notes */
+            notes: string[];
         };
         /** RunIn */
         RunIn: {
             /** Place Ids */
             place_ids: string[];
-            /** Name */
-            name: string;
-            /** Industry */
-            industry: string;
         };
         /** RunOut */
         RunOut: {

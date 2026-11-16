@@ -103,26 +103,24 @@ class Places:
         self,
         place_ids: Collection[str],
         *,
-        name: str,
-        industry: str,
         run_id: str,
         also: Sequence[Place] = (),
     ) -> Company:
         """The Company of the Google Maps ids the user confirmed, plus Places of other Sources.
 
         The same set of ids is the same Company in any order and with repeats (`Company.places_key`).
+        The Company is named after its first Place; its industry is unknown until the pipeline infers it.
         An empty set raises `EmptyCompany`.
         """
         unique = tuple(dict.fromkeys(place_ids))
         if not unique and not also:
             raise EmptyCompany("a Company needs at least one Place")
-        if not name.strip() or not industry.strip():
-            raise InvalidCompany("a Company needs a name and an industry")
         taken = {(place.source, place.external_id) for place in also}
         if len(taken) != len(also) or any((Source.GOOGLE_MAPS, place_id) in taken for place_id in unique):
             raise InvalidCompany("a Company lists each Place once")
         resolved = tuple(self.resolve(place_id, run_id=run_id) for place_id in unique)
-        return Company(name=name, industry=industry, places=resolved + tuple(also))
+        places = resolved + tuple(also)
+        return Company(name=places[0].name, places=places)
 
     def match_other_sources(self, place: Place) -> list[Place]:
         """Candidates on the other Source (Firmy.cz) for this Place, best match by name and address first."""

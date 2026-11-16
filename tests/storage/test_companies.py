@@ -1,6 +1,12 @@
-from app.domain import Source
-from app.storage import Storage
+import pytest
+
+from app.domain import Company, Source
+from app.storage import Storage, StoredCompany
 from tests.storage.helpers import company, place
+
+
+def company_without_industry() -> Company:
+    return Company(name="Kavárna", places=(place("g1"),))
 
 
 def test_same_set_of_places_is_the_same_company_in_any_order(storage: Storage) -> None:
@@ -44,3 +50,31 @@ def test_by_id_finds_the_stored_company_and_misses_unknown(storage: Storage) -> 
     stored = storage.companies.get_or_create(company(place("g1"), place("g2")))
     assert storage.companies.by_id(stored.id) == stored
     assert storage.companies.by_id(stored.id + 100) is None
+
+
+def test_a_company_has_no_industry_until_one_is_set(storage: Storage) -> None:
+    stored = storage.companies.get_or_create(Company(name="Kavárna", places=(place("g1"),)))
+    assert stored.company.industry is None
+
+
+def test_set_industry_is_kept_for_the_same_set_of_places(storage: Storage) -> None:
+    stored = storage.companies.get_or_create(company_without_industry())
+    storage.companies.set_industry(stored.id, "cafe")
+    again = storage.companies.get_or_create(company_without_industry())
+    assert again.id == stored.id
+    assert again.company.industry == "cafe"
+    assert storage.companies.by_id(stored.id) == again
+
+
+def test_set_industry_replaces_the_previous_one(storage: Storage) -> None:
+    stored = storage.companies.get_or_create(company_without_industry())
+    storage.companies.set_industry(stored.id, "general")
+    storage.companies.set_industry(stored.id, "cafe")
+    assert storage.companies.by_id(stored.id) == StoredCompany(
+        stored.id, stored.company.model_copy(update={"industry": "cafe"})
+    )
+
+
+def test_set_industry_of_an_unknown_company_is_an_error(storage: Storage) -> None:
+    with pytest.raises(LookupError):
+        storage.companies.set_industry(999, "cafe")

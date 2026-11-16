@@ -23,10 +23,13 @@ class Place(DomainModel):
 
 
 class Company(DomainModel):
-    """A set of Places the user confirmed as belonging together; the same set is the same Company."""
+    """A set of Places the user confirmed as belonging together; the same set is the same Company.
+
+    The industry is unknown until the pipeline infers it from the downloaded Reviews.
+    """
 
     name: str = Field(min_length=1)
-    industry: str = Field(min_length=1)
+    industry: str | None = Field(default=None, min_length=1)
     places: tuple[Place, ...] = Field(min_length=1)
 
     @model_validator(mode="after")

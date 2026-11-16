@@ -46,8 +46,6 @@ class RunIn(BaseModel):
     place_ids: list[Annotated[str, Field(min_length=1, max_length=300, pattern=_PLACE_ID)]] = Field(
         min_length=1, max_length=20
     )
-    name: str = Field(min_length=1, max_length=100, pattern=_TEXT)
-    industry: str = Field(min_length=1, max_length=60, pattern=_TEXT)
 
 
 class RunOut(BaseModel):
@@ -95,6 +93,9 @@ class ResultOut(BaseModel):
     flagged: int
     unclassified: int
     cost: Decimal
+    # What to know about how the result was made; `industry_fallback`: the industry could not be inferred
+    # and the generic Taxonomy was used.
+    notes: list[str]
 
 
 class SpendOut(BaseModel):
@@ -244,6 +245,7 @@ def create_app(
             flagged=report.result.flagged,
             unclassified=report.result.unclassified,
             cost=report.result.cost,
+            notes=list(report.result.notes),
         )
 
     @app.get(
@@ -343,11 +345,16 @@ def _status(storage: Storage, record: RunRecord) -> StatusOut:
     if not reached:
         return out(downloaded, flagged)
     to_classify = sum(1 for found in reviews.values() for r in found if not r.flagged)
-    return out(downloaded, flagged, _classified(storage, stored.company, reviews), to_classify)
+    return out(
+        downloaded,
+        flagged,
+        _classified(storage, record.industry or stored.company.industry, reviews),
+        to_classify,
+    )
 
 
-def _classified(storage: Storage, company: Company, reviews: dict[Place, list[Review]]) -> int:
-    taxonomy = storage.taxonomies.latest(company.industry)
+def _classified(storage: Storage, industry: str | None, reviews: dict[Place, list[Review]]) -> int:
+    taxonomy = None if industry is None else storage.taxonomies.latest(industry)
     if taxonomy is None:
         return 0
     done = 0
@@ -380,7 +387,7 @@ def _step_cost(record: RunRecord, calls: list[ServiceCall]) -> StepCostOut:
 
 def _confirm(places: Places, body: RunIn, run_id: str) -> Company:
     try:
-        return places.confirm(body.place_ids, name=body.name, industry=body.industry, run_id=run_id)
+        return places.confirm(body.place_ids, run_id=run_id)
     except InvalidCompany as invalid:
         raise HTTPException(422, str(invalid)) from invalid
     except PlaceNotFound as missing:

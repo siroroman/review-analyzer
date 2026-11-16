@@ -65,7 +65,10 @@ class World:
         always_fail: dict[str, Exception] | None = None,
         places: tuple[Place, ...] = (PLACE,),
         max_attempts: int = 2,
+        industry: str | None = "cafe",
+        industry_answer: str = '{"label": "cafe"}',
     ) -> None:
+        self.industry_answer = industry_answer
         self.clock = FakeClock(START)
         self.sleeper = FakeSleeper(self.clock)
         self.storage: Storage = in_memory_storage(self.clock)
@@ -74,6 +77,7 @@ class World:
         self.failures = failures or {}
         self.always_fail = always_fail or {}
         self.model_calls: list[str] = []
+        self.prompts: dict[str, str] = {}
         self.scrapes: list[ReviewScrape] = []
         policy = ServicePolicy(frozenset({"complete", SCRAPE_GOOGLE_REVIEWS}), 1000, timedelta(seconds=60), 4)
         gateway = Gateway(
@@ -82,7 +86,12 @@ class World:
             self.clock,
             self.storage.calls,
         )
-        routes = {"taxonomy": Route(HAIKU), "classification": Route(HAIKU), "insights": Route(SONNET)}
+        routes = {
+            "taxonomy": Route(HAIKU),
+            "classification": Route(HAIKU),
+            "industry": Route(SONNET),
+            "insights": Route(SONNET),
+        }
         llm = Llm(LlmConfig(routes, max_retries=0), gateway, self.clock, self.sleeper, FakeTracer())
         self.pipeline = Pipeline(
             storage=self.storage,
@@ -100,7 +109,7 @@ class World:
             ),
         )
         self.company: StoredCompany = self.storage.companies.get_or_create(
-            Company(name="Kavárna", industry="cafe", places=places)
+            Company(name="Kavárna", industry=industry, places=places)
         )
 
     def new_run(self) -> str:
@@ -130,6 +139,8 @@ def _task_of(request: CompletionRequest) -> str:
         return "taxonomy"
     if "classify public customer reviews" in system:
         return "classification"
+    if "name the industry" in system:
+        return "industry"
     return "insights"
 
 
@@ -148,11 +159,14 @@ class _Model:
         task = _task_of(request)
         world = self._world
         world.model_calls.append(task)
+        world.prompts[task] = request.prompt
         if task in world.always_fail:
             raise world.always_fail[task]
         if world.failures.get(task):
             raise world.failures[task].pop(0)
-        return ClientResponse(_answer(task, request.prompt), SMALL)
+        return ClientResponse(
+            world.industry_answer if task == "industry" else _answer(task, request.prompt), SMALL
+        )
 
 
 def _sentiment(text: str) -> str:
