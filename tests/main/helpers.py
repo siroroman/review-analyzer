@@ -2,6 +2,7 @@ import json
 import re
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from app.domain import FakeClock
 from app.transport import HttpRequest, HttpResponse
@@ -108,24 +109,25 @@ class Internet:
     def send(self, request: HttpRequest) -> HttpResponse:
         self.requests.append(request)
         url = request.url
-        if "metadata.google.internal" in url:
+        host = urlsplit(url).hostname
+        if host == "metadata.google.internal":
             return _json({"access_token": ACCESS_TOKEN, "expires_in": 3599})
-        if "places.googleapis.com" in url:
+        if host == "places.googleapis.com":
             return _file(
                 "google_places_autocomplete_ok.json"
                 if "autocomplete" in url
                 else "google_places_details_ok.json"
             )
-        if "api.apify.com" in url:
+        if host == "api.apify.com":
             return _json(scraped_items())
-        if "api.anthropic.com" in url:
+        if host == "api.anthropic.com":
             return _model_answer(request)
-        if "cloudtasks.googleapis.com" in url:
+        if host == "cloudtasks.googleapis.com":
             self.tasks.append(json.loads(request.body)["task"])
             return _json({})
-        if "langfuse.example" in url:
+        if host == "langfuse.example":
             return _file("langfuse_ingestion_207.json", 207)
         raise AssertionError(f"unexpected request to {url}")
 
     def hosts(self) -> set[str]:
-        return {request.url.split("/")[2] for request in self.requests}
+        return {urlsplit(request.url).hostname or "" for request in self.requests}
