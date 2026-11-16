@@ -31,7 +31,7 @@ _FINAL = (RunStatus.DONE, RunStatus.PARTIAL, RunStatus.FAILED)
 class MemoryCompanies:
     def __init__(self) -> None:
         # key -> (id, name, industry, Place keys in the order first given)
-        self._companies: dict[str, tuple[int, str, str, tuple[tuple[Source, str], ...]]] = {}
+        self._companies: dict[str, tuple[int, str, str | None, tuple[tuple[Source, str], ...]]] = {}
         self.places: dict[tuple[Source, str], Place] = {}
 
     def get_or_create(self, company: Company) -> StoredCompany:
@@ -62,6 +62,13 @@ class MemoryCompanies:
             for key, (_, _, _, places) in self._companies.items()
             if (source, place_external_id) in places
         ]
+
+    def set_industry(self, company_id: int, industry: str) -> None:
+        for key, (stored_id, name, _, places) in self._companies.items():
+            if stored_id == company_id:
+                self._companies[key] = (stored_id, name, industry, places)
+                return
+        raise LookupError(f"no Company {company_id}")
 
     def ids(self) -> set[int]:
         return {entry[0] for entry in self._companies.values()}

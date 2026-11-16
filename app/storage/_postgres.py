@@ -131,6 +131,12 @@ class PostgresCompanies:
             )
             return [self._load(cur, row[0]) for row in cur.fetchall()]
 
+    def set_industry(self, company_id: int, industry: str) -> None:
+        with self._db.cursor() as cur:
+            cur.execute("UPDATE companies SET industry = %s WHERE id = %s", (industry, company_id))
+            if cur.rowcount == 0:
+                raise LookupError(f"no Company {company_id}")
+
     @staticmethod
     def _load(cur: "psycopg.Cursor[Any]", company_id: int) -> StoredCompany:
         cur.execute("SELECT name, industry FROM companies WHERE id = %s", (company_id,))

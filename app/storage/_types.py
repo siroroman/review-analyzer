@@ -88,6 +88,13 @@ class CompanyRepo(Protocol):
         """Every Company that lists this Place, oldest first."""
         ...
 
+    def set_industry(self, company_id: int, industry: str) -> None:
+        """Store the industry the pipeline inferred, replacing any earlier one.
+
+        Raises `LookupError` for an unknown id.
+        """
+        ...
+
 
 class ReviewRepo(Protocol):
     def add(self, reviews: Sequence[Review]) -> int:
