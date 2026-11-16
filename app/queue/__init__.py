@@ -2,6 +2,7 @@
 
 from app.queue._cloud_tasks import CloudTasksConfig, CloudTasksQueue
 from app.queue._fakes import FakeQueue
+from app.queue._local import LocalQueue
 from app.queue._types import Queue, QueueError
 
-__all__ = ["CloudTasksConfig", "CloudTasksQueue", "FakeQueue", "Queue", "QueueError"]
+__all__ = ["CloudTasksConfig", "CloudTasksQueue", "FakeQueue", "LocalQueue", "Queue", "QueueError"]

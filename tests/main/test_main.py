@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.domain import FakeClock
 from app.main import (
+    CLOUD_TASKS_VARIABLES,
     SECRET_VARIABLES,
     SETTING_VARIABLES,
     MetadataToken,
@@ -15,12 +16,17 @@ from app.main import (
     ThreadSleeper,
     build_apps,
 )
-from app.queue import QueueError
+from app.queue import LocalQueue, QueueError
 from app.storage import in_memory_storage
 from app.transport import FakeTransport, HttpError, HttpResponse, MissingSecret
 from app.worker import FakeTokenVerifier
 from tests.main.helpers import ACCESS_TOKEN, ENVIRON, PLACE_ID, Internet, clock
 
+# A local run: no Cloud Tasks settings, so no OIDC audience for the worker either.
+LOCAL = {
+    **{key: value for key, value in ENVIRON.items() if key not in CLOUD_TASKS_VARIABLES},
+    "WORKER_AUTH_DISABLED": "true",
+}
 DEMO = {"Authorization": "Bearer demo-token-1"}
 VERIFIER = FakeTokenVerifier()
 QUEUE_TOKEN = VERIFIER.issue(email=ENVIRON["WORKER_SERVICE_ACCOUNT"], audience=ENVIRON["WORKER_URL"])
@@ -92,7 +98,9 @@ def test_the_other_source_is_unavailable_but_a_search_and_a_run_work_without_it(
     assert started.status_code == 202
 
 
-@pytest.mark.parametrize("name", [key for key in ENVIRON if key not in {"ADMIN_TOKEN", "LANGFUSE_HOST"}])
+@pytest.mark.parametrize(
+    "name", [key for key in LOCAL if key not in {"ADMIN_TOKEN", "LANGFUSE_HOST", "WORKER_AUTH_DISABLED"}]
+)
 @pytest.mark.parametrize("value", [None, "", "   "])
 def test_a_missing_or_empty_secret_fails_at_start_and_names_only_the_variable(
     name: str, value: str | None
@@ -105,6 +113,41 @@ def test_a_missing_or_empty_secret_fails_at_start_and_names_only_the_variable(
         build_apps(environ, transport=Internet(), storage=in_memory_storage(wall), clock=wall)
     assert name in str(raised.value)
     assert not any(secret in str(raised.value) for secret in ENVIRON.values())
+
+
+def test_without_cloud_tasks_settings_a_run_is_handled_by_the_local_queue() -> None:
+    internet = Internet()
+    wall = clock()
+    built = build_apps(LOCAL, transport=internet, storage=in_memory_storage(wall), clock=wall)
+    assert isinstance(built.queue, LocalQueue)
+    api = TestClient(built.api)
+
+    started = api.post(
+        "/runs", json={"place_ids": [PLACE_ID], "name": "Globus", "industry": "retail"}, headers=DEMO
+    )
+    assert started.status_code == 202
+    built.queue.join()
+
+    result = api.get(f"/runs/{started.json()['run_id']}/result", headers=DEMO)
+    assert result.json()["status"] == "done"
+    assert internet.tasks == []
+    assert "cloudtasks.googleapis.com" not in internet.hosts()
+    assert "metadata.google.internal" not in internet.hosts()
+
+
+def test_with_cloud_tasks_settings_the_queue_is_not_the_local_one() -> None:
+    wall = clock()
+    built = build_apps(ENVIRON, transport=Internet(), storage=in_memory_storage(wall), clock=wall)
+    assert not isinstance(built.queue, LocalQueue)
+
+
+@pytest.mark.parametrize("name", CLOUD_TASKS_VARIABLES)
+def test_half_of_the_cloud_tasks_settings_fail_at_start_and_name_the_missing_variable(name: str) -> None:
+    environ = {key: value for key, value in ENVIRON.items() if key != name}
+    wall = clock()
+    with pytest.raises(MissingSecret) as raised:
+        build_apps(environ, transport=Internet(), storage=in_memory_storage(wall), clock=wall)
+    assert name in str(raised.value)
 
 
 def test_the_real_clock_gives_an_aware_time_and_the_real_sleeper_returns() -> None:

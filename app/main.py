@@ -1,7 +1,8 @@
 """Entrypoint: the one place that sees every module. It reads the environment and wires the real adapters
 behind the ports (ADR-0004, ADR-0006) into the API app and the worker app. Google Maps is the only Source.
 
-Run with `uvicorn --factory app.main:api_app` and `uvicorn --factory app.main:worker_app`.
+Run with `uvicorn --factory app.main:api_app` and `uvicorn --factory app.main:worker_app`. Without the
+CLOUD_TASKS_* settings the API hands Runs to an in-process `LocalQueue` and needs no worker app.
 """
 
 import json
@@ -34,7 +35,7 @@ from app.insights import InsightGenerator
 from app.llm import Llm, LlmConfig, ModelRef, Route
 from app.pipeline import Pipeline, PipelineConfig
 from app.places import NoOtherSource, Places
-from app.queue import CloudTasksConfig, CloudTasksQueue, QueueError
+from app.queue import CloudTasksConfig, CloudTasksQueue, LocalQueue, Queue, QueueError
 from app.sanitize import PatternInjectionDetector
 from app.sources import Sources
 from app.storage import Storage, postgres_storage
@@ -42,6 +43,15 @@ from app.taxonomy import Taxonomies
 from app.tracing import LangfuseConfig, LangfuseTracer, UuidIds
 from app.transport import HttpError, HttpRequest, HttpTransport, UrllibTransport, read_secret
 from app.worker import GoogleTokenVerifier, TokenVerifier, Worker, auth_from_env, create_worker_app
+
+# Cloud Tasks is used when any of these is set (then all must be); with none set, `LocalQueue` is used.
+CLOUD_TASKS_VARIABLES = (
+    "CLOUD_TASKS_PROJECT",
+    "CLOUD_TASKS_LOCATION",
+    "CLOUD_TASKS_QUEUE",
+    "WORKER_URL",
+    "WORKER_SERVICE_ACCOUNT",
+)
 
 # The names of the environment variables this module reads: `.env.example` lists each of them.
 SECRET_VARIABLES = (
@@ -56,11 +66,7 @@ SECRET_VARIABLES = (
 SETTING_VARIABLES = (
     "ADMIN_TOKEN",
     "LANGFUSE_HOST",
-    "CLOUD_TASKS_PROJECT",
-    "CLOUD_TASKS_LOCATION",
-    "CLOUD_TASKS_QUEUE",
-    "WORKER_URL",
-    "WORKER_SERVICE_ACCOUNT",
+    *CLOUD_TASKS_VARIABLES,
 )
 
 _ANTHROPIC = "anthropic"
@@ -126,10 +132,25 @@ class Apps:
 
     api: FastAPI
     worker: FastAPI
+    queue: Queue
 
 
 def _policy(operations: set[str], per_minute: int, concurrent: int) -> ServicePolicy:
     return ServicePolicy(frozenset(operations), per_minute, timedelta(minutes=1), concurrent)
+
+
+def _cloud_tasks_config(environ: Mapping[str, str]) -> CloudTasksConfig | None:
+    """The Cloud Tasks settings, or `None` when none is set (a local run). A half-set group raises
+    `MissingSecret` for the first missing variable."""
+    if not any(environ.get(name, "").strip() for name in CLOUD_TASKS_VARIABLES):
+        return None
+    return CloudTasksConfig(
+        project=read_secret(environ, "CLOUD_TASKS_PROJECT").get_secret_value(),
+        location=read_secret(environ, "CLOUD_TASKS_LOCATION").get_secret_value(),
+        queue=read_secret(environ, "CLOUD_TASKS_QUEUE").get_secret_value(),
+        worker_url=read_secret(environ, "WORKER_URL").get_secret_value(),
+        service_account=read_secret(environ, "WORKER_SERVICE_ACCOUNT").get_secret_value(),
+    )
 
 
 def build_apps(
@@ -149,13 +170,7 @@ def build_apps(
     apify_token = read_secret(environ, "APIFY_TOKEN")
     anthropic_key = read_secret(environ, "ANTHROPIC_API_KEY")
     langfuse = LangfuseConfig.from_environ(environ)
-    tasks = CloudTasksConfig(
-        project=read_secret(environ, "CLOUD_TASKS_PROJECT").get_secret_value(),
-        location=read_secret(environ, "CLOUD_TASKS_LOCATION").get_secret_value(),
-        queue=read_secret(environ, "CLOUD_TASKS_QUEUE").get_secret_value(),
-        worker_url=read_secret(environ, "WORKER_URL").get_secret_value(),
-        service_account=read_secret(environ, "WORKER_SERVICE_ACCOUNT").get_secret_value(),
-    )
+    tasks = _cloud_tasks_config(environ)
 
     clock = clock or SystemClock()
     transport = transport or UrllibTransport()
@@ -208,10 +223,16 @@ def build_apps(
             sources=frozenset({Source.GOOGLE_MAPS}),
         ),
     )
+    worker = Worker(pipeline)
+    queue: Queue = (
+        CloudTasksQueue(tasks, transport, MetadataToken(transport, clock))
+        if tasks
+        else LocalQueue(worker.handle, sleeper.sleep)
+    )
     api = create_app(
         storage=storage,
         places=Places(gateway, NoOtherSource()),
-        queue=CloudTasksQueue(tasks, transport, MetadataToken(transport, clock)),
+        queue=queue,
         pipeline=pipeline,
         clock=clock,
         config=api_config,
@@ -219,8 +240,9 @@ def build_apps(
     return Apps(
         api=api,
         worker=create_worker_app(
-            Worker(pipeline), auth=auth_from_env(environ, token_verifier or GoogleTokenVerifier())
+            worker, auth=auth_from_env(environ, token_verifier or GoogleTokenVerifier())
         ),
+        queue=queue,
     )
 
 
