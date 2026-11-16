@@ -54,14 +54,11 @@ export function SearchScreen() {
           </p>
         </div>
         <div>
-          <label htmlFor="company-query" className="mb-1.5 block text-sm font-semibold">
-            Firma nebo pobočka
-          </label>
           <input
-            id="company-query"
             type="search"
             role="searchbox"
-            placeholder="Například název firmy"
+            aria-label="Název firmy"
+            placeholder="Např. Alza cz"
             value={text}
             onChange={(event) => setText(event.target.value)}
             className="min-h-13 w-full rounded-[10px] border-2 border-google-maps bg-card px-4 text-base font-medium"
@@ -78,9 +75,7 @@ export function SearchScreen() {
               <Group title="Jedna pobočka" suggestions={found} hint="Jen tato pobočka" onChoose={(suggestion) => setChoice({ suggestion, company: false })} />
             </div>
           )}
-          <p className="mt-2 text-sm text-muted">Návrhy pocházejí z Google Places. Vaše volba určí, zda se analyzuje celý řetězec, nebo jedna pobočka.</p>
         </div>
-        <p className="text-sm text-muted">Zdroje: Google Maps, Firmy.cz</p>
       </main>
     </>
   );

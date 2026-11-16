@@ -32,16 +32,20 @@ async function search(user: ReturnType<typeof userEvent.setup>, text = "kav") {
 }
 
 describe("layout from the design", () => {
-  it("shows the app header and the headline with a labelled input", () => {
+  it("shows the app header and the headline with an input named only by aria-label", () => {
     setup();
     expect(screen.getByRole("banner")).toHaveTextContent("Review Analyzer");
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
-    expect(screen.getByLabelText("Firma nebo pobočka")).toBe(screen.getByRole("searchbox"));
+    const input = screen.getByRole("searchbox", { name: "Název firmy" });
+    expect(input).toHaveAttribute("aria-label", "Název firmy");
+    expect(input).toHaveAttribute("placeholder", "Např. Alza cz");
   });
 
-  it("states the sources and promises no cost the API did not send", () => {
+  it("has no visible label, no hint paragraph and no sources line", () => {
     setup();
-    expect(screen.getByText(/Google Maps, Firmy\.cz/)).not.toHaveTextContent(/USD/);
+    expect(screen.queryByText("Firma nebo pobočka")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Návrhy pocházejí/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Zdroje:/)).not.toBeInTheDocument();
   });
 
   it("groups the found Places as Whole company and Single branch", async () => {
