@@ -7,6 +7,7 @@ import { ProgressScreen } from "./ProgressScreen";
 
 const at = (status: RunProgress["status"], cost: string, finished = false): RunProgress => ({
   run_id: "run-1",
+  company_name: "Kavárna",
   status,
   finished,
   cost,

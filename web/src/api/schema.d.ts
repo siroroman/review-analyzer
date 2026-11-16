@@ -387,6 +387,8 @@ export interface components {
         StatusOut: {
             /** Run Id */
             run_id: string;
+            /** Company Name */
+            company_name: string | null;
             status: components["schemas"]["RunStatus"];
             /** Finished */
             finished: boolean;
