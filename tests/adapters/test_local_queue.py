@@ -2,11 +2,15 @@ import threading
 from datetime import timedelta
 
 import pytest
+from fastapi.testclient import TestClient
 
+from app.api import create_app
 from app.domain import RunStatus
 from app.queue import LocalQueue, Queue, QueueError
 from app.worker import Worker
+from tests.api.helpers import HEADERS, config
 from tests.pipeline.helpers import World
+from tests.places.helpers import Setup
 
 
 class Handler:
@@ -113,3 +117,31 @@ def test_a_run_goes_through_the_worker_and_a_repeat_after_it_costs_nothing() -> 
 
     assert world.service_calls() == calls
     assert world.apify_calls() == scrapes
+
+
+def test_the_status_of_a_run_through_the_local_queue_ends_with_the_final_counts() -> None:
+    world = World()
+    queue = LocalQueue(Worker(world.pipeline).handle, lambda _: None)
+    api = TestClient(
+        create_app(
+            storage=world.storage,
+            places=Setup().places,
+            queue=queue,
+            pipeline=world.pipeline,
+            clock=world.clock,
+            config=config(),
+        )
+    )
+    run_id = world.new_run()
+    queued = api.get(f"/runs/{run_id}", headers=HEADERS).json()
+    assert (queued["downloaded"], queued["classified"]) == (None, None)
+
+    queue.enqueue(run_id)
+    queue.join()
+
+    done = api.get(f"/runs/{run_id}", headers=HEADERS).json()
+    assert (done["status"], done["finished"], done["budget"]) == ("done", True, "5")
+    assert done["downloaded"] == {"google_maps": 40}
+    assert (done["classified"], done["to_classify"]) == (done["to_classify"], 40 - done["flagged"])
+    steps = done["step_cost"]
+    assert sum(float(steps[k]) for k in ("downloading", "classifying", "analysis")) == float(done["cost"])
