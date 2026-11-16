@@ -11,8 +11,8 @@ const WHOLE_COMPANY = "all";
 
 function Card({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div role="group" aria-label={label} className="min-w-40 flex-1 rounded-xl border border-[#E3E2DC] bg-white p-4">
-      <p className="mb-1 text-sm text-[#5B616A]">{label}</p>
+    <div role="group" aria-label={label} className="min-w-40 flex-1 rounded-card border border-line bg-card p-4">
+      <p className="mb-1 text-sm text-muted">{label}</p>
       {children}
     </div>
   );
@@ -22,7 +22,7 @@ function Rating({ summary }: { summary: Summary | null | undefined }) {
   return (
     <>
       <p className="text-3xl font-semibold">{summary ? formatRating(summary.average_rating) : "–"}</p>
-      <p className="text-sm text-[#5B616A]">{formatCount(summary?.count ?? 0)}</p>
+      <p className="text-sm text-muted">{formatCount(summary?.count ?? 0)}</p>
     </>
   );
 }
@@ -91,9 +91,15 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
     : metrics.per_source;
   const totalReviews = sources.reduce((sum, entry) => sum + entry.summary.count, 0);
   const change = place ? null : changeAgainstPreviousYear(metrics.trend);
+  const months = new Set(metrics.trend.map((point) => point.period_start)).size;
 
   return (
     <>
+      {result.status === "partial" && (
+        <p role="status" className="mb-4 rounded-card border border-line bg-card p-3">
+          Částečný výsledek: analýza skončila dřív (limit nákladů nebo chyba kroku), ukazujeme jen to, co se stihlo.
+        </p>
+      )}
       <h1 className="mb-3 text-2xl font-semibold">{company.name}</h1>
       <div role="tablist" aria-label="Pobočky" className="mb-4 flex flex-wrap gap-2">
         {[{ key: WHOLE_COMPANY, label: "Celá firma" }, ...places.map((entry) => ({ key: entry.key, label: `${entry.name} · ${SOURCE_LABEL[entry.source]}` }))].map(
@@ -103,7 +109,7 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
               role="tab"
               aria-selected={tab === entry.key}
               onClick={() => onTab(entry.key)}
-              className={`min-h-11 rounded-full border px-4 ${tab === entry.key ? "border-[#1B1F23] bg-[#1B1F23] text-white" : "border-[#E3E2DC] bg-white"}`}
+              className={`min-h-11 rounded-full border px-4 ${tab === entry.key ? "border-ink bg-ink text-white" : "border-line bg-card"}`}
             >
               {entry.label}
             </button>
@@ -119,8 +125,8 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
           <Card key={source} label={SOURCE_LABEL[source]}>
             <Rating summary={summary} />
             <p className="text-sm">{totalReviews === 0 ? 0 : Math.round((summary.count / totalReviews) * 100)} %</p>
-            <div aria-hidden="true" className="mt-1 h-2 rounded bg-[#E3E2DC]">
-              <div className="h-2 rounded bg-[#1B1F23]" style={{ width: `${totalReviews === 0 ? 0 : (summary.count / totalReviews) * 100}%` }} />
+            <div aria-hidden="true" className="mt-1 h-2 rounded bg-line">
+              <div className="h-2 rounded bg-ink" style={{ width: `${totalReviews === 0 ? 0 : (summary.count / totalReviews) * 100}%` }} />
             </div>
           </Card>
         ))}
@@ -129,8 +135,15 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
         </Card>
       </div>
       <h2 className="mb-2 text-lg font-semibold">Vývoj hodnocení</h2>
-      {place && <p className="mb-2 text-sm text-[#5B616A]">Časová osa ukazuje celou firmu.</p>}
-      <Timeline trend={metrics.trend} changes={metrics.changes} />
+      {place && <p className="mb-2 text-sm text-muted">Časová osa ukazuje celou firmu.</p>}
+      {months === 0 ? (
+        <p className="rounded-card border border-line bg-card p-4">Nenašli jsme žádné recenze, není co zobrazit.</p>
+      ) : (
+        <>
+          {months === 1 && <p className="mb-2 text-sm text-muted">Zatím je k dispozici jen jeden měsíc, vývoj nejde ukázat.</p>}
+          <Timeline trend={metrics.trend} changes={metrics.changes} />
+        </>
+      )}
     </>
   );
 }

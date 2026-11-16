@@ -141,6 +141,31 @@ it("keeps the timeline on the whole Company when a Place tab is chosen", async (
   expect(screen.getByText("Časová osa ukazuje celou firmu.")).toBeInTheDocument();
 });
 
+it("warns that a partial result shows only what was finished", async () => {
+  setup(fakeApi({ runResult: vi.fn(async () => fakeResult({ status: "partial" })) }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Částečný výsledek");
+});
+
+it("shows no banner for a complete result", async () => {
+  setup(fakeApi());
+  await screen.findByRole("heading", { level: 1 });
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+});
+
+it("says so instead of drawing an empty timeline when no Review was found", async () => {
+  const empty = fakeResult({ metrics: { ...fakeResult().metrics, trend: [], overall: null, per_source: [], per_place: [] }, reviews: 0 });
+  setup(fakeApi({ runResult: vi.fn(async () => empty) }));
+  expect(await screen.findByText("Nenašli jsme žádné recenze, není co zobrazit.")).toBeInTheDocument();
+  expect(screen.queryByRole("img", { name: /Vývoj hodnocení/ })).not.toBeInTheDocument();
+});
+
+it("explains that one month is too little to show a development", async () => {
+  const single = fakeResult({ metrics: { ...fakeResult().metrics, trend: fakeResult().metrics.trend.slice(0, 1) } });
+  setup(fakeApi({ runResult: vi.fn(async () => single) }));
+  expect(await screen.findByText("Zatím je k dispozici jen jeden měsíc, vývoj nejde ukázat.")).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: /Vývoj hodnocení/ })).toBeInTheDocument();
+});
+
 it("narrows the cards to one Place when its tab is chosen", async () => {
   const user = userEvent.setup();
   setup(fakeApi({ runResult: vi.fn(async () => twoSources()) }));

@@ -1,1 +1,22 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+/* Design tokens shared by all screens (Claude Design canvas "Review Analyzer – návrh dashboardu"). */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-page: #f6f5f1;
+  --color-card: #ffffff;
+  --color-line: #e3e2dc;
+  --color-ink: #1b1f23;
+  --color-muted: #5b616a;
+  --color-google-maps: #2457c5;
+  --color-firmy-cz: #b85a00;
+  --color-drop: #b3261e;
+  --color-rise: #1e7b45;
+  --radius-card: 12px;
+}
+
+body {
+  background-color: var(--color-page);
+  color: var(--color-ink);
+}
