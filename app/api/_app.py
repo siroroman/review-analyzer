@@ -13,7 +13,7 @@ from pydantic import AwareDatetime, BaseModel, Field
 
 from app.api._limits import DailyCounter, SlidingWindow
 from app.api._types import ApiConfig, Reporter
-from app.domain import Clock, Company, Insight, Metrics, Place, RunStatus
+from app.domain import Clock, Company, Insight, Metrics, Place, Review, RunStatus, Source
 from app.gateway import CallStatus, ServiceCall
 from app.places import (
     InvalidCompany,
@@ -23,6 +23,7 @@ from app.places import (
 )
 from app.queue import Queue
 from app.storage import CallFilter, RunRecord, Storage, UnknownRun
+from app.taxonomy import UNCLASSIFIED_KEY
 
 _TEXT = r"^[\w\s.,'&/()\-]+$"  # letters (any language), digits, spaces and a little punctuation
 _PLACE_ID = r"^[A-Za-z0-9_\-]+$"
@@ -55,11 +56,27 @@ class RunOut(BaseModel):
     reused: bool = False
 
 
+class StepCostOut(BaseModel):
+    """What the Run's Service calls cost in each step; `None` for a step that has not started."""
+
+    downloading: Decimal | None
+    classifying: Decimal | None
+    analysis: Decimal | None
+
+
 class StatusOut(BaseModel):
+    """Progress of a Run: counts and costs only, never a Review or its text. `None` means not known yet."""
+
     run_id: str
     status: RunStatus
     finished: bool
     cost: Decimal  # the sum of the Run's Service calls so far
+    budget: Decimal  # the Run's Budget cap
+    downloaded: dict[Source, int] | None  # stored Reviews per Source of the Company's Places
+    flagged: int | None  # Flagged Reviews, excluded from the analysis
+    classified: int | None  # Reviews with a real ReviewTopic for the latest Taxonomy
+    to_classify: int | None  # Reviews to classify: stored, not Flagged
+    step_cost: StepCostOut
 
 
 class TopicOut(BaseModel):
@@ -204,11 +221,7 @@ def create_app(
     @app.get("/runs/{run_id}")
     def run_status(_: Demo, run_id: str) -> StatusOut:
         with work:
-            record = _run(storage, run_id)
-            cost = storage.calls.cost_by_run(CallFilter(run_id=run_id)).get(run_id, Decimal(0))
-        return StatusOut(
-            run_id=record.id, status=record.status, finished=record.finished_at is not None, cost=cost
-        )
+            return _status(storage, _run(storage, run_id))
 
     @app.get("/runs/{run_id}/result")
     def run_result(_: Demo, run_id: str) -> ResultOut:
@@ -290,6 +303,79 @@ def _run(storage: Storage, run_id: str) -> RunRecord:
     if record is None:
         raise HTTPException(404, "unknown Run")
     return record
+
+
+def _status(storage: Storage, record: RunRecord) -> StatusOut:
+    """Progress from what is stored: Reviews, ReviewTopics and the Call log. Makes no paid call."""
+    calls = storage.calls.query(CallFilter(run_id=record.id))
+
+    def out(
+        downloaded: dict[Source, int] | None = None,
+        flagged: int | None = None,
+        classified: int | None = None,
+        to_classify: int | None = None,
+    ) -> StatusOut:
+        return StatusOut(
+            run_id=record.id,
+            status=record.status,
+            finished=record.finished_at is not None,
+            cost=sum((c.cost for c in calls), Decimal(0)),
+            budget=record.budget_cap,
+            downloaded=downloaded,
+            flagged=flagged,
+            classified=classified,
+            to_classify=to_classify,
+            step_cost=_step_cost(record, calls),
+        )
+
+    stored = storage.companies.by_id(record.company_id)
+    if record.status is RunStatus.QUEUED or stored is None:
+        return out()
+    reviews = {
+        place: storage.reviews.list_for_place(place.source, place.external_id)
+        for place in stored.company.places
+    }
+    downloaded: dict[Source, int] = {}
+    for place, found in reviews.items():
+        downloaded[place.source] = downloaded.get(place.source, 0) + len(found)
+    flagged = sum(r.flagged for found in reviews.values() for r in found)
+    reached = record.classifying_at or record.analyzing_at or record.status is RunStatus.DONE
+    if not reached:
+        return out(downloaded, flagged)
+    to_classify = sum(1 for found in reviews.values() for r in found if not r.flagged)
+    return out(downloaded, flagged, _classified(storage, stored.company, reviews), to_classify)
+
+
+def _classified(storage: Storage, company: Company, reviews: dict[Place, list[Review]]) -> int:
+    taxonomy = storage.taxonomies.latest(company.industry)
+    if taxonomy is None:
+        return 0
+    done = 0
+    for place, found in reviews.items():
+        unflagged = {r.external_id for r in found if not r.flagged}
+        topics = storage.reviews.topics_for_place(place.source, place.external_id, taxonomy)
+        done += len({t.review_external_id for t in topics if t.topic_key != UNCLASSIFIED_KEY} & unflagged)
+    return done
+
+
+def _step_cost(record: RunRecord, calls: list[ServiceCall]) -> StepCostOut:
+    """Price each step by when its calls were made: a step runs from its start to the next one's."""
+    if record.status is RunStatus.QUEUED:
+        return StepCostOut(downloading=None, classifying=None, analysis=None)
+    downloading_end = record.classifying_at or record.analyzing_at or record.finished_at
+    classifying_end = record.analyzing_at or record.finished_at
+
+    def cost(start: datetime | None, end: datetime | None) -> Decimal:
+        return sum(
+            (c.cost for c in calls if (start is None or c.at >= start) and (end is None or c.at < end)),
+            Decimal(0),
+        )
+
+    return StepCostOut(
+        downloading=cost(None, downloading_end),
+        classifying=None if record.classifying_at is None else cost(record.classifying_at, classifying_end),
+        analysis=None if record.analyzing_at is None else cost(record.analyzing_at, None),
+    )
 
 
 def _confirm(places: Places, body: RunIn, run_id: str) -> Company:
