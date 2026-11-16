@@ -29,12 +29,17 @@ class PipelineConfig:
             raise ValueError("retry_delay must not be negative and cache_ttl must be positive")
 
 
+# The Company's industry could not be inferred; the Run used the generic Taxonomy.
+NOTE_INDUSTRY_FALLBACK = "industry_fallback"
+
+
 @dataclass(frozen=True)
 class RunResult:
     """What a Run produced, read from storage, so a redelivered Run returns the same result.
 
     `reviews` counts every stored Review of the Company, `flagged` the Flagged ones. `unclassified` counts
     unflagged Reviews with no real Topic, for any reason. `cost` is the sum of the Run's Service calls.
+    `notes` lists what the user should know about how the result was made, such as `NOTE_INDUSTRY_FALLBACK`.
     """
 
     run_id: str
@@ -45,6 +50,7 @@ class RunResult:
     insights: int
     trend_points: int
     cost: Decimal
+    notes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
