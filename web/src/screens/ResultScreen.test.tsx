@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { ApiProvider } from "../api/context";
 import { fakeApi, fakeResult } from "../fakeApi";
+import { readRecent } from "../recentRuns";
 import { ResultScreen } from "./ResultScreen";
 
 function setup(api: ReturnType<typeof fakeApi>) {
@@ -464,4 +465,11 @@ it("puts the chart and the Topics side by side from the lg width and stacks them
 it("uses the 1280 px wide page of the design", async () => {
   setup(fakeApi());
   expect(await screen.findByRole("main")).toHaveClass("max-w-7xl");
+});
+
+it("remembers the opened result for the Search screen", async () => {
+  localStorage.clear();
+  setup(fakeApi());
+  await screen.findByRole("heading", { level: 1, name: "Kavárna U Mlýna" });
+  expect(readRecent(Date.now())).toMatchObject([{ run_id: "run-1", name: "Kavárna U Mlýna" }]);
 });
