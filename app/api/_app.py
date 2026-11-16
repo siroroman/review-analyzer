@@ -9,7 +9,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 from app.api._limits import DailyCounter, SlidingWindow
 from app.api._types import ApiConfig, Reporter
@@ -232,7 +232,7 @@ def create_app(
         description="Admin token only (`Authorization: Bearer <admin token>`); a Demo token gives 401.",
         responses={401: {"description": "Missing or wrong Admin token"}},
     )
-    def admin_spend(since: datetime | None = None, until: datetime | None = None) -> SpendOut:
+    def admin_spend(since: AwareDatetime | None = None, until: AwareDatetime | None = None) -> SpendOut:
         where = CallFilter(since=since, until=until)
         now = clock.now().astimezone(UTC)
         with work:
@@ -258,8 +258,8 @@ def create_app(
         operation: str | None = None,
         run_id: str | None = None,
         status: CallStatus | None = None,
-        since: datetime | None = None,
-        until: datetime | None = None,
+        since: AwareDatetime | None = None,
+        until: AwareDatetime | None = None,
         limit: Annotated[int, Query(ge=1, le=500)] = 50,
         offset: Annotated[int, Query(ge=0)] = 0,
     ) -> CallsOut:

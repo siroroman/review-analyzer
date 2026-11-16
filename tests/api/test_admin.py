@@ -108,3 +108,10 @@ def test_the_admin_endpoints_are_documented_in_openapi() -> None:
     schema = Api().client.get("/openapi.json").json()
     assert {"/admin/spend", "/admin/calls"} <= set(schema["paths"])
     assert "summary" in schema["paths"]["/admin/calls"]["get"]
+
+
+def test_a_date_without_a_utc_offset_is_422_not_a_crash() -> None:
+    client = seeded().client
+    for path in ("/admin/calls", "/admin/spend"):
+        for name in ("since", "until"):
+            assert client.get(path, params={name: "2026-11-11T09:00:00"}, headers=AUTH).status_code == 422
