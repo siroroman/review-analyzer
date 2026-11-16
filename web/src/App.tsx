@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { createApi } from "./api/client";
 import { ApiProvider } from "./api/context";
 import { ProgressScreen } from "./screens/ProgressScreen";
+import { ResultScreen } from "./screens/ResultScreen";
 import { SearchScreen } from "./screens/SearchScreen";
 import { readDemoToken } from "./token";
 
@@ -23,6 +24,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<SearchScreen />} />
           <Route path="/runs/:id" element={<ProgressScreen />} />
+          <Route path="/runs/:id/result" element={<ResultScreen />} />
           <Route path="*" element={<SearchScreen />} />
         </Routes>
       </BrowserRouter>

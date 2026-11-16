@@ -81,6 +81,18 @@ it.each([
   expect(screen.getByRole("status")).toHaveTextContent(text);
 });
 
+it.each(["done", "partial"] as const)("links a %s Run to its result", async (status) => {
+  setup(fakeApi({ runProgress: vi.fn(async () => at(status, "0.5", true)) }));
+  await tick(0);
+  expect(screen.getByRole("link", { name: "Zobrazit výsledek" })).toHaveAttribute("href", "/runs/run-1/result");
+});
+
+it("offers no result link for a failed Run", async () => {
+  setup(fakeApi({ runProgress: vi.fn(async () => at("failed", "0.5", true)) }));
+  await tick(0);
+  expect(screen.queryByRole("link", { name: "Zobrazit výsledek" })).not.toBeInTheDocument();
+});
+
 it("says a Run does not exist and stops", async () => {
   const runProgress = vi.fn(async () => Promise.reject(new ApiError(404)));
   setup(fakeApi({ runProgress }));
