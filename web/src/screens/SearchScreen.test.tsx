@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "../api/client";
@@ -184,6 +184,10 @@ describe("choosing one Place", () => {
     await user.click(analyze());
     expect(await screen.findByRole("alert")).toHaveTextContent(/limit/i);
     expect(analyze()).toBeEnabled();
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(/limit/i);
   });
 });
 

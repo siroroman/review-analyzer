@@ -17,6 +17,7 @@ export function SearchScreen() {
   const query = useDebounced(text.trim(), DEBOUNCE_MS);
   const [found, setFound] = useState<Suggestion[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [startProblem, setStartProblem] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Suggestion | null>(null);
   const [busy, setBusy] = useState(false);
   /** The text we put into the input ourselves after a pick; it needs no new suggestions. */
@@ -48,6 +49,7 @@ export function SearchScreen() {
   function edit(value: string) {
     setText(value);
     setChosen(null);
+    setStartProblem(null);
     filled.current = null;
   }
 
@@ -62,11 +64,12 @@ export function SearchScreen() {
   async function start() {
     if (!chosen) return;
     setBusy(true);
+    setStartProblem(null);
     try {
       const run = await api.startRun({ place_ids: [chosen.place_id] });
       navigate(`/runs/${run.run_id}`);
     } catch (error) {
-      setProblem(describeError(error, "spustit analýzu"));
+      setStartProblem(describeError(error, "spustit analýzu"));
       setBusy(false);
     }
   }
@@ -91,9 +94,9 @@ export function SearchScreen() {
             onChange={(event) => edit(event.target.value)}
             className="min-h-13 w-full rounded-[10px] border-2 border-google-maps bg-card px-4 text-base font-medium"
           />
-          {problem && (
+          {(problem ?? startProblem) && (
             <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-drop">
-              {problem}
+              {problem ?? startProblem}
             </p>
           )}
           {found?.length === 0 && <p className="mt-3 text-muted">Nic jsme nenašli.</p>}
