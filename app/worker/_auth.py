@@ -29,7 +29,14 @@ class OidcCheck:
     service_account_email: str
 
     def allows(self, authorization: str | None) -> bool:
-        return False
+        scheme, _, token = (authorization or "").partition(" ")
+        if scheme.lower() != "bearer" or not token:
+            return False
+        try:
+            claims = self.verifier.verify(token, self.audience)
+        except InvalidToken:
+            return False
+        return claims.email_verified and claims.email == self.service_account_email
 
 
 @dataclass(frozen=True)
