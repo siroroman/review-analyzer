@@ -100,7 +100,7 @@ def test_no_auth_check_lets_a_call_without_a_token_through() -> None:
 
 def test_config_with_audience_and_account_checks_tokens() -> None:
     verifier = FakeTokenVerifier()
-    env = {"WORKER_OIDC_AUDIENCE": AUDIENCE, "WORKER_OIDC_SERVICE_ACCOUNT": ACCOUNT}
+    env = {"WORKER_URL": AUDIENCE, "WORKER_SERVICE_ACCOUNT": ACCOUNT}
 
     auth = auth_from_env(env, verifier)
 
@@ -109,7 +109,7 @@ def test_config_with_audience_and_account_checks_tokens() -> None:
 
 
 def test_config_without_audience_or_account_fails_instead_of_skipping_the_check() -> None:
-    for env in ({}, {"WORKER_OIDC_AUDIENCE": AUDIENCE}, {"WORKER_OIDC_SERVICE_ACCOUNT": ACCOUNT}):
+    for env in ({}, {"WORKER_URL": AUDIENCE}, {"WORKER_SERVICE_ACCOUNT": ACCOUNT}):
         with pytest.raises(WorkerAuthConfigError):
             auth_from_env(env, FakeTokenVerifier())
 
