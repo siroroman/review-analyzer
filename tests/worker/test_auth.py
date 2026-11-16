@@ -42,9 +42,9 @@ def test_a_call_without_a_token_is_401_and_the_handler_does_not_run() -> None:
 
 
 def call(client: TestClient, token: str) -> int:
-    return client.post(
-        "/tasks/run", json={"run_id": "1"}, headers={"Authorization": f"Bearer {token}"}
-    ).status_code
+    headers = {"Authorization": f"Bearer {token}"}
+    status: int = client.post("/tasks/run", json={"run_id": "1"}, headers=headers).status_code
+    return status
 
 
 def test_a_valid_token_of_the_queue_account_runs_the_handler() -> None:
