@@ -45,8 +45,6 @@ class RunIn(BaseModel):
     place_ids: list[Annotated[str, Field(min_length=1, max_length=300, pattern=_PLACE_ID)]] = Field(
         min_length=1, max_length=20
     )
-    name: str = Field(min_length=1, max_length=100, pattern=_TEXT)
-    industry: str = Field(min_length=1, max_length=60, pattern=_TEXT)
 
 
 class RunOut(BaseModel):
@@ -78,6 +76,9 @@ class ResultOut(BaseModel):
     flagged: int
     unclassified: int
     cost: Decimal
+    # What to know about how the result was made; `industry_fallback`: the industry could not be inferred
+    # and the generic Taxonomy was used.
+    notes: list[str]
 
 
 class SpendOut(BaseModel):
@@ -231,6 +232,7 @@ def create_app(
             flagged=report.result.flagged,
             unclassified=report.result.unclassified,
             cost=report.result.cost,
+            notes=list(report.result.notes),
         )
 
     @app.get(
@@ -294,7 +296,7 @@ def _run(storage: Storage, run_id: str) -> RunRecord:
 
 def _confirm(places: Places, body: RunIn, run_id: str) -> Company:
     try:
-        return places.confirm(body.place_ids, name=body.name, industry=body.industry, run_id=run_id)
+        return places.confirm(body.place_ids, run_id=run_id)
     except InvalidCompany as invalid:
         raise HTTPException(422, str(invalid)) from invalid
     except PlaceNotFound as missing:

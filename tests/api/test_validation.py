@@ -17,13 +17,12 @@ def test_czech_letters_and_punctuation_are_allowed() -> None:
 @pytest.mark.parametrize(
     "body",
     [
-        {"place_ids": [], "name": "Kavárna", "industry": "cafe"},
-        {"place_ids": ["g1"] * 21, "name": "Kavárna", "industry": "cafe"},
-        {"place_ids": ["g 1"], "name": "Kavárna", "industry": "cafe"},
-        {"place_ids": ["g1"], "name": "", "industry": "cafe"},
-        {"place_ids": ["g1"], "name": "K" * 101, "industry": "cafe"},
-        {"place_ids": ["g1"], "name": "Kavárna", "industry": "caf<e>"},
-        {"place_ids": ["g1"], "name": "Kavárna"},
+        {"place_ids": []},
+        {"place_ids": ["g1"] * 21},
+        {"place_ids": ["g 1"]},
+        {"place_ids": [""]},
+        {"place_ids": ["g" * 301]},
+        {},
     ],
 )
 def test_a_bad_run_request_is_422_and_makes_no_paid_call(body: dict[str, object]) -> None:

@@ -52,9 +52,7 @@ def test_search_start_a_run_the_worker_runs_it_and_the_result_shows() -> None:
     assert found.status_code == 200
     assert found.json()[0]["place_id"] == PLACE_ID
 
-    started = api.post(
-        "/runs", json={"place_ids": [PLACE_ID], "name": "Globus", "industry": "retail"}, headers=DEMO
-    )
+    started = api.post("/runs", json={"place_ids": [PLACE_ID]}, headers=DEMO)
     assert started.status_code == 202
     run_id = started.json()["run_id"]
 
@@ -74,13 +72,15 @@ def test_search_start_a_run_the_worker_runs_it_and_the_result_shows() -> None:
     assert result.status_code == 200
     assert result.json()["status"] == "done"
     assert result.json()["reviews"] == 40
+    assert result.json()["company"]["industry"] == "hypermarket"  # inferred by the wired strong model
+    assert result.json()["notes"] == []
     assert result.json()["insights"][0]["text"] == "Hosté chválí obsluhu."
 
 
 def test_only_the_real_services_are_called_and_the_task_carries_the_service_account_token() -> None:
     internet = Internet()
     api, _ = apps(internet)
-    api.post("/runs", json={"place_ids": [PLACE_ID], "name": "Globus", "industry": "retail"}, headers=DEMO)
+    api.post("/runs", json={"place_ids": [PLACE_ID]}, headers=DEMO)
     assert internet.hosts() == {
         "places.googleapis.com",
         "cloudtasks.googleapis.com",
@@ -92,9 +92,7 @@ def test_only_the_real_services_are_called_and_the_task_carries_the_service_acco
 
 def test_the_other_source_is_unavailable_but_a_search_and_a_run_work_without_it() -> None:
     api, _ = apps(Internet())
-    started = api.post(
-        "/runs", json={"place_ids": [PLACE_ID], "name": "Globus", "industry": "retail"}, headers=DEMO
-    )
+    started = api.post("/runs", json={"place_ids": [PLACE_ID]}, headers=DEMO)
     assert started.status_code == 202
 
 
@@ -122,9 +120,7 @@ def test_without_cloud_tasks_settings_a_run_is_handled_by_the_local_queue() -> N
     assert isinstance(built.queue, LocalQueue)
     api = TestClient(built.api)
 
-    started = api.post(
-        "/runs", json={"place_ids": [PLACE_ID], "name": "Globus", "industry": "retail"}, headers=DEMO
-    )
+    started = api.post("/runs", json={"place_ids": [PLACE_ID]}, headers=DEMO)
     assert started.status_code == 202
     built.queue.join()
 

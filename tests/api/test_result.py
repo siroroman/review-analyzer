@@ -13,10 +13,10 @@ from app.domain import (
     Source,
     Topic,
 )
-from app.pipeline import RunReport, RunResult
+from app.pipeline import NOTE_INDUSTRY_FALLBACK, RunReport, RunResult
 from tests.api.helpers import HEADERS, Api, cafe
 
-RUN = {"place_ids": ["g1"], "name": "Kavárna", "industry": "cafe"}
+RUN = {"place_ids": ["g1"]}
 
 
 def _start(api: Api) -> str:
@@ -28,7 +28,7 @@ def _finish(api: Api, run_id: str, last: RunStatus = RunStatus.DONE) -> None:
         api.storage.runs.advance(run_id, status)
 
 
-def _report(run_id: str, status: RunStatus) -> RunReport:
+def _report(run_id: str, status: RunStatus, notes: tuple[str, ...] = ()) -> RunReport:
     insight = Insight(
         type=InsightType.SUMMARY,
         period_start=date(2026, 10, 1),
@@ -45,6 +45,7 @@ def _report(run_id: str, status: RunStatus) -> RunReport:
         insights=1,
         trend_points=0,
         cost=Decimal("0.25"),
+        notes=notes,
     )
     drop = Change(
         kind=ChangeKind.DROP,
@@ -56,7 +57,7 @@ def _report(run_id: str, status: RunStatus) -> RunReport:
     metrics = Metrics(
         trend=(), topic_shares=(), changes=(drop,), overall=RatingSummary(average_rating=4.0, count=2)
     )
-    company = Company(name="Kavárna", industry="cafe", places=(cafe(),))
+    company = Company(name="Kavárna", places=(cafe(),))
     topics = (Topic(key="staff", name="Obsluha", description="Friendliness of the staff"),)
     return RunReport(result=result, company=company, metrics=metrics, insights=(insight,), topics=topics)
 
@@ -96,6 +97,23 @@ def test_the_result_is_what_the_pipeline_reports() -> None:
     assert [insight["text"] for insight in body["insights"]] == ["Guests like it."]
     assert Decimal(body["cost"]) == Decimal("0.25")
     assert body["company"]["name"] == "Kavárna"
+
+
+def test_the_result_says_when_the_industry_could_not_be_inferred() -> None:
+    api = Api(known=[cafe()])
+    run_id = _start(api)
+    _finish(api, run_id)
+    api.reporter.reports[run_id] = _report(run_id, RunStatus.DONE, (NOTE_INDUSTRY_FALLBACK,))
+    body = api.client.get(f"/runs/{run_id}/result", headers=HEADERS).json()
+    assert body["notes"] == ["industry_fallback"]
+
+
+def test_a_result_without_notes_has_an_empty_list() -> None:
+    api = Api(known=[cafe()])
+    run_id = _start(api)
+    _finish(api, run_id)
+    api.reporter.reports[run_id] = _report(run_id, RunStatus.DONE)
+    assert api.client.get(f"/runs/{run_id}/result", headers=HEADERS).json()["notes"] == []
 
 
 def test_a_partial_run_has_a_result_too() -> None:

@@ -88,8 +88,8 @@ def test_the_same_set_of_places_in_any_order_is_one_company() -> None:
     setup = Setup()
     for external_id in ("g1", "g2", "g3"):
         setup.google.known[external_id] = google(external_id, address=external_id)
-    first = setup.places.confirm(["g1", "g2", "g3"], name="Globus", industry="retail", run_id=RUN)
-    second = setup.places.confirm(["g3", "g1", "g2", "g1"], name="Globus CZ", industry="retail", run_id=RUN)
+    first = setup.places.confirm(["g1", "g2", "g3"], run_id=RUN)
+    second = setup.places.confirm(["g3", "g1", "g2", "g1"], run_id=RUN)
     assert isinstance(first, Company)
     assert first.places_key == second.places_key
 
@@ -98,15 +98,15 @@ def test_a_different_set_of_places_is_another_company() -> None:
     setup = Setup()
     for external_id in ("g1", "g2"):
         setup.google.known[external_id] = google(external_id)
-    both = setup.places.confirm(["g1", "g2"], name="Globus", industry="retail", run_id=RUN)
-    one = setup.places.confirm(["g1"], name="Globus", industry="retail", run_id=RUN)
+    both = setup.places.confirm(["g1", "g2"], run_id=RUN)
+    one = setup.places.confirm(["g1"], run_id=RUN)
     assert both.places_key != one.places_key
 
 
 def test_an_empty_set_is_rejected_without_a_call() -> None:
     setup = Setup()
     with pytest.raises(EmptyCompany):
-        setup.places.confirm([], name="Globus", industry="retail", run_id=RUN)
+        setup.places.confirm([], run_id=RUN)
     assert setup.google.client.calls == []
 
 
@@ -114,15 +114,15 @@ def test_a_confirmed_company_holds_the_resolved_and_the_matched_places() -> None
     setup = Setup()
     setup.google.known["g1"] = google("g1", "Globus Hypermarket", "Čakovice")
     on_firmy = firmy("f1", "Globus Hypermarket", "Kostelecká 823, Praha-Čakovice")
-    company = setup.places.confirm(["g1"], name="Globus", industry="retail", run_id=RUN, also=[on_firmy])
-    assert company.name == "Globus"
-    assert company.industry == "retail"
+    company = setup.places.confirm(["g1"], run_id=RUN, also=[on_firmy])
+    assert company.name == "Globus Hypermarket"  # the name of the first chosen Place
+    assert company.industry is None  # unknown until the pipeline infers it
     assert company.places == (google("g1", "Globus Hypermarket", "Čakovice"), on_firmy)
 
 
 def test_confirming_an_unknown_id_is_place_not_found() -> None:
     with pytest.raises(PlaceNotFound):
-        Setup().places.confirm(["nope"], name="Globus", industry="retail", run_id=RUN)
+        Setup().places.confirm(["nope"], run_id=RUN)
 
 
 def test_match_other_sources_ranks_by_name_and_address() -> None:
@@ -193,31 +193,19 @@ def test_an_id_that_is_not_an_id_is_place_not_found() -> None:
         setup.places.resolve("not/an/id", run_id=RUN)
 
 
-@pytest.mark.parametrize(("name", "industry"), [(" ", "retail"), ("Globus", "")])
-def test_a_company_without_a_name_or_industry_is_rejected_before_any_paid_call(
-    name: str, industry: str
-) -> None:
-    setup = Setup()
-    with pytest.raises(InvalidCompany):
-        setup.places.confirm(["g1"], name=name, industry=industry, run_id=RUN)
-    assert setup.google.client.calls == []
-
-
 def test_a_place_listed_twice_is_rejected_before_any_paid_call() -> None:
     setup = Setup()
     twice = firmy("f1", "Globus", "Praha")
     with pytest.raises(InvalidCompany):
-        setup.places.confirm(["g1"], name="G", industry="retail", run_id=RUN, also=[twice, twice])
+        setup.places.confirm(["g1"], run_id=RUN, also=[twice, twice])
     with pytest.raises(InvalidCompany):
-        setup.places.confirm(["g1"], name="G", industry="retail", run_id=RUN, also=[google("g1")])
+        setup.places.confirm(["g1"], run_id=RUN, also=[google("g1")])
     assert setup.google.client.calls == []
 
 
 def test_a_company_of_only_other_source_places_needs_no_google_call() -> None:
     setup = Setup()
-    company = setup.places.confirm(
-        [], name="G", industry="retail", run_id=RUN, also=[firmy("f1", "G", "Praha")]
-    )
+    company = setup.places.confirm([], run_id=RUN, also=[firmy("f1", "G", "Praha")])
     assert [place.external_id for place in company.places] == ["f1"]
     assert setup.google.client.calls == []
 
@@ -225,7 +213,7 @@ def test_a_company_of_only_other_source_places_needs_no_google_call() -> None:
 def test_without_a_second_source_the_company_step_still_works_on_google_alone() -> None:
     setup = Setup(other=NoOtherSource())
     setup.google.known["g1"] = google("g1", "Camp Velo", "Vratěnín 92")
-    company = setup.places.confirm(["g1"], name="Camp Velo", industry="cafe", run_id=RUN)
+    company = setup.places.confirm(["g1"], run_id=RUN)
     assert [place.external_id for place in company.places] == ["g1"]
 
 

@@ -201,6 +201,7 @@ def build_apps(
             {
                 "taxonomy": Route(_HAIKU),
                 "classification": Route(_HAIKU),
+                "industry": Route(_SONNET),
                 "insights": Route(_SONNET),
             }
         ),
