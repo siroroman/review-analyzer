@@ -2,9 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, type RunProgress } from "../api/client";
 import { useApi } from "../api/context";
+import { AppHeader } from "../components/AppHeader";
 import { FINAL, STEPS, formatCost } from "../steps";
 
 export const POLL_MS = 2000;
+
+/** The budget of one Run as the design shows it; the API does not send it yet. */
+const BUDGET_USD = 2;
 
 const ENDINGS = {
   done: "Hotovo. Analýza je dokončená.",
@@ -65,50 +69,87 @@ export function ProgressScreen() {
   const final = progress && FINAL.includes(progress.status) ? (progress.status as keyof typeof ENDINGS) : null;
   const current = progress ? STEPS.findIndex((step) => step.status === progress.status) : -1;
 
+  const stateLabel = { done: "Hotovo", active: "Probíhá", todo: "Čeká" } as const;
+  const cost = progress ? Number(progress.cost) : 0;
+  const share = Math.min(100, Math.max(0, (cost / BUDGET_USD) * 100));
+
   return (
-    <main className="mx-auto max-w-xl p-6">
-      <h1 className="mb-4 text-2xl font-semibold">Průběh analýzy</h1>
-      {problem && (
-        <p role="alert" className="mb-4 rounded bg-red-50 p-3 text-red-800">
-          {problem}
-        </p>
-      )}
-      {progress && (
-        <>
-          <ol className="mb-4 space-y-2">
-            {STEPS.map((step, index) => {
-              const state = stepState(index, current, final);
-              return (
-                <li
-                  key={step.status}
-                  data-state={state}
-                  aria-current={state === "active" ? "step" : undefined}
-                  className={state === "todo" ? "text-gray-400" : state === "done" ? "text-green-700" : "font-semibold"}
-                >
-                  <span aria-hidden="true">{state === "done" ? "✓ " : state === "active" ? "… " : "○ "}</span>
-                  <span>{step.label}</span>
-                </li>
-              );
-            })}
-          </ol>
-          <p className="mb-4">Dosavadní náklady: {formatCost(progress.cost)}</p>
-          {final && (
-            <p role="status" className="rounded bg-gray-100 p-3">
-              {ENDINGS[final]}
-            </p>
+    <>
+      <AppHeader />
+      <main className="mx-auto flex max-w-180 flex-col gap-6 px-6 pt-12 pb-12">
+        <div>
+          <h1 className="text-3xl leading-tight font-bold">Průběh analýzy</h1>
+          <p className="mt-2 text-[15px] text-muted">Stránku můžete zavřít. Výsledek zůstane dostupný na tomto odkazu.</p>
+        </div>
+        {problem && (
+          <p role="alert" className="rounded-lg bg-red-50 p-3 text-drop">
+            {problem}
+          </p>
+        )}
+        {progress && (
+          <>
+            {progress.status === "queued" && <p className="text-muted">Analýza čeká ve frontě.</p>}
+            <ol className="flex flex-col gap-2.5">
+              {STEPS.map((step, index) => {
+                if (step.status === "queued") return null;
+                const state = stepState(index, current, final);
+                return (
+                  <li
+                    key={step.status}
+                    data-state={state}
+                    aria-current={state === "active" ? "step" : undefined}
+                    className={`flex min-h-16 items-center gap-3.5 rounded-card bg-card p-4 ${state === "active" ? "border-2 border-google-maps" : "border border-line"}`}
+                  >
+                    <span aria-hidden="true" className="flex size-7 flex-none items-center justify-center rounded-full border-2 border-line text-sm">
+                      {state === "done" ? "✓" : state === "active" ? "…" : ""}
+                    </span>
+                    <span className={`flex-1 text-[15px] font-semibold ${state === "todo" ? "text-muted" : ""}`}>{step.label}</span>
+                    <span className="text-sm text-muted">{stateLabel[state]}</span>
+                  </li>
+                );
+              })}
+            </ol>
+            <div className="rounded-card border border-line bg-card p-4">
+              <div className="flex justify-between text-sm">
+                <span className="font-semibold">Průběžné náklady</span>
+                <span>
+                  <b>{formatCost(progress.cost)}</b> <span className="text-muted">z rozpočtu {BUDGET_USD.toFixed(2).replace(".", ",")} USD</span>
+                </span>
+              </div>
+              <div
+                role="progressbar"
+                aria-label="Náklady oproti rozpočtu"
+                aria-valuemin={0}
+                aria-valuemax={BUDGET_USD}
+                aria-valuenow={cost}
+                className="mt-2.5 h-2 rounded bg-[#ece9e3]"
+              >
+                <div className="h-2 rounded bg-ink" style={{ width: `${share}%` }} />
+              </div>
+              <p className="mt-2.5 text-sm text-muted">
+                Při překročení rozpočtu se analýza zastaví a dostanete částečný výsledek s tím, co se stihlo.
+              </p>
+            </div>
+            {final && (
+              <p role="status" className="rounded-card border border-line bg-card p-3">
+                {ENDINGS[final]}
+              </p>
+            )}
+          </>
+        )}
+        <div className="flex flex-wrap gap-x-6">
+          {(final === "done" || final === "partial") && (
+            <Link to={`/runs/${id}/result`} className="inline-flex min-h-11 items-center font-semibold text-google-maps underline">
+              Zobrazit výsledek
+            </Link>
           )}
-        </>
-      )}
-      {(final === "done" || final === "partial") && (
-        <Link to={`/runs/${id}/result`} className="mt-4 mr-4 inline-flex min-h-11 items-center font-semibold text-blue-700 underline">
-          Zobrazit výsledek
-        </Link>
-      )}
-      {(final || problem === "Tato analýza neexistuje.") && (
-        <Link to="/" className="mt-4 inline-block text-blue-700 underline">
-          Nové hledání
-        </Link>
-      )}
-    </main>
+          {(final || problem === "Tato analýza neexistuje.") && (
+            <Link to="/" className="inline-flex min-h-11 items-center text-google-maps underline">
+              Nové hledání
+            </Link>
+          )}
+        </div>
+      </main>
+    </>
   );
 }
