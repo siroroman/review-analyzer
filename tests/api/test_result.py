@@ -11,6 +11,7 @@ from app.domain import (
     RatingSummary,
     RunStatus,
     Source,
+    StarCount,
     Topic,
 )
 from app.pipeline import NOTE_INDUSTRY_FALLBACK, RunReport, RunResult
@@ -55,7 +56,11 @@ def _report(run_id: str, status: RunStatus, notes: tuple[str, ...] = ()) -> RunR
         main_topic_key="staff",
     )
     metrics = Metrics(
-        trend=(), topic_shares=(), changes=(drop,), overall=RatingSummary(average_rating=4.0, count=2)
+        trend=(),
+        topic_shares=(),
+        changes=(drop,),
+        overall=RatingSummary(average_rating=4.0, count=2),
+        rating_counts=(StarCount(stars=5, count=1), StarCount(stars=3, count=1)),
     )
     company = Company(name="Kavárna", places=(cafe(),))
     topics = (Topic(key="staff", name="Obsluha", description="Friendliness of the staff"),)
@@ -93,6 +98,7 @@ def test_the_result_is_what_the_pipeline_reports() -> None:
             "main_topic_key": "staff",
         }
     ]
+    assert body["metrics"]["rating_counts"] == [{"stars": 5, "count": 1}, {"stars": 3, "count": 1}]
     assert body["topics"] == [{"key": "staff", "name": "Obsluha"}]
     assert [insight["text"] for insight in body["insights"]] == ["Guests like it."]
     assert Decimal(body["cost"]) == Decimal("0.25")

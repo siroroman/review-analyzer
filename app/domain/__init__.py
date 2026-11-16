@@ -9,6 +9,7 @@ from app.domain._analysis import (
     PlaceSummary,
     RatingSummary,
     SourceSummary,
+    StarCount,
     TopicShare,
     TrendPoint,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "Metrics",
     "PlaceSummary",
     "RatingSummary",
+    "StarCount",
     "SourceSummary",
     "TopicShare",
     "TrendPoint",

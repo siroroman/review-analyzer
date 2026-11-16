@@ -23,8 +23,8 @@ export interface ReviewView {
   date: string;
   text: string;
 }
-/** Which Reviews of a Run to read: the ones an insight cites, or the ones mentioning a Topic. */
-export type ReviewQuery = { ids: string[] } | { topic: string };
+/** Which Reviews of a Run to read: the ones an insight cites, the ones mentioning a Topic, or the ones with a star rating. */
+export type ReviewQuery = { ids: string[] } | { topic: string } | { rating: number };
 export type RunStatus = RunProgress["status"];
 
 /** An answer that is not a success. `status` is the HTTP status, or 0 when the server was not reached. */

@@ -33,6 +33,13 @@ class RatingSummary(DomainModel):
     count: int = Field(ge=1)
 
 
+class StarCount(DomainModel):
+    """How many Reviews gave one star rating, for the rating distribution."""
+
+    stars: int = Field(ge=1, le=5)
+    count: int = Field(ge=0)
+
+
 class SourceSummary(DomainModel):
     """The RatingSummary of one Source."""
 
@@ -80,6 +87,8 @@ class Metrics(DomainModel):
     overall: RatingSummary | None = None
     per_source: tuple[SourceSummary, ...] = ()
     per_place: tuple[PlaceSummary, ...] = ()
+    rating_counts: tuple[StarCount, ...] = ()
+    """Reviews per star, 5 down to 1, Flagged Reviews excluded."""
 
 
 class InsightType(StrEnum):

@@ -267,6 +267,11 @@ export interface components {
              * @default []
              */
             per_place: components["schemas"]["PlaceSummary"][];
+            /**
+             * Rating Counts
+             * @default []
+             */
+            rating_counts: components["schemas"]["StarCount"][];
         };
         /**
          * Place
@@ -379,6 +384,16 @@ export interface components {
             by_run: {
                 [key: string]: string;
             };
+        };
+        /**
+         * StarCount
+         * @description How many Reviews gave one star rating, for the rating distribution.
+         */
+        StarCount: {
+            /** Stars */
+            stars: number;
+            /** Count */
+            count: number;
         };
         /**
          * StatusOut

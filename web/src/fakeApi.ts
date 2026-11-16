@@ -42,6 +42,13 @@ export function fakeResult(overrides: Partial<RunResult> = {}): RunResult {
       overall: { average_rating: 4.0, count: 18 },
       per_source: [{ source: "google_maps", summary: { average_rating: 4.0, count: 18 } }],
       per_place: [{ source: "google_maps", place_external_id: "g1", summary: { average_rating: 4.0, count: 18 } }],
+      rating_counts: [
+        { stars: 5, count: 8 },
+        { stars: 4, count: 6 },
+        { stars: 3, count: 2 },
+        { stars: 2, count: 1 },
+        { stars: 1, count: 1 },
+      ],
     },
     insights: [],
     topics: [],

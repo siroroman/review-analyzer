@@ -64,3 +64,24 @@ export function formatExcluded(count: number): string {
 }
 
 export const SERVICE_LABEL: Record<string, string> = { apify: "Apify", models: "Modely", google_places: "Google Places" };
+
+const MONTHS = ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
+
+/** The Czech name of the month of an ISO date, capitalised, e.g. `Březen`. */
+export function monthName(date: string): string {
+  return MONTHS[Number(date.slice(5, 7)) - 1] ?? date;
+}
+
+/** The y axis of the rating chart: the data padded by a quarter star, rounded out to half stars, within 1 to 5, at least a star tall. */
+export function ratingAxis(trend: Metrics["trend"]): {
+  domain: [number, number];
+  ticks: number[];
+} {
+  const ratings = trend.map((point) => point.average_rating);
+  let low = ratings.length ? Math.max(1, Math.floor((Math.min(...ratings) - 0.25) * 2) / 2) : 1;
+  let high = ratings.length ? Math.min(5, Math.ceil((Math.max(...ratings) + 0.25) * 2) / 2) : 5;
+  if (high - low < 1) [low, high] = high === 5 ? [4, 5] : [low, low + 1];
+  const ticks: number[] = [];
+  for (let value = low; value <= high; value += 0.5) ticks.push(value);
+  return { domain: [low, high], ticks };
+}

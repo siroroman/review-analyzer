@@ -14,6 +14,7 @@ from app.domain import (
     Sentiment,
     Source,
     SourceSummary,
+    StarCount,
     TopicShare,
     TrendPoint,
 )
@@ -57,6 +58,7 @@ def compute(reviews: Sequence[Review], topics: Sequence[ReviewTopic]) -> Metrics
         overall=_summary(kept) if kept else None,
         per_source=_per_source(kept),
         per_place=_per_place(kept),
+        rating_counts=_rating_counts(kept),
     )
 
 
@@ -75,6 +77,11 @@ def _previous_month(start: date) -> date:
 
 def _summary(reviews: Sequence[Review]) -> RatingSummary:
     return RatingSummary(average_rating=average_rating([r.rating for r in reviews]), count=len(reviews))
+
+
+def _rating_counts(reviews: Sequence[Review]) -> tuple[StarCount, ...]:
+    counts = Counter(r.rating for r in reviews)
+    return tuple(StarCount(stars=stars, count=counts[stars]) for stars in range(5, 0, -1))
 
 
 def _per_source(reviews: Sequence[Review]) -> tuple[SourceSummary, ...]:

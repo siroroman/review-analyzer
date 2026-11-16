@@ -2,18 +2,26 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, type RunResult } from "../api/client";
 import { useApi } from "../api/context";
+import { AppHeader } from "../components/AppHeader";
 import { rememberRun } from "../recentRuns";
 import { formatCost } from "../steps";
 import { describeError } from "./errors";
 import { BranchTable } from "./BranchTable";
 import { CostCard } from "./CostCard";
 import { Insights } from "./Insights";
+import { RatingDistribution } from "./RatingDistribution";
 import { ReviewsPanel, type PanelRequest } from "./ReviewsPanel";
 import { Timeline } from "./Timeline";
 import { TopicsCard } from "./TopicsCard";
 import { SOURCE_LABEL, topicName, changeAgainstPreviousYear, formatChange, formatCount, formatRating, type Source, type Summary } from "./result";
 
 const WHOLE_COMPANY = "all";
+
+/** The Sources of the Company's Places and the period the Reviews cover. */
+function sourceLine(places: { source: Source }[]): string {
+  const sources = [...new Set(places.map((place) => place.source))];
+  return `${sources.map((source) => SOURCE_LABEL[source]).join(", ")} · recenze za posledních 12 měsíců`;
+}
 
 function Card({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -24,12 +32,32 @@ function Card({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Rating({ summary }: { summary: Summary | null | undefined }) {
+function Rating({ summary, outOf }: { summary: Summary | null | undefined; outOf?: number }) {
+  const count = formatCount(summary?.count ?? 0);
   return (
     <>
       <p className="text-3xl font-semibold">{summary ? formatRating(summary.average_rating) : "–"}</p>
-      <p className="text-sm text-muted">{formatCount(summary?.count ?? 0)}</p>
+      {outOf === undefined ? (
+        <p className="text-sm text-muted">{count}</p>
+      ) : (
+        <p className="text-sm text-muted">
+          <span>/ {outOf} ·</span> <span>{count}</span>
+        </p>
+      )}
     </>
+  );
+}
+
+/** The change against the previous 12 months, marked by an arrow and the sign, never by colour alone. */
+function ChangeLine({ change }: { change: number }) {
+  const rounded = Math.round(change * 10) / 10;
+  const arrow = rounded > 0 ? "▲" : rounded < 0 ? "▼" : "";
+  const color = rounded > 0 ? "text-rise" : rounded < 0 ? "text-[#8a3f00]" : "text-muted";
+  return (
+    <p className={`mt-1 text-sm font-semibold ${color}`}>
+      {arrow && <span aria-hidden="true">{arrow} </span>}
+      {formatChange(change)}
+    </p>
   );
 }
 
@@ -62,12 +90,14 @@ export function ResultScreen() {
   const status = error instanceof ApiError ? error.status : 0;
 
   return (
-    <main className="mx-auto max-w-5xl p-4 sm:p-6">
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <Link to="/" className="inline-flex min-h-11 items-center text-blue-700 underline">
+    <>
+      <AppHeader>
+        {result && <span>Analýza dokončena · výsledek v cache 24 h</span>}
+        <Link to="/" className="inline-flex min-h-11 items-center rounded-lg border border-[#cfcdc4] bg-card px-4 font-semibold text-ink no-underline">
           Nové hledání
         </Link>
-      </header>
+      </AppHeader>
+      <main className="mx-auto max-w-7xl px-4 pb-12 pt-7 sm:px-6">
       {error !== null && (
         <div role="alert" className="mb-4 rounded bg-red-50 p-3 text-red-800">
           {status === 404
@@ -83,7 +113,8 @@ export function ResultScreen() {
         </div>
       )}
       {result && <Dashboard result={result} tab={tab} onTab={setTab} />}
-    </main>
+      </main>
+    </>
   );
 }
 
@@ -94,6 +125,7 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
   const openTopic = (key: string) =>
     setPanel({ topic: key, request: { title: `Recenze: ${topicName(result.topics, key)}`, load: () => api.reviews(result.run_id, { topic: key }) } });
   const openInsight = (title: string, ids: string[]) => setPanel({ topic: null, request: { title, load: () => api.reviews(result.run_id, { ids }) } });
+  const openRating = (stars: number) => setPanel({ topic: null, request: { title: `Recenze: ${stars} ★`, load: () => api.reviews(result.run_id, { rating: stars }) } });
   const closePanel = useMemo(() => () => setPanel(null), []);
   const places = company.places.map((place) => ({ ...place, key: `${place.source}:${place.external_id}` }));
   const place = places.find((candidate) => candidate.key === tab);
@@ -121,7 +153,8 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
           Obor firmy se nepodařilo určit, proto jsme použili obecná témata recenzí.
         </p>
       )}
-      <h1 className="mb-3 text-2xl font-semibold">{company.name}</h1>
+      <h1 className="text-2xl font-semibold">{company.name}</h1>
+      <p className="mb-3 mt-1 text-sm text-muted">{sourceLine(company.places)}</p>
       <div role="tablist" aria-label="Pobočky" className="mb-4 flex flex-wrap gap-2">
         {[{ key: WHOLE_COMPANY, label: "Celá firma" }, ...places.map((entry) => ({ key: entry.key, label: `${entry.name} · ${SOURCE_LABEL[entry.source]}` }))].map(
           (entry) => (
@@ -139,8 +172,12 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
       </div>
       <div className="mb-6 flex flex-wrap gap-3">
         <Card label="Celkové hodnocení">
-          <Rating summary={overall} />
-          {change !== null && <p className="text-sm">{formatChange(change)}</p>}
+          <Rating summary={overall} outOf={5} />
+          {change !== null && <ChangeLine change={change} />}
+        </Card>
+        <Card label="Podezřelé recenze">
+          <p className="text-3xl font-semibold">{result.flagged}</p>
+          <p className="text-sm text-muted">vyřazeno z analýzy</p>
         </Card>
         {sources.map(({ source, summary }) => (
           <Card key={source} label={SOURCE_LABEL[source]}>
@@ -155,18 +192,23 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
           <p className="text-3xl font-semibold">{formatCost(result.cost)}</p>
         </Card>
       </div>
-      <h2 className="mb-2 text-lg font-semibold">Vývoj hodnocení</h2>
-      {place && <p className="mb-2 text-sm text-muted">Časová osa ukazuje celou firmu.</p>}
-      {months === 0 ? (
-        <p className="rounded-card border border-line bg-card p-4">Nenašli jsme žádné recenze, není co zobrazit.</p>
-      ) : (
-        <>
-          {months === 1 && <p className="mb-2 text-sm text-muted">Zatím je k dispozici jen jeden měsíc, vývoj nejde ukázat.</p>}
-          <Timeline trend={metrics.trend} changes={metrics.changes} topics={result.topics} />
-        </>
-      )}
-      <div className="mt-6 flex flex-col gap-4">
+      <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="min-w-0 rounded-card border border-line bg-card p-5">
+          <h2 className="mb-2 text-base font-semibold">Vývoj hodnocení</h2>
+          {place && <p className="mb-2 text-sm text-muted">Časová osa ukazuje celou firmu.</p>}
+          {months === 0 ? (
+            <p>Nenašli jsme žádné recenze, není co zobrazit.</p>
+          ) : (
+            <>
+              {months === 1 && <p className="mb-2 text-sm text-muted">Zatím je k dispozici jen jeden měsíc, vývoj nejde ukázat.</p>}
+              <Timeline trend={metrics.trend} changes={metrics.changes} topics={result.topics} />
+            </>
+          )}
+        </section>
         {metrics.topic_shares.length > 0 && <TopicsCard shares={metrics.topic_shares} topics={result.topics} selected={panel?.topic ?? null} onSelect={openTopic} />}
+      </div>
+      <div className="mt-4 flex flex-col gap-4">
+        <RatingDistribution counts={metrics.rating_counts} wholeCompany={place !== undefined} onSelect={openRating} />
         <Insights insights={result.insights} onOpen={openInsight} />
         <BranchTable result={result} />
         <CostCard byService={result.cost_by_service} flagged={result.flagged} />
