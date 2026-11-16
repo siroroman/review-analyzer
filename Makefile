@@ -1,7 +1,7 @@
 # One command per check. `make lint` and `make test` need uv (brew install uv); `uv sync` runs on first use.
 SHELL := /bin/bash
 
-.PHONY: setup lint test coverage test-scripts evaluate
+.PHONY: setup lint test coverage test-scripts evaluate db migrate run-api
 
 setup: ## Once per clone: turn on the git hooks, check the tools
 	@scripts/setup.sh
@@ -44,3 +44,12 @@ test-scripts: ## Tests of the repo scripts and hooks
 	scripts/test-check-script-tests.sh
 	scripts/test-check-secrets.sh
 	scripts/check-script-tests.sh
+
+db: ## Local run: start PostgreSQL in Docker and wait until it is ready
+	docker compose up -d --wait postgres
+
+migrate: ## Local run: apply the migrations in app/storage/migrations to DATABASE_URL (from .env)
+	uv run --frozen --env-file .env python -m app.storage
+
+run-api: ## Local run: the backend on http://localhost:8000 with the in-process queue (keys from .env)
+	uv run --frozen --env-file .env uvicorn --factory app.main:api_app --port 8000
