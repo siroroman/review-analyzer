@@ -781,6 +781,14 @@
             "type": "array",
             "title": "Per Place",
             "default": []
+          },
+          "rating_counts": {
+            "items": {
+              "$ref": "#/components/schemas/StarCount"
+            },
+            "type": "array",
+            "title": "Rating Counts",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -1073,6 +1081,29 @@
           "by_run"
         ],
         "title": "SpendOut"
+      },
+      "StarCount": {
+        "properties": {
+          "stars": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Stars"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stars",
+          "count"
+        ],
+        "title": "StarCount",
+        "description": "How many Reviews gave one star rating, for the rating distribution."
       },
       "StatusOut": {
         "properties": {

@@ -355,3 +355,27 @@ def test_a_change_never_rests_on_a_thin_month(reviews: list[Review]) -> None:
     for change in metrics.changes:
         assert counts[(change.source, change.period_start)] >= MIN_REVIEWS_PER_PERIOD
         assert abs(change.delta) >= CHANGE_THRESHOLD - 1e-9
+
+
+def test_rating_counts_give_the_number_of_reviews_per_star() -> None:
+    reviews = [
+        _review("a", 5, date(2026, 3, 1)),
+        _review("b", 5, date(2026, 3, 2), source=FC, place="f1"),
+        _review("c", 4, date(2026, 3, 3)),
+        _review("d", 1, date(2026, 3, 4), precision=DatePrecision.YEAR),
+        _review("e", 1, date(2026, 3, 5), flagged=True),
+    ]
+
+    metrics = compute(reviews, [])
+
+    assert [(c.stars, c.count) for c in metrics.rating_counts] == [(5, 2), (4, 1), (3, 0), (2, 0), (1, 1)]
+
+
+def test_rating_counts_of_no_reviews_are_zeros() -> None:
+    assert [(c.stars, c.count) for c in compute([], []).rating_counts] == [
+        (5, 0),
+        (4, 0),
+        (3, 0),
+        (2, 0),
+        (1, 0),
+    ]
