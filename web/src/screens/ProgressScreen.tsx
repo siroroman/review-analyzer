@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, type RunProgress } from "../api/client";
 import { useApi } from "../api/context";
 import { AppHeader } from "../components/AppHeader";
@@ -22,12 +22,22 @@ function stepState(index: number, current: number, final: keyof typeof ENDINGS |
   return index < current ? "done" : index === current ? "active" : "todo";
 }
 
+/** What a failed poll means for the user; `gone` means the Run cannot be shown and a new search is the way on. */
+function describe(status: number): { message: string; gone: boolean } {
+  if (status === 404) return { message: "Tato analýza neexistuje.", gone: true };
+  if (status === 401) return { message: "Chybí platný odkaz s přístupem. Otevřete prosím odkaz, který jste dostali.", gone: false };
+  if (status === 429) return { message: "Příliš mnoho požadavků, chvíli počkáme a zkusíme to znovu.", gone: false };
+  if (status >= 500) return { message: "Chyba na straně serveru, zkoušíme to znovu.", gone: false };
+  return { message: "Spojení se serverem se přerušilo, zkoušíme to znovu.", gone: false };
+}
+
 /** Where a Run is. The state lives on the server, so opening the same link again resumes the view. */
 export function ProgressScreen() {
   const api = useApi();
   const { id = "" } = useParams();
   const [progress, setProgress] = useState<RunProgress | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<{ message: string; gone: boolean } | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -41,17 +51,14 @@ export function ProgressScreen() {
         setProgress(latest);
         setProblem(null);
         again = !FINAL.includes(latest.status);
+        if (latest.status === "done" || latest.status === "partial") {
+          navigate(`/runs/${id}/result`, { replace: true });
+        }
       } catch (error) {
         if (stopped) return;
         const status = error instanceof ApiError ? error.status : 0;
         again = status !== 401 && status !== 404;
-        setProblem(
-          status === 404
-            ? "Tato analýza neexistuje."
-            : status === 401
-              ? "Chybí platný odkaz s přístupem. Otevřete prosím odkaz, který jste dostali."
-              : "Spojení se serverem se přerušilo, zkoušíme to znovu.",
-        );
+        setProblem(describe(status));
       }
       if (again && !stopped) timer = setTimeout(poll, POLL_MS);
     }
@@ -61,7 +68,7 @@ export function ProgressScreen() {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [api, id]);
+  }, [api, id, navigate]);
 
   const final = progress && FINAL.includes(progress.status) ? (progress.status as keyof typeof ENDINGS) : null;
   const current = progress ? STEPS.findIndex((step) => step.status === progress.status) : -1;
@@ -78,7 +85,7 @@ export function ProgressScreen() {
         </div>
         {problem && (
           <p role="alert" className="rounded-lg bg-red-50 p-3 text-drop">
-            {problem}
+            {problem.message}
           </p>
         )}
         {progress && (
@@ -121,12 +128,7 @@ export function ProgressScreen() {
           </>
         )}
         <div className="flex flex-wrap gap-x-6">
-          {(final === "done" || final === "partial") && (
-            <Link to={`/runs/${id}/result`} className="inline-flex min-h-11 items-center font-semibold text-google-maps underline">
-              Zobrazit výsledek
-            </Link>
-          )}
-          {(final || problem === "Tato analýza neexistuje.") && (
+          {(final || problem?.gone) && (
             <Link to="/" className="inline-flex min-h-11 items-center text-google-maps underline">
               Nové hledání
             </Link>

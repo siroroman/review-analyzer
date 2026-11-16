@@ -1,5 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, RouterProvider, Routes, createMemoryRouter } from "react-router-dom";
 import { ApiError, type RunProgress } from "../api/client";
 import { ApiProvider } from "../api/context";
 import { fakeApi } from "../fakeApi";
@@ -26,6 +26,7 @@ function setup(api: ReturnType<typeof fakeApi>) {
       <MemoryRouter initialEntries={["/runs/run-1"]}>
         <Routes>
           <Route path="/runs/:id" element={<ProgressScreen />} />
+          <Route path="/runs/:id/result" element={<p>the result</p>} />
           <Route path="/" element={<p>search</p>} />
         </Routes>
       </MemoryRouter>
@@ -67,37 +68,82 @@ it("polls every 2 seconds and shows the cost growing", async () => {
   expect(screen.getByText(/0\.300 USD/)).toBeInTheDocument();
 });
 
-it("stops polling when the Run is done", async () => {
-  const runProgress = vi.fn(async () => at("done", "0.5", true));
+it.each(["done", "partial"] as const)("opens the result as soon as a Run turns %s, and stops polling", async (status) => {
+  const runProgress = vi
+    .fn()
+    .mockResolvedValueOnce(at("classifying", "0.1"))
+    .mockResolvedValue(at(status, "0.5", true));
   setup(fakeApi({ runProgress }));
   await tick(0);
+  expect(screen.queryByText("the result")).not.toBeInTheDocument();
+  await tick(2000);
+  expect(screen.getByText("the result")).toBeInTheDocument();
   await tick(10000);
-  expect(runProgress).toHaveBeenCalledTimes(1);
-  expect(screen.getByRole("status")).toHaveTextContent(/hotovo/i);
+  expect(runProgress).toHaveBeenCalledTimes(2);
 });
 
-it.each([
-  ["partial", /částečný/i],
-  ["failed", /selhala/i],
-] as const)("says how a %s Run ended and stops", async (status, text) => {
-  const runProgress = vi.fn(async () => at(status, "0.5", true));
+it("goes straight to the result when the link of a finished Run is opened", async () => {
+  setup(fakeApi({ runProgress: vi.fn(async () => at("done", "0.5", true)) }));
+  await tick(0);
+  expect(screen.getByText("the result")).toBeInTheDocument();
+});
+
+it("replaces the progress page, so Back does not return to a finished Run", async () => {
+  const router = createMemoryRouter(
+    [
+      { path: "/", element: <p>search</p> },
+      { path: "/runs/:id", element: <ProgressScreen /> },
+      { path: "/runs/:id/result", element: <p>the result</p> },
+    ],
+    { initialEntries: ["/", "/runs/run-1"], initialIndex: 1 },
+  );
+  vi.useFakeTimers();
+  render(
+    <ApiProvider api={fakeApi({ runProgress: vi.fn(async () => at("done", "0.5", true)) })}>
+      <RouterProvider router={router} />
+    </ApiProvider>,
+  );
+  await tick(0);
+  expect(screen.getByText("the result")).toBeInTheDocument();
+  await act(() => router.navigate(-1));
+  expect(screen.getByText("search")).toBeInTheDocument();
+});
+
+it("keeps a failed Run on the page with its message and a way to a new search", async () => {
+  const runProgress = vi.fn(async () => at("failed", "0.5", true));
   setup(fakeApi({ runProgress }));
   await tick(0);
   await tick(6000);
   expect(runProgress).toHaveBeenCalledTimes(1);
-  expect(screen.getByRole("status")).toHaveTextContent(text);
-});
-
-it.each(["done", "partial"] as const)("links a %s Run to its result", async (status) => {
-  setup(fakeApi({ runProgress: vi.fn(async () => at(status, "0.5", true)) }));
-  await tick(0);
-  expect(screen.getByRole("link", { name: "Zobrazit výsledek" })).toHaveAttribute("href", "/runs/run-1/result");
-});
-
-it("offers no result link for a failed Run", async () => {
-  setup(fakeApi({ runProgress: vi.fn(async () => at("failed", "0.5", true)) }));
-  await tick(0);
+  expect(screen.getByRole("status")).toHaveTextContent(/selhala/i);
   expect(screen.queryByRole("link", { name: "Zobrazit výsledek" })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Nové hledání" })).toHaveAttribute("href", "/");
+});
+
+it("says 429 means too many requests and keeps polling", async () => {
+  const runProgress = vi
+    .fn()
+    .mockRejectedValueOnce(new ApiError(429))
+    .mockResolvedValue(at("downloading", "0.1"));
+  setup(fakeApi({ runProgress }));
+  await tick(0);
+  expect(screen.getByRole("alert")).toHaveTextContent(/příliš mnoho požadavků/i);
+  expect(screen.queryByRole("link", { name: "Nové hledání" })).not.toBeInTheDocument();
+  await tick(2000);
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("says a server error is on our side and keeps polling", async () => {
+  const runProgress = vi
+    .fn()
+    .mockRejectedValueOnce(new ApiError(503))
+    .mockResolvedValue(at("downloading", "0.1"));
+  setup(fakeApi({ runProgress }));
+  await tick(0);
+  expect(screen.getByRole("alert")).toHaveTextContent(/chyba na straně serveru/i);
+  await tick(2000);
+  expect(runProgress).toHaveBeenCalledTimes(2);
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
 
 it("says a Run does not exist and stops", async () => {
