@@ -7,7 +7,18 @@ export function fakeApi(overrides: Partial<Api> = {}): { [K in keyof Api]: Retur
     suggest: vi.fn(async () => []),
     branches: vi.fn(async () => []),
     startRun: vi.fn(async () => ({ run_id: "run-1", status: "queued" as const, reused: false })),
-    runProgress: vi.fn(async () => ({ run_id: "run-1", status: "queued" as const, finished: false, cost: "0" })),
+    runProgress: vi.fn(async () => ({
+      run_id: "run-1",
+      status: "queued" as const,
+      finished: false,
+      cost: "0",
+      budget: "1",
+      downloaded: null,
+      flagged: null,
+      classified: null,
+      to_classify: null,
+      step_cost: { downloading: null, classifying: null, analysis: null },
+    })),
     runResult: vi.fn(async () => fakeResult()),
     reviews: vi.fn(async () => []),
     ...overrides,
@@ -37,6 +48,7 @@ export function fakeResult(overrides: Partial<RunResult> = {}): RunResult {
     flagged: 0,
     unclassified: 0,
     cost: "0.42",
+    notes: [],
     ...overrides,
   };
 }

@@ -203,12 +203,14 @@ export interface components {
         /**
          * Company
          * @description A set of Places the user confirmed as belonging together; the same set is the same Company.
+         *
+         *     The industry is unknown until the pipeline infers it from the downloaded Reviews.
          */
         Company: {
             /** Name */
             name: string;
             /** Industry */
-            industry: string;
+            industry?: string | null;
             /** Places */
             places: components["schemas"]["Place"][];
         };
@@ -318,15 +320,13 @@ export interface components {
             unclassified: number;
             /** Cost */
             cost: string;
+            /** Notes */
+            notes: string[];
         };
         /** RunIn */
         RunIn: {
             /** Place Ids */
             place_ids: string[];
-            /** Name */
-            name: string;
-            /** Industry */
-            industry: string;
         };
         /** RunOut */
         RunOut: {
@@ -380,7 +380,10 @@ export interface components {
                 [key: string]: string;
             };
         };
-        /** StatusOut */
+        /**
+         * StatusOut
+         * @description Progress of a Run: counts and costs only, never a Review or its text. `None` means not known yet.
+         */
         StatusOut: {
             /** Run Id */
             run_id: string;
@@ -389,6 +392,31 @@ export interface components {
             finished: boolean;
             /** Cost */
             cost: string;
+            /** Budget */
+            budget: string;
+            /** Downloaded */
+            downloaded: {
+                [key: string]: number;
+            } | null;
+            /** Flagged */
+            flagged: number | null;
+            /** Classified */
+            classified: number | null;
+            /** To Classify */
+            to_classify: number | null;
+            step_cost: components["schemas"]["StepCostOut"];
+        };
+        /**
+         * StepCostOut
+         * @description What the Run's Service calls cost in each step; `None` for a step that has not started.
+         */
+        StepCostOut: {
+            /** Downloading */
+            downloading: string | null;
+            /** Classifying */
+            classifying: string | null;
+            /** Analysis */
+            analysis: string | null;
         };
         /** SuggestionOut */
         SuggestionOut: {

@@ -20,10 +20,10 @@ from app.gateway import BudgetExceeded, ClientError, GatewayDenied
 from app.insights import Insights
 from app.llm import LlmError, Sleeper
 from app.metrics import compute
-from app.pipeline._types import PipelineConfig, RunReport, RunResult
+from app.pipeline._types import NOTE_INDUSTRY_FALLBACK, PipelineConfig, RunReport, RunResult
 from app.sanitize import InjectionDetector, prepare
 from app.storage import CallFilter, RunRecord, Storage, StoredTaxonomy, UnknownRun
-from app.taxonomy import UNCLASSIFIED_KEY, TaxonomyError
+from app.taxonomy import GENERIC_INDUSTRY, UNCLASSIFIED_KEY, TaxonomyError
 
 _RANK = {
     RunStatus.QUEUED: 0,
@@ -48,6 +48,8 @@ class SourceFetcher(Protocol):
 class TaxonomyProvider(Protocol):
     """The part of `taxonomy.Taxonomies` that `pipeline` uses."""
 
+    def infer_industry(self, *, sample: Callable[[], Sequence[Review]], run_id: str) -> str: ...
+
     def get_taxonomy(
         self, industry: str, *, sample: Callable[[], Sequence[Review]], run_id: str
     ) -> StoredTaxonomy: ...
@@ -68,7 +70,7 @@ class InsightMaker(Protocol):
 
 
 class Pipeline:
-    """Runs a Run: download, sanitize, Taxonomy, classify, Metrics, Insights.
+    """Runs a Run: download, sanitize, industry, Taxonomy, classify, Metrics, Insights.
 
     Every step is idempotent and the status only moves forward, so a redelivered or crashed Run resumes
     where it stopped and a finished one is left alone.
@@ -105,51 +107,63 @@ class Pipeline:
         record = self._storage.runs.get(run_id)
         if record is None:
             raise UnknownRun(run_id)
-        company = self._storage.companies.by_id(record.company_id)
-        if company is None:
-            raise RuntimeError(f"Run {run_id} has no stored Company")
+        company = self._company(record)
         if record.status in _FINAL:
-            return self._result(record, company.company)
+            return self._result(record, company)
         if record.status is RunStatus.QUEUED and self._reuse_fresh(record):
-            return self._result(self._advance(record.id, RunStatus.DONE), company.company)
-        failure = self._steps(record, company.company)
+            done = self._advance(record.id, RunStatus.DONE)
+            return self._result(done, self._company(done))
+        failure = self._steps(record, company)
+        known = self._company(record)  # the industry may have been inferred meanwhile
         if failure is None:
-            return self._result(self._advance(run_id, RunStatus.DONE), company.company)
-        self._save_trend(run_id, self._metrics(company.company))
-        empty = not self._reviews(company.company) and not isinstance(failure, BudgetExceeded)
+            return self._result(self._advance(run_id, RunStatus.DONE), known)
+        self._save_trend(run_id, self._metrics(known))
+        empty = not self._reviews(known) and not isinstance(failure, BudgetExceeded)
         end = RunStatus.FAILED if empty else RunStatus.PARTIAL
-        return self._result(self._advance(run_id, end), company.company)
+        return self._result(self._advance(run_id, end), known)
+
+    def _company(self, record: RunRecord) -> Company:
+        """The stored Company, with the industry this Run used; a Run before that was recorded has the
+        Company's own."""
+        stored = self._storage.companies.by_id(record.company_id)
+        fresh = self._storage.runs.get(record.id)
+        if stored is None or fresh is None:
+            raise RuntimeError(f"Run {record.id} has no stored Company")
+        if fresh.industry is None:
+            return stored.company
+        return stored.company.model_copy(update={"industry": fresh.industry})
 
     def report(self, run_id: str) -> RunReport:
         """What the dashboard shows of a Run, for any status. Raises `UnknownRun`."""
         record = self._storage.runs.get(run_id)
         if record is None:
             raise UnknownRun(run_id)
-        company = self._storage.companies.by_id(record.company_id)
-        if company is None:
-            raise RuntimeError(f"Run {run_id} has no stored Company")
+        company = self._company(record)
         # The trend and the changes of today's Reviews could contradict the Run's Insights, so a report
         # carries the ones the Run saved.
         saved = {
             "trend": tuple(self._storage.trends.for_run(run_id)),
             "changes": tuple(self._storage.changes.for_run(run_id)),
         }
-        metrics = self._metrics(company.company).model_copy(update=saved)
+        metrics = self._metrics(company).model_copy(update=saved)
         return RunReport(
-            result=self._result(record, company.company),
-            company=company.company,
+            result=self._result(record, company),
+            company=company,
             metrics=metrics,
             insights=tuple(self._storage.insights.for_run(run_id)),
-            topics=self._mentioned_topics(company.company, metrics),
+            topics=self._mentioned_topics(company, metrics),
         )
 
     def _mentioned_topics(self, company: Company, metrics: Metrics) -> tuple[Topic, ...]:
-        taxonomy = self._storage.taxonomies.latest(company.industry)
+        taxonomy = self._latest_taxonomy(company)
         if taxonomy is None:
             return ()
         mentioned = {share.topic_key for share in metrics.topic_shares}
         mentioned |= {c.main_topic_key for c in metrics.changes if c.main_topic_key}
         return tuple(topic for topic in taxonomy.taxonomy.topics if topic.key in mentioned)
+
+    def _latest_taxonomy(self, company: Company) -> StoredTaxonomy | None:
+        return None if company.industry is None else self._storage.taxonomies.latest(company.industry)
 
     def _steps(self, record: RunRecord, company: Company) -> Exception | None:
         run_id = record.id
@@ -160,9 +174,9 @@ class Pipeline:
                 self._download(run_id, company)
             if _RANK[status] <= _RANK[RunStatus.CLASSIFYING]:
                 status = self._enter(run_id, status, RunStatus.CLASSIFYING)
-                self._classify(run_id, company)
+                self._classify(record, company)
             status = self._enter(run_id, status, RunStatus.ANALYZING)
-            self._analyze(run_id, company)
+            self._analyze(run_id, self._company(record))
         except _STEP_FAILURES as failure:
             return failure
         return None
@@ -224,10 +238,33 @@ class Pipeline:
             prepared = prepare(raw, self._detector)
             self._storage.reviews.add([*prepared.clean, *prepared.flagged])
 
-    def _classify(self, run_id: str, company: Company) -> None:
+    def _industry(self, record: RunRecord, company: Company) -> str:
+        """The Company's industry; inferred from the downloaded Reviews while it is unknown or generic.
+
+        When the model fails, answers invalidly or too few Reviews exist, the Run goes on with the generic
+        industry and says so in its notes. An exceeded Budget or a denied call still ends the Run.
+        """
+        if company.industry not in (None, GENERIC_INDUSTRY):
+            return str(company.industry)
+        try:
+            industry = self._attempt(
+                lambda: self._taxonomies.infer_industry(
+                    sample=lambda: self._reviews(company), run_id=record.id
+                )
+            )
+        except (ClientError, LlmError, TaxonomyError):
+            industry = GENERIC_INDUSTRY
+        if industry != company.industry:
+            self._storage.companies.set_industry(record.company_id, industry)
+        return industry
+
+    def _classify(self, record: RunRecord, company: Company) -> None:
+        run_id = record.id
+        industry = self._industry(record, company)
+        self._storage.runs.set_industry(run_id, industry)
         taxonomy = self._attempt(
             lambda: self._taxonomies.get_taxonomy(
-                company.industry, sample=lambda: self._reviews(company), run_id=run_id
+                industry, sample=lambda: self._reviews(company), run_id=run_id
             )
         )
         for place in self._places(company):
@@ -236,7 +273,7 @@ class Pipeline:
             )
 
     def _topics(self, company: Company) -> list[ReviewTopic]:
-        taxonomy = self._storage.taxonomies.latest(company.industry)
+        taxonomy = self._latest_taxonomy(company)
         if taxonomy is None:
             return []
         found: list[ReviewTopic] = []
@@ -276,4 +313,5 @@ class Pipeline:
             insights=len(self._storage.insights.for_run(record.id)),
             trend_points=len(self._storage.trends.for_run(record.id)),
             cost=spent.get(record.id, Decimal(0)),
+            notes=(NOTE_INDUSTRY_FALLBACK,) if company.industry == GENERIC_INDUSTRY else (),
         )

@@ -4,7 +4,7 @@ from app.domain import RunStatus
 from app.gateway import ClientError, Suggestion
 from tests.api.helpers import HEADERS, Api, cafe
 
-RUN = {"place_ids": ["g1"], "name": "Kavárna", "industry": "cafe"}
+RUN = {"place_ids": ["g1"]}
 
 
 def test_a_new_run_is_queued_and_enqueued() -> None:
@@ -15,11 +15,21 @@ def test_a_new_run_is_queued_and_enqueued() -> None:
     assert api.queue.enqueued == [body["run_id"]]
 
 
+def test_a_run_needs_no_name_or_industry_and_the_company_has_none_yet() -> None:
+    api = Api(known=[cafe()])
+    body = api.client.post("/runs", json={"place_ids": ["g1"]}, headers=HEADERS).json()
+    record = api.storage.runs.get(body["run_id"])
+    assert record is not None
+    stored = api.storage.companies.by_id(record.company_id)
+    assert stored is not None
+    assert (stored.company.name, stored.company.industry) == ("Kavárna", None)
+
+
 def test_a_fresh_run_of_the_same_company_is_returned_instead_of_a_duplicate() -> None:
     api = Api(known=[cafe()])
     first = api.client.post("/runs", json=RUN, headers=HEADERS).json()
     _finish(api, first["run_id"])
-    again = api.client.post("/runs", json={**RUN, "name": "Other name"}, headers=HEADERS)
+    again = api.client.post("/runs", json={"place_ids": ["g1", "g1"]}, headers=HEADERS)
     assert (again.status_code, again.json()) == (
         200,
         {"run_id": first["run_id"], "status": "done", "reused": True},
@@ -53,7 +63,8 @@ def test_when_places_is_unavailable_the_answer_is_503() -> None:
 def test_the_status_of_a_run() -> None:
     api = Api(known=[cafe()])
     run_id = api.client.post("/runs", json=RUN, headers=HEADERS).json()["run_id"]
-    assert api.client.get(f"/runs/{run_id}", headers=HEADERS).json() == {
+    status = api.client.get(f"/runs/{run_id}", headers=HEADERS).json()
+    assert {k: status[k] for k in ("run_id", "status", "finished", "cost")} == {
         "run_id": run_id,
         "status": "queued",
         "finished": False,
@@ -79,9 +90,3 @@ def test_suggestions_come_from_places() -> None:
 def _finish(api: Api, run_id: str) -> None:
     for status in (RunStatus.DOWNLOADING, RunStatus.CLASSIFYING, RunStatus.ANALYZING, RunStatus.DONE):
         api.storage.runs.advance(run_id, status)
-
-
-def test_a_blank_name_is_422() -> None:
-    api = Api(known=[cafe()])
-    assert api.client.post("/runs", json={**RUN, "name": "   "}, headers=HEADERS).status_code == 422
-    assert api.queue.enqueued == []

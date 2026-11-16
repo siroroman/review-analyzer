@@ -48,6 +48,30 @@ def test_run_moves_forward_and_final_status_stamps_the_time(storage: Storage, cl
     assert storage.runs.get(run_id) == done
 
 
+def test_run_stamps_when_classifying_and_analyzing_started(storage: Storage, clock: FakeClock) -> None:
+    run_id = _new_run(storage)
+    queued = storage.runs.get(run_id)
+    assert queued is not None
+    assert (queued.classifying_at, queued.analyzing_at) == (None, None)
+    storage.runs.advance(run_id, RunStatus.DOWNLOADING)
+    clock.advance(timedelta(minutes=1))
+    classifying_at = clock.now()
+    storage.runs.advance(run_id, RunStatus.CLASSIFYING)
+    clock.advance(timedelta(minutes=2))
+    analyzing_at = clock.now()
+    storage.runs.advance(run_id, RunStatus.ANALYZING)
+    clock.advance(timedelta(minutes=1))
+    done = storage.runs.advance(run_id, RunStatus.DONE)
+    assert (done.classifying_at, done.analyzing_at) == (classifying_at, analyzing_at)
+    assert storage.runs.get(run_id) == done
+
+
+def test_a_skipped_step_has_no_start_time(storage: Storage) -> None:
+    run_id = _new_run(storage)
+    analyzing = storage.runs.advance(run_id, RunStatus.ANALYZING)
+    assert (analyzing.classifying_at, analyzing.analyzing_at is None) == (None, False)
+
+
 def test_run_cannot_go_back_or_leave_a_final_status(storage: Storage) -> None:
     run_id = _new_run(storage)
     storage.runs.advance(run_id, RunStatus.CLASSIFYING)
@@ -227,3 +251,24 @@ def test_copying_results_needs_two_known_runs(storage: Storage) -> None:
         storage.runs.copy_results("nope", run_id)
     with pytest.raises(UnknownRun):
         storage.runs.copy_results(run_id, "nope")
+
+
+def test_a_run_has_no_industry_until_one_is_set_and_keeps_it_while_advancing(storage: Storage) -> None:
+    run_id = _new_run(storage)
+    assert storage.runs.get(run_id).industry is None  # type: ignore[union-attr]
+    storage.runs.set_industry(run_id, "general")
+    moved = storage.runs.advance(run_id, RunStatus.DOWNLOADING)
+    assert moved.industry == "general"
+    assert storage.runs.get(run_id) == moved
+
+
+def test_setting_the_industry_of_an_unknown_run_is_refused(storage: Storage) -> None:
+    with pytest.raises(UnknownRun):
+        storage.runs.set_industry("nope", "cafe")
+
+
+def test_copied_results_bring_the_industry_of_their_run(storage: Storage) -> None:
+    source, target = _new_run(storage), _new_run(storage)
+    storage.runs.set_industry(source, "general")
+    storage.runs.copy_results(source, target)
+    assert storage.runs.get(target).industry == "general"  # type: ignore[union-attr]

@@ -7,7 +7,7 @@ def test_searching_and_confirming_never_use_up_one_shared_run_budget() -> None:
     codes = [
         api.client.post(
             "/runs",
-            json={"place_ids": [place.external_id], "name": "Kavárna", "industry": "cafe"},
+            json={"place_ids": [place.external_id]},
             headers=HEADERS,
         ).status_code
         for place in places

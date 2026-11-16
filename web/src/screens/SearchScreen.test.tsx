@@ -112,22 +112,18 @@ describe("choosing exactly one Place", () => {
     const { user } = setup(api);
     await search(user);
     await user.click(await screen.findByRole("button", { name: /jen tato pobočka/i }));
-    expect(screen.getByLabelText(/název/i)).toHaveValue("Kavárna Slavia");
-    await user.type(screen.getByLabelText(/obor/i), "kavárna");
     await user.click(screen.getByRole("button", { name: /spustit analýzu/i }));
-    expect(api.startRun).toHaveBeenCalledWith({ place_ids: ["g1"], name: "Kavárna Slavia", industry: "kavárna" });
+    expect(api.startRun).toHaveBeenCalledWith({ place_ids: ["g1"] });
     expect(await screen.findByText("progress of the Run")).toBeInTheDocument();
     expect(api.branches).not.toHaveBeenCalled();
   });
 
-  it("needs an industry", async () => {
-    const api = fakeApi({ suggest: vi.fn(async () => [CAFE]) });
-    const { user } = setup(api);
+  it("asks for no name or industry", async () => {
+    const { user } = setup(fakeApi({ suggest: vi.fn(async () => [CAFE]) }));
     await search(user);
     await user.click(await screen.findByRole("button", { name: /jen tato pobočka/i }));
-    await user.click(screen.getByRole("button", { name: /spustit analýzu/i }));
-    expect(api.startRun).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert")).toHaveTextContent(/obor/i);
+    expect(screen.queryByLabelText(/název/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/obor/i)).not.toBeInTheDocument();
   });
 
   it("goes back to the search", async () => {
@@ -146,7 +142,6 @@ describe("choosing exactly one Place", () => {
     const { user } = setup(api);
     await search(user);
     await user.click(await screen.findByRole("button", { name: /jen tato pobočka/i }));
-    await user.type(screen.getByLabelText(/obor/i), "kavárna");
     await user.click(screen.getByRole("button", { name: /spustit analýzu/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/limit/i);
   });
@@ -165,14 +160,9 @@ describe("choosing one Company", () => {
     await user.click(await screen.findByRole("button", { name: /celá firma/i }));
     expect(api.branches).toHaveBeenCalledWith("g1");
     await user.click(await screen.findByRole("checkbox", { name: /hypermarket kavárna/i }));
-    await user.type(screen.getByLabelText(/obor/i), "kavárna");
     await user.click(screen.getByRole("button", { name: /spustit analýzu/i }));
     await waitFor(() => expect(api.startRun).toHaveBeenCalled());
-    expect(api.startRun).toHaveBeenCalledWith({
-      place_ids: ["g1", "g2"],
-      name: "Kavárna Slavia",
-      industry: "kavárna",
-    });
+    expect(api.startRun).toHaveBeenCalledWith({ place_ids: ["g1", "g2"] });
   });
 
   it("does not start a Run with more than 20 Places until enough branches are removed", async () => {
@@ -181,7 +171,6 @@ describe("choosing one Company", () => {
     const { user } = setup(api);
     await search(user);
     await user.click(await screen.findByRole("button", { name: /celá firma/i }));
-    await user.type(await screen.findByLabelText(/obor/i), "kavárna");
     expect(screen.getByRole("button", { name: /spustit analýzu/i })).toBeDisabled();
     expect(screen.getByText(/nejvýše 20 míst.*vybráno 26/i)).toBeInTheDocument();
     for (let i = 0; i < 6; i++) await user.click(screen.getByRole("checkbox", { name: new RegExp(`pobočka ${i},`, "i") }));

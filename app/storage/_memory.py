@@ -1,5 +1,6 @@
 from collections import defaultdict
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -31,7 +32,7 @@ _FINAL = (RunStatus.DONE, RunStatus.PARTIAL, RunStatus.FAILED)
 class MemoryCompanies:
     def __init__(self) -> None:
         # key -> (id, name, industry, Place keys in the order first given)
-        self._companies: dict[str, tuple[int, str, str, tuple[tuple[Source, str], ...]]] = {}
+        self._companies: dict[str, tuple[int, str, str | None, tuple[tuple[Source, str], ...]]] = {}
         self.places: dict[tuple[Source, str], Place] = {}
 
     def get_or_create(self, company: Company) -> StoredCompany:
@@ -62,6 +63,13 @@ class MemoryCompanies:
             for key, (_, _, _, places) in self._companies.items()
             if (source, place_external_id) in places
         ]
+
+    def set_industry(self, company_id: int, industry: str) -> None:
+        for key, (stored_id, name, _, places) in self._companies.items():
+            if stored_id == company_id:
+                self._companies[key] = (stored_id, name, industry, places)
+                return
+        raise LookupError(f"no Company {company_id}")
 
     def ids(self) -> set[int]:
         return {entry[0] for entry in self._companies.values()}
@@ -166,6 +174,9 @@ class MemoryRuns:
                 raise UnknownRun(known)
         if any(results.for_run(run_id) for results in self.results):
             return
+        source = self._runs[source_run_id]
+        if source.industry is not None:
+            self._runs[run_id] = replace(self._runs[run_id], industry=source.industry)
         for results in self.results:
             results.save(run_id, results.for_run(source_run_id))
 
@@ -190,9 +201,27 @@ class MemoryRuns:
             raise UnknownRun(run_id)
         target = advance(run.status, status)
         finished_at = self._clock.now() if target in _FINAL else None
-        moved = RunRecord(run.id, run.company_id, target, run.budget_cap, run.created_at, finished_at)
+        now = self._clock.now()
+        moved = RunRecord(
+            run.id,
+            run.company_id,
+            target,
+            run.budget_cap,
+            run.created_at,
+            finished_at,
+            now if target is RunStatus.CLASSIFYING else run.classifying_at,
+            now if target is RunStatus.ANALYZING else run.analyzing_at,
+            run.industry,
+        )
         self._runs[run_id] = moved
         return moved
+
+    def set_industry(self, run_id: str, industry: str) -> RunRecord:
+        run = self._runs.get(run_id)
+        if run is None:
+            raise UnknownRun(run_id)
+        self._runs[run_id] = replace(run, industry=industry)
+        return self._runs[run_id]
 
     def fresh_for(self, company_id: int, ttl: timedelta) -> RunRecord | None:
         now = self._clock.now()

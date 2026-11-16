@@ -187,6 +187,11 @@ it("warns that a partial result shows only what was finished", async () => {
   expect(await screen.findByRole("status")).toHaveTextContent("Částečný výsledek");
 });
 
+it("says when the industry could not be inferred and generic topics were used", async () => {
+  setup(fakeApi({ runResult: vi.fn(async () => fakeResult({ notes: ["industry_fallback"] })) }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Obor firmy se nepodařilo určit");
+});
+
 it("shows no banner for a complete result", async () => {
   setup(fakeApi());
   await screen.findByRole("heading", { level: 1 });

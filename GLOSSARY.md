@@ -7,7 +7,7 @@ Turns the public reviews of a company and its branches into a dashboard: rating,
 ### What is analyzed
 
 **Company**:
-A set of one or more Places that the user confirmed as belonging together. It has no external key: the same set of Places is the same Company.
+A set of one or more Places that the user confirmed as belonging together. It has no external key: the same set of Places is the same Company. Its industry is empty until inferred.
 _Avoid_: Business, client, organization
 
 **Place**:
@@ -31,6 +31,10 @@ _Avoid_: Spam, malicious review
 **Topic**:
 A subject reviews talk about (e.g. staff, waiting, prices), part of a Taxonomy.
 _Avoid_: Category, tag, theme
+
+**Industry**:
+A short lowercase label of the kind of business a Company is (e.g. `cafe`), inferred by the strong model from a sample of its Reviews. It only selects a Taxonomy; two Companies need not get the same label. When it cannot be inferred the Run uses the generic industry `general`.
+_Avoid_: Sector, category, Obor
 
 **Taxonomy**:
 The frozen list of Topics for one industry, generated once from a sample of Reviews.

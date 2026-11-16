@@ -111,6 +111,11 @@ function Dashboard({ result, tab, onTab }: { result: RunResult; tab: string; onT
           Částečný výsledek: analýza skončila dřív (limit nákladů nebo chyba kroku), ukazujeme jen to, co se stihlo.
         </p>
       )}
+      {result.notes.includes("industry_fallback") && (
+        <p role="status" className="mb-4 rounded-card border border-line bg-card p-3">
+          Obor firmy se nepodařilo určit, proto jsme použili obecná témata recenzí.
+        </p>
+      )}
       <h1 className="mb-3 text-2xl font-semibold">{company.name}</h1>
       <div role="tablist" aria-label="Pobočky" className="mb-4 flex flex-wrap gap-2">
         {[{ key: WHOLE_COMPANY, label: "Celá firma" }, ...places.map((entry) => ({ key: entry.key, label: `${entry.name} · ${SOURCE_LABEL[entry.source]}` }))].map(

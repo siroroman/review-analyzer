@@ -72,7 +72,7 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 | `places` | `suggest(query)`, `resolve(place_id) -> Place`, `branches(place) -> list[Place]`, `confirm(place_ids) -> Company`, `match_other_sources(place)` | finding candidate branches of a chain, matching a branch on Firmy.cz by name and address, a Company as the user-confirmed set of Places (the same set is the same Company); Google Places calls go through `gateway` | fake gateway and HTTP clients, contract tests on recorded responses |
 | `sources` | `fetch_reviews(place, since, limit) -> list[RawReview]` | Apify actors (called through `gateway`), polling, pagination, field mapping, dates | fake gateway, fake Apify client, fixtures from real outputs |
 | `sanitize` | `prepare(raw) -> PreparedReviews(clean, flagged)` | removal of HTML and hidden characters, PII, deduplication (hash), prompt injection detector | pure functions, fake detector, property-based tests |
-| `taxonomy` | `get_taxonomy(industry) -> Taxonomy` | generating topics from a sample, freezing them | fake LLM port |
+| `taxonomy` | `infer_industry(sample) -> str`, `get_taxonomy(industry) -> Taxonomy` | naming the industry of a Company with the strong model from a bounded sample (data delimiters, validated key), generating topics from a sample, freezing them; the pipeline falls back to the generic industry `general` when the industry cannot be inferred | fake `llm` over fake gateway |
 | `classification` | `classify(source, place_id, taxonomy, run_id) -> ClassificationResult(classified, unclassified)` | only Reviews without a ReviewTopic for the Taxonomy version, batching, delimited prompt, validation of the answer, `unclassified` when both models fail; Jev with fallback to Haiku is `llm`'s routing | fake `llm` over fake gateway, in-memory storage |
 | `metrics` | `compute(reviews, topics) -> Metrics` (averages, `TrendPoint`, topic shares, drops and rises) | all computations and anomaly detection | pure functions, no mocks |
 | `insights` | `generate(metrics, samples) -> Insights` | prompts, Sonnet, schema validation, grounding check (the review IDs exist), content check | fake LLM port |
@@ -173,7 +173,7 @@ A database is needed: the worker runs asynchronously, so run state, cache and al
 
 | Entity | Main fields | Purpose |
 | --- | --- | --- |
-| Company | id, places_key (hash of the sorted place_ids), name, industry | a set of branches confirmed by the user; the same set is the same Company |
+| Company | id, places_key (hash of the sorted place_ids), name (of the first Place), industry (empty until inferred) | a set of branches confirmed by the user; the same set is the same Company |
 | Place | source, external_id, branch name, address | a branch on a specific source (Google Maps, Firmy.cz) |
 | CompanyPlace | company_id, place_id | membership of a Place in a Company; one Place can be in several Companies |
 | Review | place_id, source, rating, text, date, date precision, language, hash, flagged | a review without personal data |
@@ -188,8 +188,8 @@ A database is needed: the worker runs asynchronously, so run state, cache and al
 
 Three screens for users (search, run progress and result) and one admin screen for the owner.
 
-1. **Search:** a field with an autocomplete that offers companies and specific branches (name, address). The choice decides whether the whole chain or a single branch is analyzed.
-2. **Progress:** steps of the run (downloading, classification, analysis) with a running cost.
+1. **Search:** a field with an autocomplete that offers companies and specific branches (name, address). The choice decides whether the whole chain or a single branch is analyzed. The user enters no name or industry; the industry is inferred during the Run.
+2. **Progress:** steps of the run (downloading, classification, analysis) with a running cost. `GET /runs/{id}` also returns the Budget, the downloaded Reviews per Source, the classified and to-classify counts, the Flagged count and the cost per step (`null` until known, never a Review or its text). The cost per step is priced from the times the Run entered classifying and analyzing.
 3. **Result:**
     - overall rating and rating by source (Google Maps vs. Firmy.cz) with the number of reviews
     - timeline of the average rating and sentiment, with markers on drops and rises and the main topic ("March: waiting at the checkout")
@@ -197,6 +197,7 @@ Three screens for users (search, run progress and result) and one admin screen f
     - comparison of branches by rating and main problems
     - verbal and numerical assessment of the development and suggestions for improvement with links to reviews
     - cost of the run (Apify, models, Google Places) and the number of excluded suspicious reviews
+    - a note when the industry could not be inferred and the generic topics were used
 4. **Admin** (owner only, at `/admin`, protected by a secret admin token; login stays out of the MVP):
     - current spend against the monthly cap and per-run caps
     - spend per service (OpenRouter, Anthropic, Apify, Google Places), per day and per run
@@ -211,7 +212,7 @@ All open questions are decided, except how the branches of a chain are found and
 | --- | --- | --- |
 | Fast model | [Jev 1.14 by TypeSafe AI](https://typesafe.ai/blog/introducing-system-one-models-and-jev) via the [OpenRouter](https://openrouter.ai/typesafe/jev-1.14) Decisions API, fallback Claude Haiku | classification of topics and sentiment and prompt injection detection; typed output, $0.042 per 1M input tokens, output free, latency about 0.12 s; we do not use Jev Router (automatic LLM choice), routing is in code |
 | Backend | Python + FastAPI | API and worker in one image |
-| Topic taxonomy | generated per industry | an LLM proposes topics from a sample of reviews once per industry, then they are frozen and JEV classifies every review into them |
+| Topic taxonomy | generated per industry, the industry is inferred ([ADR 0007](adr/0007-infer-industry-with-strong-model.md)) | the strong model names the industry from a sample of the downloaded reviews, an LLM proposes topics once per industry, then they are frozen and JEV classifies every review into them; when the industry cannot be inferred the Run uses a generic Taxonomy and the result says so |
 | Autocomplete | Google Places Autocomplete (New) | place_id goes straight to the Google Maps scraper; a branch on Firmy.cz is matched by name and address; Mapy.com dropped out as an autocomplete source |
 | Firmy.cz | **Candidate, not decided** (go/no-go after the terms of use are read). Technically feasible with [oodoow/mapy-com-ppe](https://apify.com/oodoow/mapy-com-ppe) (Mapy.com serves the Firmy.cz profiles: the Place id equals the Firmy.cz detail id); jupri/firmy is not used (it needs full access to the Apify account) | tested 2026-11-13 on 3 Places: all Reviews are returned (165 to 329), each with an ISO date and rating, but **no review ID** (the adapter derives one by hashing date, reviewer and text), the rating is on a 0-100 scale (convert to 1-5) and the same Place can come back several times in one run (deduplicate by Place id). The terms of use were not read, so the owner decides go/no-go; see `docs/research/firmy-cz-branch-discovery-and-fixtures.md` |
 | Review dates | a scraper with an exact date | Google Maps: [compass/google-maps-reviews-scraper](https://apify.com/compass/google-maps-reviews-scraper) (field publishedAtDate in ISO, filter reviewsStartDate), deduplication by reviewId; Firmy.cz via mapy-com-ppe gives an ISO `date` (day precision, fixed +01:00 offset). Tested 2026-11-13: compass `publishedAtDate` has milliseconds and is probably computed from the relative text, so the exactness of old dates is not proven |
