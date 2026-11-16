@@ -7,7 +7,7 @@ from app.domain import RunStatus, Source
 from app.pipeline import RunResult
 from app.queue import FakeQueue
 from app.storage import UnknownRun
-from app.worker import Outcome, Worker, create_worker_app
+from app.worker import NoAuthCheck, Outcome, Worker, create_worker_app
 from tests.pipeline.helpers import World
 
 
@@ -83,7 +83,9 @@ def test_the_worker_only_calls_run() -> None:
 
 def test_the_endpoint_answers_200_for_done_and_unknown_and_500_for_a_bug() -> None:
     world = World(failures={"classification": [RuntimeError("bug")]})
-    client = TestClient(create_worker_app(Worker(world.pipeline)), raise_server_exceptions=False)
+    client = TestClient(
+        create_worker_app(Worker(world.pipeline), auth=NoAuthCheck()), raise_server_exceptions=False
+    )
     run_id = world.new_run()
 
     assert client.post("/tasks/run", json={"run_id": "999"}).status_code == 200

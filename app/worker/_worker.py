@@ -2,11 +2,12 @@ import logging
 from enum import StrEnum
 from typing import Protocol
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from app.pipeline import RunResult
 from app.storage import UnknownRun
+from app.worker._auth import NoAuthCheck, OidcCheck
 
 _log = logging.getLogger(__name__)
 
@@ -48,15 +49,18 @@ class _Message(BaseModel):
     run_id: str
 
 
-def create_worker_app(worker: Worker) -> FastAPI:
+def create_worker_app(worker: Worker, *, auth: OidcCheck | NoAuthCheck) -> FastAPI:
     """The push target of the queue: `POST /tasks/run` with `{"run_id": ...}`.
 
+    A call without a valid token of the queue's service account is a 401 and the handler does not run.
     2xx tells the queue the message is done (also for an unknown Run); an error is a 500, the queue retries.
     """
     app = FastAPI(title="Review Analyzer worker")
 
     @app.post("/tasks/run")
-    def run(message: _Message) -> dict[str, str]:
+    def run(message: _Message, authorization: str | None = Header(default=None)) -> dict[str, str]:
+        if not auth.allows(authorization):
+            raise HTTPException(status_code=401, detail="unauthorized")
         return {"outcome": worker.handle(message.run_id).value}
 
     return app
