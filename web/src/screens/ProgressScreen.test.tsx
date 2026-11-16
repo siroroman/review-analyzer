@@ -318,4 +318,5 @@ it.each(["done", "partial"] as const)("never says the Run failed while a %s Run 
   await tick(0);
   expect(screen.queryByText(/selhala/i)).not.toBeInTheDocument();
   expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Nové hledání" })).not.toBeInTheDocument();
 });

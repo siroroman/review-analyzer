@@ -196,7 +196,7 @@ export function ProgressScreen() {
           </>
         )}
         <div className="flex flex-wrap gap-x-6">
-          {(final || problem?.gone) && (
+          {(final === "failed" || problem?.gone) && (
             <Link to="/" className="inline-flex min-h-11 items-center text-google-maps underline">
               Nové hledání
             </Link>
