@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ApiError } from "../api/client";
@@ -31,12 +31,36 @@ async function search(user: ReturnType<typeof userEvent.setup>, text = "kav") {
   vi.advanceTimersByTime(400);
 }
 
+describe("layout from the design", () => {
+  it("shows the app header and the headline with a labelled input", () => {
+    setup();
+    expect(screen.getByRole("banner")).toHaveTextContent("Review Analyzer");
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+    expect(screen.getByLabelText("Firma nebo pobočka")).toBe(screen.getByRole("searchbox"));
+  });
+
+  it("states the sources and promises no cost the API did not send", () => {
+    setup();
+    expect(screen.getByText(/Google Maps, Firmy\.cz/)).not.toHaveTextContent(/USD/);
+  });
+
+  it("groups the found Places as Whole company and Single branch", async () => {
+    const { user } = setup(fakeApi({ suggest: vi.fn(async () => [CAFE]) }));
+    await search(user);
+    const company = await screen.findByRole("group", { name: "Celá firma" });
+    const branch = screen.getByRole("group", { name: "Jedna pobočka" });
+    expect(within(company).getByRole("button", { name: /celá firma/i })).toBeInTheDocument();
+    expect(within(branch).getByRole("button", { name: /jen tato pobočka/i })).toBeInTheDocument();
+    expect(within(branch).getByText(CAFE.text)).toBeInTheDocument();
+  });
+});
+
 describe("autocomplete", () => {
   it("asks once, after the typing stops", async () => {
     const api = fakeApi({ suggest: vi.fn(async () => [CAFE]) });
     const { user } = setup(api);
     await search(user);
-    expect(await screen.findByText(CAFE.text)).toBeInTheDocument();
+    expect((await screen.findAllByText(CAFE.text)).length).toBeGreaterThan(0);
     expect(api.suggest).toHaveBeenCalledTimes(1);
     expect(api.suggest.mock.calls[0]?.[0]).toBe("kav");
   });
@@ -75,7 +99,7 @@ describe("autocomplete", () => {
     await search(user, "kav");
     await user.type(screen.getByRole("searchbox"), "a");
     vi.advanceTimersByTime(400);
-    expect(await screen.findByText("Nová")).toBeInTheDocument();
+    expect((await screen.findAllByText("Nová")).length).toBeGreaterThan(0);
     first([CAFE]);
     await Promise.resolve();
     expect(screen.queryByText(CAFE.text)).not.toBeInTheDocument();

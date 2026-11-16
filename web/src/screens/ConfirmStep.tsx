@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Branch, Suggestion } from "../api/client";
 import { useApi } from "../api/context";
+import { AppHeader } from "../components/AppHeader";
 import { describeError } from "./errors";
 
 /** The most Places one Run takes (`RunIn.place_ids` in the API). */
@@ -74,56 +75,57 @@ export function ConfirmStep({ suggestion, company, onBack }: Props) {
     }
   }
 
+  const field = "mt-1 min-h-11 w-full rounded-[10px] border border-line bg-card px-3 text-base";
+  const row = "flex min-h-11 items-center gap-3";
   return (
-    <main className="mx-auto max-w-xl p-6">
-      <button type="button" onClick={onBack} className="mb-4 text-blue-700 underline">
-        ← Zpět na hledání
-      </button>
-      <form onSubmit={start} className="space-y-4">
-        <h1 className="text-2xl font-semibold">{company ? "Pobočky firmy" : "Jedna pobočka"}</h1>
-        {company && (
-          <fieldset>
-            <legend className="mb-2 text-gray-600">Odškrtněte pobočky, které k firmě nepatří.</legend>
-            {branches === null && <p>Hledáme pobočky…</p>}
-            <label className="block">
-              <input type="checkbox" checked disabled /> {suggestion.text}
-            </label>
-            {branches?.length === 0 && <p className="text-gray-600">Žádné další pobočky jsme nenašli.</p>}
-            {branches?.map((branch) => (
-              <label key={branch.place_id} className="block">
-                <input
-                  type="checkbox"
-                  checked={!removed.has(branch.place_id)}
-                  onChange={() => toggle(branch.place_id)}
-                />{" "}
-                {branch.name}, {branch.address}
-              </label>
-            ))}
-          </fieldset>
-        )}
-        {tooMany && (
-          <p className="text-red-800">
-            Analyzovat lze nejvýše {MAX_PLACES} míst, vybráno {selected}. Odškrtněte ty, které k firmě nepatří.
-          </p>
-        )}
-        {!company && <p>{suggestion.text}</p>}
-        <label className="block">
-          Název firmy
-          <input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} className="mt-1 w-full rounded border p-2" />
-        </label>
-        <label className="block">
-          Obor
-          <input value={industry} onChange={(event) => setIndustry(event.target.value)} maxLength={60} className="mt-1 w-full rounded border p-2" />
-        </label>
-        {problem && (
-          <p role="alert" className="rounded bg-red-50 p-3 text-red-800">
-            {problem}
-          </p>
-        )}
-        <button type="submit" disabled={busy || tooMany} className="rounded bg-blue-700 px-4 py-2 text-white disabled:opacity-50">
-          Spustit analýzu
+    <>
+      <AppHeader />
+      <main className="mx-auto max-w-180 px-6 pt-10 pb-12">
+        <button type="button" onClick={onBack} className="mb-4 inline-flex min-h-11 items-center text-google-maps underline">
+          ← Zpět na hledání
         </button>
-      </form>
-    </main>
+        <form onSubmit={start} className="space-y-4 rounded-card border border-line bg-card p-6">
+          <h1 className="text-3xl font-bold">{company ? "Pobočky firmy" : "Jedna pobočka"}</h1>
+          {company && (
+            <fieldset>
+              <legend className="mb-2 text-muted">Odškrtněte pobočky, které k firmě nepatří.</legend>
+              {branches === null && <p>Hledáme pobočky…</p>}
+              <label className={row}>
+                <input type="checkbox" checked disabled className="size-5" /> {suggestion.text}
+              </label>
+              {branches?.length === 0 && <p className="text-muted">Žádné další pobočky jsme nenašli.</p>}
+              {branches?.map((branch) => (
+                <label key={branch.place_id} className={row}>
+                  <input type="checkbox" className="size-5" checked={!removed.has(branch.place_id)} onChange={() => toggle(branch.place_id)} />{" "}
+                  {branch.name}, {branch.address}
+                </label>
+              ))}
+            </fieldset>
+          )}
+          {tooMany && (
+            <p className="text-drop">
+              Analyzovat lze nejvýše {MAX_PLACES} míst, vybráno {selected}. Odškrtněte ty, které k firmě nepatří.
+            </p>
+          )}
+          {!company && <p>{suggestion.text}</p>}
+          <label className="block font-semibold">
+            Název firmy
+            <input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} className={field + " font-normal"} />
+          </label>
+          <label className="block font-semibold">
+            Obor
+            <input value={industry} onChange={(event) => setIndustry(event.target.value)} maxLength={60} className={field + " font-normal"} />
+          </label>
+          {problem && (
+            <p role="alert" className="rounded-lg bg-red-50 p-3 text-drop">
+              {problem}
+            </p>
+          )}
+          <button type="submit" disabled={busy || tooMany} className="min-h-13 rounded-[10px] bg-ink px-7 text-base font-semibold text-white disabled:opacity-50">
+            Spustit analýzu
+          </button>
+        </form>
+      </main>
+    </>
   );
 }
