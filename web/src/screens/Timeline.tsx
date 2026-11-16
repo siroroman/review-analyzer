@@ -35,12 +35,13 @@ function Marker({ cx, cy, color, lines, drop }: { cx?: number; cy?: number; colo
   const height = lines.length === 1 ? 28 : 46;
   const left = area?.x ?? 0;
   const right = left + (area?.width ?? width);
-  const wanted = cx + 16 + width <= right ? cx + 16 : cx - 16 - width;
+  const wanted = drop ? (cx + 16 + width <= right ? cx + 16 : cx - 16 - width) : cx - width / 2;
   const x = Math.max(left, Math.min(wanted, right - width));
-  const y = drop ? (area?.y ?? 0) + 6 : Math.max((area?.y ?? 0) + 2, cy - height - 14);
+  const bottom = (area?.y ?? 0) + (area?.height ?? cy + height + 14);
+  const y = drop ? (area?.y ?? 0) + 6 : Math.max(cy + 12, bottom - height - 4);
   return (
     <g>
-      <line x1={cx} y1={y + height} x2={cx} y2={cy - 6} stroke={drop ? DROP : RISE} strokeWidth={1} strokeDasharray="3 3" />
+      <line x1={cx} y1={drop ? y + height : cy + 6} x2={cx} y2={drop ? cy - 6 : y} stroke={drop ? DROP : RISE} strokeWidth={1} strokeDasharray="3 3" />
       <circle cx={cx} cy={cy} r={5} fill="#fff" stroke={color} strokeWidth={2.5} />
       <rect x={x} y={y} width={width} height={height} rx={8} fill={drop ? "#1B1F23" : "#DCE6FA"} />
       {lines.map((line, index) => (
