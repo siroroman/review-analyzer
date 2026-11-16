@@ -4,7 +4,7 @@ import pytest
 
 from app.domain import Company
 from app.gateway import ClientError, ClientTimeout, Suggestion, TextSearchRequest
-from app.places import EmptyCompany, InvalidCompany, PlaceNotFound, PlacesUnavailable
+from app.places import EmptyCompany, InvalidCompany, NoOtherSource, PlaceNotFound, PlacesUnavailable
 from tests.places.helpers import RUN, Setup, firmy, google, pages
 
 
@@ -220,3 +220,17 @@ def test_a_company_of_only_other_source_places_needs_no_google_call() -> None:
     )
     assert [place.external_id for place in company.places] == ["f1"]
     assert setup.google.client.calls == []
+
+
+def test_without_a_second_source_the_company_step_still_works_on_google_alone() -> None:
+    setup = Setup(other=NoOtherSource())
+    setup.google.known["g1"] = google("g1", "Camp Velo", "Vratěnín 92")
+    company = setup.places.confirm(["g1"], name="Camp Velo", industry="cafe", run_id=RUN)
+    assert [place.external_id for place in company.places] == ["g1"]
+
+
+def test_without_a_second_source_matching_reports_it_unavailable() -> None:
+    setup = Setup(other=NoOtherSource())
+    with pytest.raises(PlacesUnavailable) as raised:
+        setup.places.match_other_sources(google("g1", "Camp Velo", "Vratěnín 92"))
+    assert raised.value.reason == "other_source_unavailable"

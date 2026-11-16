@@ -20,7 +20,7 @@ from app.gateway import (
     Suggestion,
     TextSearchRequest,
 )
-from app.places import FakeOtherSource, Places
+from app.places import FakeOtherSource, OtherSourceSearch, Places
 
 START = datetime(2026, 11, 13, 9, 0, tzinfo=UTC)
 RUN = "run-1"
@@ -75,6 +75,7 @@ class Setup:
         run_cap: str = "5",
         max_calls: int = 100,
         other_fails: bool = False,
+        other: OtherSourceSearch | None = None,
     ) -> None:
         self.clock = FakeClock(START)
         self.log = FakeCallLog()
@@ -87,7 +88,7 @@ class Setup:
             self.clock,
             self.log,
         )
-        self.places = Places(gateway, self.other)
+        self.places = Places(gateway, other or self.other)
 
 
 def pages(*batches: Sequence[Place]) -> list[GooglePage]:
