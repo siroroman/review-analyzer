@@ -10,20 +10,15 @@ const MAX_PLACES = 20;
 
 type Props = { suggestion: Suggestion; company: boolean; onBack: () => void };
 
-/** "Kavárna Slavia, Praha" -> "Kavárna Slavia": the name before the first comma. */
-const nameOf = (text: string) => text.split(",")[0]?.trim() ?? text;
-
 /**
  * The last step before a Run: for a Company the found branches, which the user may remove when they are
- * false (the chosen Place stays), then the name and industry.
+ * false (the chosen Place stays). The API names the Company after the chosen Place and infers its industry.
  */
 export function ConfirmStep({ suggestion, company, onBack }: Props) {
   const api = useApi();
   const navigate = useNavigate();
   const [branches, setBranches] = useState<Branch[] | null>(company ? null : []);
   const [removed, setRemoved] = useState<ReadonlySet<string>>(new Set());
-  const [name, setName] = useState(nameOf(suggestion.text));
-  const [industry, setIndustry] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -57,16 +52,10 @@ export function ConfirmStep({ suggestion, company, onBack }: Props) {
 
   async function start(event: FormEvent) {
     event.preventDefault();
-    if (!name.trim() || !industry.trim()) {
-      setProblem("Vyplňte název firmy a obor.");
-      return;
-    }
     setBusy(true);
     try {
       const run = await api.startRun({
         place_ids: [suggestion.place_id, ...kept.map((branch) => branch.place_id)],
-        name: name.trim(),
-        industry: industry.trim(),
       });
       navigate(`/runs/${run.run_id}`);
     } catch (error) {
@@ -75,7 +64,6 @@ export function ConfirmStep({ suggestion, company, onBack }: Props) {
     }
   }
 
-  const field = "mt-1 min-h-11 w-full rounded-[10px] border border-line bg-card px-3 text-base";
   const row = "flex min-h-11 items-center gap-3";
   return (
     <>
@@ -108,14 +96,6 @@ export function ConfirmStep({ suggestion, company, onBack }: Props) {
             </p>
           )}
           {!company && <p>{suggestion.text}</p>}
-          <label className="block font-semibold">
-            Název firmy
-            <input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} className={field + " font-normal"} />
-          </label>
-          <label className="block font-semibold">
-            Obor
-            <input value={industry} onChange={(event) => setIndustry(event.target.value)} maxLength={60} className={field + " font-normal"} />
-          </label>
           {problem && (
             <p role="alert" className="rounded-lg bg-red-50 p-3 text-drop">
               {problem}

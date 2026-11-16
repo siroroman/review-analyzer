@@ -640,8 +640,15 @@
             "title": "Name"
           },
           "industry": {
-            "type": "string",
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Industry"
           },
           "places": {
@@ -657,11 +664,10 @@
         "type": "object",
         "required": [
           "name",
-          "industry",
           "places"
         ],
         "title": "Company",
-        "description": "A set of Places the user confirmed as belonging together; the same set is the same Company."
+        "description": "A set of Places the user confirmed as belonging together; the same set is the same Company.\n\nThe industry is unknown until the pipeline infers it from the downloaded Reviews."
       },
       "HTTPValidationError": {
         "properties": {
@@ -909,6 +915,13 @@
           "cost": {
             "type": "string",
             "title": "Cost"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
           }
         },
         "type": "object",
@@ -922,7 +935,8 @@
           "reviews",
           "flagged",
           "unclassified",
-          "cost"
+          "cost",
+          "notes"
         ],
         "title": "ResultOut"
       },
@@ -939,27 +953,11 @@
             "maxItems": 20,
             "minItems": 1,
             "title": "Place Ids"
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "pattern": "^[\\w\\s.,'&/()\\-]+$",
-            "title": "Name"
-          },
-          "industry": {
-            "type": "string",
-            "maxLength": 60,
-            "minLength": 1,
-            "pattern": "^[\\w\\s.,'&/()\\-]+$",
-            "title": "Industry"
           }
         },
         "type": "object",
         "required": [
-          "place_ids",
-          "name",
-          "industry"
+          "place_ids"
         ],
         "title": "RunIn"
       },

@@ -26,10 +26,10 @@ it("asks for the branches of a Place", async () => {
 
 it("starts a Run with a body", async () => {
   const fetchMock = respond({ run_id: "r1", status: "queued", reused: false }, 202);
-  const run = await createApi("tok", "http://api").startRun({ place_ids: ["g1"], name: "K", industry: "cafe" });
+  const run = await createApi("tok", "http://api").startRun({ place_ids: ["g1"] });
   expect(run.run_id).toBe("r1");
   expect(sent(fetchMock).method).toBe("POST");
-  expect(await sent(fetchMock).json()).toEqual({ place_ids: ["g1"], name: "K", industry: "cafe" });
+  expect(await sent(fetchMock).json()).toEqual({ place_ids: ["g1"] });
 });
 
 it("reads the progress of a Run", async () => {
