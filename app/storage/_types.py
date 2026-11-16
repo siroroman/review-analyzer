@@ -36,7 +36,10 @@ class StoredTaxonomy:
 
 @dataclass(frozen=True)
 class RunRecord:
-    """A Run as stored; `finished_at` is set when it reaches a final status."""
+    """A Run as stored; `finished_at` is set when it reaches a final status.
+
+    `classifying_at` and `analyzing_at` are when those steps started (None: not reached).
+    """
 
     id: str
     company_id: int
@@ -44,6 +47,8 @@ class RunRecord:
     budget_cap: Decimal
     created_at: datetime
     finished_at: datetime | None
+    classifying_at: datetime | None = None
+    analyzing_at: datetime | None = None
 
 
 @dataclass(frozen=True)

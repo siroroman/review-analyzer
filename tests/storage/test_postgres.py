@@ -76,4 +76,4 @@ def test_migrations_run_once_and_connecting_again_changes_nothing(
     postgres_storage(postgres_dsn, clock).close()
     with psycopg.connect(postgres_dsn) as conn:
         names = [row[0] for row in conn.execute("SELECT name FROM schema_migrations").fetchall()]
-    assert names == ["0001_init.sql", "0002_run_changes.sql"]
+    assert names == ["0001_init.sql", "0002_run_changes.sql", "0003_run_step_times.sql"]
