@@ -10,7 +10,7 @@ The project is still in the design phase.
 
 ## Run locally
 
-The real backend and the web run on your laptop with your own keys. No Cloud Tasks and no cloud database: Runs go through an in-process queue and the data live in PostgreSQL in Docker. Messages wait in memory, so a Run that is queued when you stop the backend is lost; start it again from the web.
+The real backend and the web run on your laptop with your own keys. No Cloud Tasks and no cloud database: Runs go through an in-process queue and the data live in PostgreSQL in Docker. Messages wait in memory, so a Run that is queued when you stop the backend is lost; start it again from the web. Runs are handled one at a time, and a failing Run is tried again up to 5 times, 5 seconds apart, before it is given up (it then keeps its last status until you start it again).
 
 **Prerequisites:** [uv](https://docs.astral.sh/uv/), Docker, Node.js (for the web).
 
