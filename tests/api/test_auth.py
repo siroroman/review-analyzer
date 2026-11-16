@@ -44,7 +44,7 @@ def test_admin_routes_are_closed_without_a_token() -> None:
 def test_the_admin_token_passes_the_gate_but_is_not_a_demo_token() -> None:
     api = Api()
     admin = {"Authorization": f"Bearer {ADMIN}"}
-    assert api.client.get("/admin/spend", headers=admin).status_code == 404  # no route yet: #44 adds them
+    assert api.client.get("/admin/spend", headers=admin).status_code == 200
     assert api.client.get("/places/suggest", params={"q": "kav"}, headers=admin).status_code == 401
 
 
