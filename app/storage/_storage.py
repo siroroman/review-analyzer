@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from app.domain import Clock, Insight, TrendPoint
+from app.domain import Change, Clock, Insight, TrendPoint
 from app.storage._memory import (
     MemoryCompanies,
     MemoryResults,
@@ -11,6 +11,7 @@ from app.storage._memory import (
     MemoryTaxonomies,
 )
 from app.storage._postgres import (
+    PostgresChanges,
     PostgresCompanies,
     PostgresInsights,
     PostgresReviews,
@@ -21,6 +22,7 @@ from app.storage._postgres import (
     connect,
 )
 from app.storage._types import (
+    ChangeRepo,
     CompanyRepo,
     InsightRepo,
     ReviewRepo,
@@ -41,6 +43,7 @@ class Storage:
     runs: RunRepo
     insights: InsightRepo
     trends: TrendRepo
+    changes: ChangeRepo
     calls: ServiceCallRepo
     close: Callable[[], None]
 
@@ -56,6 +59,7 @@ def in_memory_storage(clock: Clock) -> Storage:
         runs=runs,
         insights=MemoryResults[Insight](runs),
         trends=MemoryResults[TrendPoint](runs),
+        changes=MemoryResults[Change](runs),
         calls=MemoryServiceCalls(),
         close=lambda: None,
     )
@@ -71,6 +75,7 @@ def postgres_storage(dsn: str, clock: Clock) -> Storage:
         runs=PostgresRuns(db, clock),
         insights=PostgresInsights(db),
         trends=PostgresTrends(db),
+        changes=PostgresChanges(db),
         calls=PostgresServiceCalls(db),
         close=db.close,
     )

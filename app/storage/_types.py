@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Protocol
 
 from app.domain import (
+    Change,
     Company,
     Insight,
     Review,
@@ -163,6 +164,16 @@ class TrendRepo(Protocol):
         ...
 
     def for_run(self, run_id: str) -> list[TrendPoint]:
+        """In the order they were saved."""
+        ...
+
+
+class ChangeRepo(Protocol):
+    def save(self, run_id: str, changes: Sequence[Change]) -> None:
+        """Append Changes to a Run. Raises `UnknownRun`."""
+        ...
+
+    def for_run(self, run_id: str) -> list[Change]:
         """In the order they were saved."""
         ...
 

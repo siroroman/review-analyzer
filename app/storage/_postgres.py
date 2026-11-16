@@ -9,6 +9,8 @@ import psycopg
 from psycopg import sql
 
 from app.domain import (
+    Change,
+    ChangeKind,
     Clock,
     Company,
     DatePrecision,
@@ -367,8 +369,9 @@ class PostgresRuns:
             _require_run(cur, run_id)
             cur.execute(
                 "SELECT (SELECT count(*) FROM insights WHERE run_id = %s) "
-                "+ (SELECT count(*) FROM trend_points WHERE run_id = %s)",
-                (run_id, run_id),
+                "+ (SELECT count(*) FROM trend_points WHERE run_id = %s) "
+                "+ (SELECT count(*) FROM run_changes WHERE run_id = %s)",
+                (run_id, run_id, run_id),
             )
             if _one(cur)[0]:
                 return
@@ -381,6 +384,12 @@ class PostgresRuns:
             cur.execute(
                 "INSERT INTO trend_points (run_id, source, period_start, average_rating, count, sentiment) "
                 "SELECT %s, source, period_start, average_rating, count, sentiment FROM trend_points "
+                "WHERE run_id = %s ORDER BY seq",
+                (run_id, source_run_id),
+            )
+            cur.execute(
+                "INSERT INTO run_changes (run_id, kind, source, period_start, delta, main_topic_key) "
+                "SELECT %s, kind, source, period_start, delta, main_topic_key FROM run_changes "
                 "WHERE run_id = %s ORDER BY seq",
                 (run_id, source_run_id),
             )
@@ -474,6 +483,46 @@ class PostgresTrends:
             return [
                 TrendPoint(
                     source=Source(r[0]), period_start=r[1], average_rating=r[2], count=r[3], sentiment=r[4]
+                )
+                for r in cur.fetchall()
+            ]
+
+
+class PostgresChanges:
+    def __init__(self, db: Database) -> None:
+        self._db = db
+
+    def save(self, run_id: str, changes: Sequence[Change]) -> None:
+        with self._db.cursor() as cur:
+            _require_run(cur, run_id)
+            for change in changes:
+                cur.execute(
+                    "INSERT INTO run_changes (run_id, kind, source, period_start, delta, main_topic_key) "
+                    "VALUES (%s, %s, %s, %s, %s, %s)",
+                    (
+                        run_id,
+                        change.kind.value,
+                        change.source.value,
+                        change.period_start,
+                        change.delta,
+                        change.main_topic_key,
+                    ),
+                )
+
+    def for_run(self, run_id: str) -> list[Change]:
+        with self._db.cursor() as cur:
+            cur.execute(
+                "SELECT kind, source, period_start, delta, main_topic_key FROM run_changes "
+                "WHERE run_id = %s ORDER BY seq",
+                (run_id,),
+            )
+            return [
+                Change(
+                    kind=ChangeKind(r[0]),
+                    source=Source(r[1]),
+                    period_start=r[2],
+                    delta=r[3],
+                    main_topic_key=r[4],
                 )
                 for r in cur.fetchall()
             ]

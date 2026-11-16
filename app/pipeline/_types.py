@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from decimal import Decimal
 
-from app.domain import Company, Insight, Metrics, RunStatus, Source
+from app.domain import Company, Insight, Metrics, RunStatus, Source, Topic
 
 
 @dataclass(frozen=True)
@@ -51,14 +51,16 @@ class RunResult:
 class RunReport:
     """Everything the dashboard shows of one Run.
 
-    `metrics.trend` is the timeline the Run saved, so it matches the Run's Insights. `metrics.changes` is
-    always empty: changes are not saved with a Run. The other numbers are computed from Reviews stored now.
+    `metrics.trend` and `metrics.changes` are what the Run saved, so they match the Run's Insights. The
+    other numbers are computed from Reviews stored now. `topics` are the Topics of the Company's latest
+    Taxonomy that the metrics mention, so the dashboard can show a name instead of a key.
     """
 
     result: RunResult
     company: Company
     metrics: Metrics
     insights: tuple[Insight, ...]
+    topics: tuple[Topic, ...] = ()
 
     @property
     def status(self) -> RunStatus:

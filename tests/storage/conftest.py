@@ -10,7 +10,7 @@ from tests.storage.helpers import START
 
 # Data tables only: `taxonomies` rows are immutable by trigger, but TRUNCATE is not a row change.
 _TABLES = (
-    "service_calls, trend_points, insights, runs, review_topics, taxonomy_topics, taxonomies, "
+    "service_calls, run_changes, trend_points, insights, runs, review_topics, taxonomy_topics, taxonomies, "
     "reviews, company_places, places, companies"
 )
 
