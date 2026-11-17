@@ -60,7 +60,7 @@ export function createApi(token: string, baseUrl = import.meta.env.VITE_API_URL 
     branches: (placeId) => call(client.GET("/places/{place_id}/branches", { params: { path: { place_id: placeId } } })),
     startRun: (input) => call(client.POST("/runs", { body: input })),
     runProgress: (runId) => call(client.GET("/runs/{run_id}", { params: { path: { run_id: runId } } })),
-    runResult: (runId) => call(client.GET("/runs/{run_id}/result", { params: { path: { run_id: runId } } })) ,
+    runResult: (runId) => call(client.GET("/runs/{run_id}/result", { params: { path: { run_id: runId } } })),
     reviews: (runId, query) => {
       // The API serves Reviews by ids or by Topic only; by star rating is not there yet, so the panel shows its error state.
       if ("rating" in query) return Promise.reject(new ApiError(501));

@@ -101,3 +101,25 @@ def test_reviews_of_an_unknown_run_are_404() -> None:
 def test_reviews_need_a_demo_token() -> None:
     api, run_id = _api_with_reviews()
     assert api.client.get(f"/runs/{run_id}/reviews?ids=r1").status_code == 401
+
+
+def test_reviews_by_topic_are_cut_at_200() -> None:
+    api, run_id = _api_with_reviews()
+    many = [review(f"m{i}", "g1") for i in range(250)]
+    api.storage.reviews.add(many)
+    stored = api.storage.taxonomies.latest("cafe")
+    assert stored is not None
+    api.storage.reviews.save_topics(
+        Source.GOOGLE_MAPS,
+        stored,
+        [
+            ReviewTopic(
+                review_external_id=r.external_id,
+                topic_key="staff",
+                sentiment=Sentiment.NEGATIVE,
+                confidence=0.9,
+            )
+            for r in many
+        ],
+    )
+    assert len(_get(api, run_id, "topic=staff").json()) == 200
