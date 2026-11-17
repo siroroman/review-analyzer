@@ -174,7 +174,7 @@ class Pipeline:
             place_external_id=place.external_id,
             details=details,
             analyzed_count=analyzed,
-            analyzed_is_limited=details is not None and details.review_count > analyzed,
+            analyzed_is_limited=details is not None and details.review_count > self._config.reviews_per_place,
         )
 
     def _mentioned_topics(self, company: Company, metrics: Metrics) -> tuple[Topic, ...]:

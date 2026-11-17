@@ -172,13 +172,13 @@ def test_the_result_splits_the_cost_by_service_and_the_parts_sum_to_the_cost() -
     assert sum(split.values()) == Decimal("0.25") == Decimal(body["cost"])
 
 
-def _place_result(details: PlaceDetails | None, analyzed: int) -> PlaceResult:
+def _place_result(details: PlaceDetails | None, analyzed: int, limited: bool = False) -> PlaceResult:
     return PlaceResult(
         source=Source.GOOGLE_MAPS,
         place_external_id="g1",
         details=details,
         analyzed_count=analyzed,
-        analyzed_is_limited=details is not None and details.review_count > analyzed,
+        analyzed_is_limited=limited,
     )
 
 
@@ -203,7 +203,7 @@ def test_the_result_has_the_totals_and_details_of_each_place() -> None:
         maps_url="https://maps.google.com/?cid=1",
         thumbnail_url="https://example.cz/t.jpg",
     )
-    (place,) = _places_of(Api(known=[cafe()]), _place_result(details, 1000))
+    (place,) = _places_of(Api(known=[cafe()]), _place_result(details, 1000, limited=True))
     assert place == {
         "source": "google_maps",
         "place_external_id": "g1",
@@ -221,13 +221,12 @@ def test_the_result_has_the_totals_and_details_of_each_place() -> None:
     }
 
 
-def test_a_place_with_more_reviews_than_analyzed_is_limited_and_one_with_all_of_them_is_not() -> None:
+def test_the_limited_flag_is_what_the_pipeline_reports() -> None:
     (limited,) = _places_of(
-        Api(known=[cafe()]), _place_result(PlaceDetails(rating=4, review_count=26348), 1000)
+        Api(known=[cafe()]), _place_result(PlaceDetails(rating=4, review_count=26348), 1000, True)
     )
     (whole,) = _places_of(Api(known=[cafe()]), _place_result(PlaceDetails(rating=4, review_count=800), 800))
-    assert limited["analyzed_is_limited"] is True
-    assert whole["analyzed_is_limited"] is False
+    assert (limited["analyzed_is_limited"], whole["analyzed_is_limited"]) == (True, False)
 
 
 def test_a_place_without_details_has_null_totals_and_still_its_analyzed_count() -> None:
