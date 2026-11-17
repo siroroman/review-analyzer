@@ -133,8 +133,8 @@ class Taxonomies:
         """The industry key of the Company the `sample` is from, named by the strong model.
 
         Only the newest `MAX_SAMPLE` Reviews with text, never a Flagged one, are sent, each cut to a
-        short text, as data inside `<reviews>`. The label is validated and normalized to a lowercase key. Raises
-        `SampleTooSmall` (before any call) and `InvalidIndustry`; errors of `llm`, the gateway and the
+        short text, as data inside `<reviews>`. The label is validated and normalized to a lowercase
+        key. Raises `SampleTooSmall` (before any call) and `InvalidIndustry`; errors of `llm`, the gateway and the
         provider pass through. The caller decides on a fallback.
         """
         usable = _usable_sample(sample())
@@ -155,8 +155,8 @@ class Taxonomies:
         """The stored Taxonomy of `industry`, or a newly generated and stored one (version 1).
 
         `sample` is called only when none is stored; its newest `MAX_SAMPLE` unflagged Reviews with text
-        are used. `llm` repairs an invalid answer once; the list must hold `MIN_TOPICS` to `MAX_TOPICS` Topics, and `unclassified`
-        is added by code.
+        are used. `llm` repairs an invalid answer once; the list must hold `MIN_TOPICS` to `MAX_TOPICS`
+        Topics, and `unclassified` is added by code.
         Raises `SampleTooSmall` (before any model call) and `InvalidTaxonomy` (nothing stored); errors
         of `llm`, the gateway and the provider pass through.
         """
