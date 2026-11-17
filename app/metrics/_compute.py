@@ -57,7 +57,7 @@ def compute(reviews: Sequence[Review], topics: Sequence[ReviewTopic]) -> Metrics
         changes=_changes(trend, by_period, topics_by_review),
         overall=_summary(kept) if kept else None,
         per_source=_per_source(kept),
-        per_place=_per_place(kept),
+        per_place=_per_place(kept, topics_by_review),
         rating_counts=_rating_counts(kept),
     )
 
@@ -94,12 +94,19 @@ def _per_source(reviews: Sequence[Review]) -> tuple[SourceSummary, ...]:
     )
 
 
-def _per_place(reviews: Sequence[Review]) -> tuple[PlaceSummary, ...]:
+def _per_place(
+    reviews: Sequence[Review], topics_by_review: dict[str, list[ReviewTopic]]
+) -> tuple[PlaceSummary, ...]:
     groups: dict[tuple[str, str], list[Review]] = defaultdict(list)
     for review in reviews:
         groups[(review.source.value, review.place_external_id)].append(review)
     return tuple(
-        PlaceSummary(source=group[0].source, place_external_id=place, summary=_summary(group))
+        PlaceSummary(
+            source=group[0].source,
+            place_external_id=place,
+            summary=_summary(group),
+            main_topic_key=_main_topic(ChangeKind.DROP, group, topics_by_review),
+        )
         for (_, place), group in sorted(groups.items())
     )
 

@@ -89,6 +89,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reviews of a Run by `ids` (Insight.review_ids) or by `topic` (a Topic key)
+         * @description Exactly one of `ids` and `topic`. Only Reviews of the Run's Company are returned; unknown IDs are skipped and Flagged Reviews never appear. By `topic`: newest first, at most 200.
+         */
+        get: operations["run_reviews_runs__run_id__reviews_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/spend": {
         parameters: {
             query?: never;
@@ -289,12 +309,16 @@ export interface components {
         /**
          * PlaceSummary
          * @description The RatingSummary of one Place, for the comparison of Places.
+         *
+         *     `main_topic_key` is the Topic with the most negative mentions in the Place; None when it has none.
          */
         PlaceSummary: {
             source: components["schemas"]["Source"];
             /** Place External Id */
             place_external_id: string;
             summary: components["schemas"]["RatingSummary"];
+            /** Main Topic Key */
+            main_topic_key?: string | null;
         };
         /**
          * RatingSummary
@@ -325,8 +349,32 @@ export interface components {
             unclassified: number;
             /** Cost */
             cost: string;
+            /** Cost By Service */
+            cost_by_service: {
+                [key: string]: string;
+            };
             /** Notes */
             notes: string[];
+        };
+        /**
+         * ReviewOut
+         * @description One Review as the side panel shows it. Flagged Reviews are never served.
+         */
+        ReviewOut: {
+            /** Id */
+            id: string;
+            source: components["schemas"]["Source"];
+            /** Place Name */
+            place_name: string;
+            /** Rating */
+            rating: number;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Text */
+            text: string;
         };
         /** RunIn */
         RunIn: {
@@ -647,6 +695,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_reviews_runs__run_id__reviews_get: {
+        parameters: {
+            query?: {
+                ids?: string[] | null;
+                topic?: string | null;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewOut"][];
                 };
             };
             /** @description Validation Error */

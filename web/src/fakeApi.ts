@@ -41,7 +41,7 @@ export function fakeResult(overrides: Partial<RunResult> = {}): RunResult {
       changes: [],
       overall: { average_rating: 4.0, count: 18 },
       per_source: [{ source: "google_maps", summary: { average_rating: 4.0, count: 18 } }],
-      per_place: [{ source: "google_maps", place_external_id: "g1", summary: { average_rating: 4.0, count: 18 } }],
+      per_place: [{ source: "google_maps", place_external_id: "g1", summary: { average_rating: 4.0, count: 18 }, main_topic_key: null }],
       rating_counts: [
         { stars: 5, count: 8 },
         { stars: 4, count: 6 },
@@ -56,6 +56,7 @@ export function fakeResult(overrides: Partial<RunResult> = {}): RunResult {
     flagged: 0,
     unclassified: 0,
     cost: "0.42",
+    cost_by_service: { apify: "0.30", models: "0.10", google_places: "0.02" },
     notes: [],
     ...overrides,
   };

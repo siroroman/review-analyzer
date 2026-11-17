@@ -6,12 +6,8 @@ export type Branch = components["schemas"]["BranchOut"];
 export type RunIn = components["schemas"]["RunIn"];
 export type RunOut = components["schemas"]["RunOut"];
 export type RunProgress = components["schemas"]["StatusOut"];
-export type Metrics = Omit<components["schemas"]["Metrics"], "per_place"> & {
-  /** `main_topic_key` (the most negative Topic of the Place) is not served yet: issue #96. */
-  per_place: (components["schemas"]["PlaceSummary"] & { main_topic_key?: string | null })[];
-};
-/** `cost_by_service` (Service name to cost, summing to `cost`) is not served yet: issue #96. */
-export type RunResult = Omit<components["schemas"]["ResultOut"], "metrics"> & { metrics: Metrics; cost_by_service?: Record<string, string> };
+export type Metrics = components["schemas"]["Metrics"];
+export type RunResult = components["schemas"]["ResultOut"];
 
 /** One Review as the side panel shows it. */
 export interface ReviewView {
@@ -64,8 +60,12 @@ export function createApi(token: string, baseUrl = import.meta.env.VITE_API_URL 
     branches: (placeId) => call(client.GET("/places/{place_id}/branches", { params: { path: { place_id: placeId } } })),
     startRun: (input) => call(client.POST("/runs", { body: input })),
     runProgress: (runId) => call(client.GET("/runs/{run_id}", { params: { path: { run_id: runId } } })),
-    runResult: (runId) => call(client.GET("/runs/{run_id}/result", { params: { path: { run_id: runId } } })) as Promise<RunResult>,
-    // The endpoint does not exist yet (issue #96); the panel shows its error state until it does.
-    reviews: () => Promise.reject(new ApiError(501)),
+    runResult: (runId) => call(client.GET("/runs/{run_id}/result", { params: { path: { run_id: runId } } })),
+    reviews: (runId, query) => {
+      // The API serves Reviews by ids or by Topic only; by star rating is not there yet, so the panel shows its error state.
+      if ("rating" in query) return Promise.reject(new ApiError(501));
+      const params = { path: { run_id: runId }, query: "ids" in query ? { ids: query.ids } : { topic: query.topic } };
+      return call(client.GET("/runs/{run_id}/reviews", { params }));
+    },
   };
 }
