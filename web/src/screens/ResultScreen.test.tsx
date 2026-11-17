@@ -83,33 +83,55 @@ const twoSources = () =>
     cost: "1.5",
   });
 
-it("shows the overall rating, its change against the previous 12 months, per Source cards and the cost", async () => {
-  setup(fakeApi({ runResult: vi.fn(async () => twoSources()) }));
-  const overall = await screen.findByRole("group", { name: "Celkové hodnocení" });
-  expect(within(overall).getByText("3,9")).toBeInTheDocument();
-  expect(within(overall).getByText("40 recenzí")).toBeInTheDocument();
-  expect(within(overall).getByText(/\+0,3 oproti předchozím 12 měsícům/)).toBeInTheDocument();
-  const google = screen.getByRole("group", { name: "Google Maps" });
-  expect(within(google).getByText("4,4")).toBeInTheDocument();
-  expect(within(google).getByText("30 recenzí")).toBeInTheDocument();
-  expect(within(google).getByText("75 %")).toBeInTheDocument();
-  const firmy = screen.getByRole("group", { name: "Firmy.cz" });
-  expect(within(firmy).getByText("2,5")).toBeInTheDocument();
-  expect(within(firmy).getByText("25 %")).toBeInTheDocument();
-  expect(within(screen.getByRole("group", { name: "Náklady analýzy" })).getByText("1.50 USD")).toBeInTheDocument();
-});
-
-it("shows no change when there is nothing to compare with", async () => {
+it("shows exactly two boxes: the rating of each Source and the cost", async () => {
   setup(fakeApi());
-  const overall = await screen.findByRole("group", { name: "Celkové hodnocení" });
-  expect(within(overall).queryByText(/oproti/)).not.toBeInTheDocument();
+  const google = await screen.findByRole("group", { name: "Google Maps" });
+  expect(within(google).getByText("4,0")).toBeInTheDocument();
+  expect(within(google).getByText("18 recenzí")).toBeInTheDocument();
+  expect(within(screen.getByRole("group", { name: "Náklady analýzy" })).getByText(/USD/)).toBeInTheDocument();
+  expect(screen.getAllByRole("group").filter((group) => group.className.includes("min-w-40"))).toHaveLength(2);
+  expect(screen.queryByRole("group", { name: "Celkové hodnocení" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "Podezřelé recenze" })).not.toBeInTheDocument();
 });
 
-it("shows a dash when no Review was found", async () => {
+it("has no buttons for the whole Company or a single Place", async () => {
+  setup(fakeApi({ runResult: vi.fn(async () => twoSources()) }));
+  await screen.findByRole("heading", { level: 1 });
+  expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+  expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+});
+
+it("has no chart legend, no caption under the chart and no cost per service", async () => {
+  setup(fakeApi());
+  await screen.findByRole("img", { name: /Vývoj hodnocení/ });
+  expect(screen.queryByRole("list", { name: "Legenda grafu" })).not.toBeInTheDocument();
+  expect(screen.queryByText(/Zvýrazněný měsíc/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "Náklady podle služeb" })).not.toBeInTheDocument();
+});
+
+it("draws smooth lines without points", async () => {
+  const three = fakeResult({
+    metrics: {
+      ...fakeResult().metrics,
+      trend: [
+        { source: "google_maps", period_start: "2026-01-01", average_rating: 4.5, count: 10, sentiment: 0 },
+        { source: "google_maps", period_start: "2026-02-01", average_rating: 3.5, count: 8, sentiment: 0 },
+        { source: "google_maps", period_start: "2026-03-01", average_rating: 4.2, count: 9, sentiment: 0 },
+      ],
+      changes: [],
+    },
+  });
+  const { container } = setup(fakeApi({ runResult: vi.fn(async () => three) }));
+  await screen.findByRole("img", { name: /Vývoj hodnocení/ });
+  expect(container.querySelector(".recharts-line-dot")).toBeNull();
+  expect(container.querySelector(".recharts-line-curve")!.getAttribute("d")).toMatch(/C/);
+});
+
+it("shows no Source box when no Review was found", async () => {
   const empty = fakeResult({ metrics: { ...fakeResult().metrics, trend: [], overall: null, per_source: [], per_place: [] }, reviews: 0 });
   setup(fakeApi({ runResult: vi.fn(async () => empty) }));
-  const overall = await screen.findByRole("group", { name: "Celkové hodnocení" });
-  expect(within(overall).getByText("–")).toBeInTheDocument();
+  expect(await screen.findByRole("group", { name: "Náklady analýzy" })).toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "Google Maps" })).not.toBeInTheDocument();
 });
 
 it("describes the timeline in words for a screen reader", async () => {
@@ -211,15 +233,6 @@ it("marks a rise on the chart with its month", async () => {
   expect(await screen.findByText("▲ Leden: oživení")).toBeInTheDocument();
 });
 
-it("has a legend with a solid line for Google Maps and a dashed one for Firmy.cz", async () => {
-  setup(fakeApi({ runResult: vi.fn(async () => twoSources()) }));
-  const legend = await screen.findByRole("list", { name: "Legenda grafu" });
-  const [google, firmy] = within(legend).getAllByRole("listitem");
-  expect(google).toHaveTextContent("Google Maps");
-  expect(google!.querySelector("line")).not.toHaveAttribute("stroke-dasharray");
-  expect(firmy).toHaveTextContent("Firmy.cz");
-  expect(firmy!.querySelector("line")).toHaveAttribute("stroke-dasharray");
-});
 
 it("fits the rating axis to the data in half-star steps", async () => {
   const { container } = setup(fakeApi());
@@ -228,10 +241,6 @@ it("fits the rating axis to the data in half-star steps", async () => {
   expect(ticks).toEqual(["3,0", "3,5", "4,0", "4,5", "5,0"]);
 });
 
-it("explains under the chart what the marked months are", async () => {
-  setup(fakeApi());
-  expect(await screen.findByText(/Zvýrazněný měsíc je pokles/)).toBeInTheDocument();
-});
 
 it("shades the month of a drop with an area that has a width", async () => {
   const withDrop = fakeResult({
@@ -253,12 +262,6 @@ it("shows no list of changes when the Run found none", async () => {
   expect(screen.queryByRole("list", { name: "Poklesy a vzestupy" })).not.toBeInTheDocument();
 });
 
-it("keeps the timeline on the whole Company when a Place tab is chosen", async () => {
-  const user = userEvent.setup();
-  setup(fakeApi());
-  await user.click((await screen.findAllByRole("tab"))[1]!);
-  expect(screen.getByText("Časová osa ukazuje celou firmu.")).toBeInTheDocument();
-});
 
 it("warns that a partial result shows only what was finished", async () => {
   setup(fakeApi({ runResult: vi.fn(async () => fakeResult({ status: "partial" })) }));
@@ -290,19 +293,6 @@ it("explains that one month is too little to show a development", async () => {
   expect(screen.getByRole("img", { name: /Vývoj hodnocení/ })).toBeInTheDocument();
 });
 
-it("narrows the cards to one Place when its tab is chosen", async () => {
-  const user = userEvent.setup();
-  setup(fakeApi({ runResult: vi.fn(async () => twoSources()) }));
-  const tabs = await screen.findAllByRole("tab");
-  expect(tabs.map((tab) => tab.textContent)).toEqual(["Celá firma", "Kavárna Vinohrady · Google Maps", "Kavárna Smíchov · Firmy.cz"]);
-  expect(tabs[0]).toHaveAttribute("aria-selected", "true");
-  await user.click(tabs[2]!);
-  expect(tabs[2]).toHaveAttribute("aria-selected", "true");
-  const overall = screen.getByRole("group", { name: "Celkové hodnocení" });
-  expect(within(overall).getByText("2,5")).toBeInTheDocument();
-  expect(screen.queryByRole("group", { name: "Google Maps" })).not.toBeInTheDocument();
-  expect(screen.getByRole("group", { name: "Firmy.cz" })).toBeInTheDocument();
-});
 
 it("shows the shared header with the cache note and a Nové hledání button once the result is there", async () => {
   setup(fakeApi());
@@ -328,66 +318,19 @@ it("keeps the way to a new search when the result cannot be loaded", async () =>
   expect(screen.queryByText(/výsledek v cache/)).not.toBeInTheDocument();
 });
 
-it("says under the title which Sources and period the result covers", async () => {
+it("says under the title which Sources and months the result covers, not a fixed year", async () => {
   setup(fakeApi());
-  expect(await screen.findByText("Google Maps · recenze za posledních 12 měsíců")).toBeInTheDocument();
+  expect(await screen.findByText(/^Google Maps · recenze od \d\d\/\d{4} do \d\d\/\d{4}$/)).toBeInTheDocument();
 });
 
 it("lists every Source of the Company in the sub-line", async () => {
   setup(fakeApi({ runResult: vi.fn(async () => twoSources()) }));
-  expect(await screen.findByText("Google Maps, Firmy.cz · recenze za posledních 12 měsíců")).toBeInTheDocument();
+  expect(await screen.findByText(/^Google Maps, Firmy.cz · recenze od /)).toBeInTheDocument();
 });
 
-it("writes the overall rating out of 5 and marks a rise with an arrow as well as the sign", async () => {
-  setup(fakeApi({ runResult: vi.fn(async () => twoSources()) }));
-  const overall = await screen.findByRole("group", {
-    name: "Celkové hodnocení",
-  });
-  expect(within(overall).getByText("/ 5 ·")).toBeInTheDocument();
-  expect(within(overall).getByText(/\+0,3 oproti předchozím 12 měsícům/)).toHaveTextContent("▲");
-});
 
-it("marks a fall against the previous 12 months with a down arrow", async () => {
-  const falling = fakeResult({
-    metrics: {
-      ...fakeResult().metrics,
-      trend: [
-        {
-          source: "google_maps",
-          period_start: "2025-06-01",
-          average_rating: 4.5,
-          count: 10,
-          sentiment: 0,
-        },
-        {
-          source: "google_maps",
-          period_start: "2026-06-01",
-          average_rating: 4.4,
-          count: 10,
-          sentiment: 0,
-        },
-      ],
-    },
-  });
-  setup(fakeApi({ runResult: vi.fn(async () => falling) }));
-  const overall = await screen.findByRole("group", {
-    name: "Celkové hodnocení",
-  });
-  expect(within(overall).getByText(/−0,1 oproti předchozím 12 měsícům/)).toHaveTextContent("▼");
-});
 
-it("shows how many suspicious Reviews were left out of the analysis", async () => {
-  setup(fakeApi({ runResult: vi.fn(async () => fakeResult({ flagged: 7 })) }));
-  const card = await screen.findByRole("group", { name: "Podezřelé recenze" });
-  expect(within(card).getByText("7")).toBeInTheDocument();
-  expect(within(card).getByText("vyřazeno z analýzy")).toBeInTheDocument();
-});
 
-it("shows the suspicious Reviews card with a zero when none were flagged", async () => {
-  setup(fakeApi());
-  const card = await screen.findByRole("group", { name: "Podezřelé recenze" });
-  expect(within(card).getByText("0")).toBeInTheDocument();
-});
 
 it("shows the rating distribution from 5 to 1 stars with count and percent", async () => {
   setup(fakeApi());
@@ -442,24 +385,18 @@ it("leaves the distribution out when there are no Reviews", async () => {
   expect(screen.queryByRole("group", { name: "Rozdělení hodnocení" })).not.toBeInTheDocument();
 });
 
-it("keeps the distribution on the whole Company when a Place tab is chosen", async () => {
-  const user = userEvent.setup();
-  setup(fakeApi({ runResult: vi.fn(async () => twoSources()) }));
-  await user.click((await screen.findAllByRole("tab"))[1]!);
-  expect(screen.getByText("Rozdělení ukazuje celou firmu.")).toBeInTheDocument();
-});
 
-it("puts the chart and the Topics side by side from the lg width and stacks them below", async () => {
+it("puts the Topics in a grid under the chart", async () => {
   const withTopics = fakeResult({
     topics: [{ key: "service", name: "Obsluha" }],
     metrics: { ...fakeResult().metrics, topic_shares: [{ topic_key: "service", positive: 3, neutral: 0, negative: 1 }] },
   });
   setup(fakeApi({ runResult: vi.fn(async () => withTopics) }));
   const chart = (await screen.findByRole("heading", { name: "Vývoj hodnocení" })).closest("section")!;
-  const topics = screen.getByRole("heading", { name: "Témata" }).closest("section")!;
-  expect(chart.parentElement).toBe(topics.parentElement);
-  expect(chart.parentElement).toHaveClass("grid", "lg:grid-cols-[minmax(0,1fr)_340px]");
-  expect(chart.parentElement).not.toHaveClass("grid-cols-2");
+  const list = screen.getByRole("list", { name: "Témata" });
+  expect(chart.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(list).toHaveClass("grid");
+  expect(screen.queryByText("Pozitivní")).not.toBeInTheDocument();
 });
 
 it("uses the 1280 px wide page of the design", async () => {

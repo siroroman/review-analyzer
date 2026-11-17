@@ -51,8 +51,7 @@ describe("Topics", () => {
     expect(service).toHaveTextContent("8 zmínek");
     expect(service).toHaveTextContent("25 % pozitivních, 75 % negativních");
     expect(price).toHaveTextContent("4 zmínky");
-    expect(screen.getByText("Pozitivní")).toBeInTheDocument();
-    expect(screen.getByText("Negativní")).toBeInTheDocument();
+    expect(screen.queryByText("Pozitivní")).not.toBeInTheDocument();
   });
 
   it("opens the cited Reviews of a Topic in a side panel", async () => {
@@ -111,7 +110,7 @@ describe("Summary and suggestions", () => {
       ],
     });
 
-  it("shows the summary, numbered suggestions and the note that every statement links to Reviews", async () => {
+  it("shows the summary and numbered suggestions without a note about links", async () => {
     setup(fakeApi({ runResult: vi.fn(async () => insights()) }));
     expect(await screen.findByText("Hodnocení kleslo kvůli čekání.")).toBeInTheDocument();
     const list = screen.getByRole("list", { name: "Doporučení" });
@@ -121,7 +120,7 @@ describe("Summary and suggestions", () => {
     expect(within(items[1]!).getByText("2", { selector: "span" })).toBeInTheDocument();
     expect(items[0]).toHaveTextContent("Přidat druhou pokladnu.");
     expect(items[1]).toHaveTextContent("Zaškolit obsluhu.");
-    expect(screen.getByText(/Každé tvrzení odkazuje na recenze/)).toBeInTheDocument();
+    expect(screen.queryByText(/Každé tvrzení odkazuje na recenze/)).not.toBeInTheDocument();
   });
 
   it("opens the Reviews an insight cites by their IDs", async () => {
@@ -141,6 +140,19 @@ describe("Summary and suggestions", () => {
     setup(fakeApi({ runResult: vi.fn(async () => insights()), reviews }));
     await user.click(await screen.findByRole("button", { name: "Zobrazit recenze (2)" }));
     expect(reviews).toHaveBeenCalledWith("run-1", { ids: ["r1", "r2"] });
+  });
+
+  it("highlights the text between ** markers and shows black buttons below the texts", async () => {
+    const result = fakeResult({
+      insights: [
+        { type: "summary", period_start: "2026-01-01", period_end: "2026-02-28", text: "Hodnocení kleslo kvůli **čekání na jídlo**.", review_ids: ["r1"] },
+        { type: "suggestion", period_start: "2026-01-01", period_end: "2026-02-28", text: "Zaškolit obsluhu.", review_ids: ["r4"] },
+      ],
+    });
+    setup(fakeApi({ runResult: vi.fn(async () => result) }));
+    expect((await screen.findByText("čekání na jídlo")).tagName).toBe("STRONG");
+    for (const button of screen.getAllByRole("button", { name: /Zobrazit recenze/ })) expect(button).toHaveClass("bg-ink", "text-white");
+    expect(within(screen.getByRole("list", { name: "Doporučení" })).getAllByRole("listitem")[0]).toHaveClass("bg-page");
   });
 
   it("shows nothing when there are no insights", async () => {
@@ -226,32 +238,5 @@ describe("Branch comparison", () => {
     setup(fakeApi());
     await screen.findByRole("heading", { level: 1 });
     expect(screen.queryByRole("table", { name: "Srovnání poboček" })).not.toBeInTheDocument();
-  });
-});
-
-describe("Cost of the Run", () => {
-  it("shows the cost per Service and the number of excluded suspicious Reviews", async () => {
-    const result = fakeResult({ cost: "1.50", flagged: 3, cost_by_service: { apify: "0.90", models: "0.55", google_places: "0.05" } });
-    setup(fakeApi({ runResult: vi.fn(async () => result) }));
-    const card = await screen.findByRole("group", { name: "Náklady podle služeb" });
-    expect(within(card).getByText("Apify").nextSibling).toHaveTextContent("0.900 USD");
-    expect(within(card).getByText("Modely").nextSibling).toHaveTextContent("0.550 USD");
-    expect(within(card).getByText("Google Places").nextSibling).toHaveTextContent("0.050 USD");
-    expect(within(card).getByText("3 podezřelé recenze vyřazeny")).toBeInTheDocument();
-  });
-
-  it("says no Review was excluded and shows no breakdown when the API gives none", async () => {
-    setup(fakeApi());
-    const card = await screen.findByRole("group", { name: "Náklady podle služeb" });
-    expect(within(card).getByText("Rozpis zatím není k dispozici.")).toBeInTheDocument();
-    expect(within(card).getByText("0 podezřelých recenzí vyřazeno")).toBeInTheDocument();
-  });
-
-  it("uses the singular and the five-plus plural", async () => {
-    const { unmount } = setup(fakeApi({ runResult: vi.fn(async () => fakeResult({ flagged: 1 })) }));
-    expect(await screen.findByText("1 podezřelá recenze vyřazena")).toBeInTheDocument();
-    unmount();
-    setup(fakeApi({ runResult: vi.fn(async () => fakeResult({ flagged: 7 })) }));
-    expect(await screen.findByText("7 podezřelých recenzí vyřazeno")).toBeInTheDocument();
   });
 });
