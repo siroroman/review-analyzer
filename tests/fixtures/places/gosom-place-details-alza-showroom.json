@@ -1,19 +1,145 @@
 [
   {
-    "input_id": "place_id:ChIJexampleAlzaShowroom0001",
-    "link": "https://www.google.com/maps/place/Alza.cz+Showroom+Praha+7/data=!4m2!3m1!1s0x0:0x0",
-    "title": "Alza.cz Showroom Praha 7",
-    "category": "Obchod s elektronikou",
-    "address": "Jankovcova 1522/53, 170 00 Praha 7-Holešovice",
-    "website": "https://www.alza.cz/",
-    "phone": "+420 225 340 130",
-    "review_count": 26348,
+    "longitude": 14.4480436,
+    "input_id": "3799c3b5-2f80-42a9-82e6-116f6af3e861",
+    "link": "https://www.google.com/maps/place/Alza.cz+Showroom+Praha+7+Hole%C5%A1ovice/@50.1003578,14.4480436,17z/data=!3m1!4b1!4m6!3m5!1s0x470b94b04fcc35bf:0xcef1c72f7c8874be!8m2!3d50.1003578!4d14.4480436!16s%2Fg%2F11h52n47c4?hl=cs&entry=ttu&g_ep=EgoyMDI2MTExNS4wIKXMDSoASAFQAw%3D%3D",
+    "cid": "14911918847967130814",
+    "title": "Alza.cz Showroom Praha 7 Holešovice",
+    "categories": [
+      "Prodej elektroniky",
+      "Prodej domácích spotřebičů",
+      "Prodejna fotoaparátů",
+      "Prodejna příslušenství k mobilním telefonům",
+      "Prodej mobilních telefonů",
+      "Prodejna počítačových potřeb",
+      "Prodej výpočetní techniky",
+      "Prodejna her",
+      "Domácí potřeby",
+      "Prodej počítačových her"
+    ],
+    "category": "Prodej elektroniky",
+    "address": "Jateční 306/2, 170 00 Praha 7-Holešovice",
+    "open_hours": {
+      "neděle": [
+        "8–20"
+      ],
+      "pondělí": [
+        "8–20"
+      ],
+      "pátek": [
+        "8–20"
+      ],
+      "sobota": [
+        "8–20"
+      ],
+      "středa": [
+        "8–20"
+      ],
+      "úterý": [
+        "8–20"
+      ],
+      "čtvrtek": [
+        "8–20"
+      ]
+    },
+    "popular_times": {},
+    "web_site": "https://www.alza.cz/prodejna-praha-7-holesovice-595.htm",
+    "phone": "225 340 111",
+    "plus_code": "4C2X+46 Praha",
+    "review_count": 26347,
     "review_rating": 4.3,
-    "reviews_per_rating": {"1": 1752, "2": 653, "3": 1939, "4": 5468, "5": 16536},
-    "thumbnail": "https://lh3.googleusercontent.com/p/example-thumbnail=w408-h306-k-no",
-    "place_id": "ChIJexampleAlzaShowroom0001",
+    "reviews_per_rating": {
+      "1": 1752,
+      "2": 653,
+      "3": 1939,
+      "4": 5468,
+      "5": 16535
+    },
+    "latitude": 50.1003578,
+    "longtitude": 14.4480436,
+    "status": "",
+    "description": "",
+    "reviews_link": "",
+    "thumbnail": "https://lh3.googleusercontent.com/grass-cs/AABkmLf2SBxHV6r4YhwIqS7T_NaWn40KzCK4TPtqfLkkNvrDPetk0IwmgYxlhueEmHODK8wFnDeeyqe2mwBNsSbMm3VQJPOte5Wb227yC4kfsssagXIYqS6slv5ZXdrfPc5H6z5O6Q4BWX2yA-Vb=w408-h306-k-no",
+    "timezone": "Europe/Prague",
+    "price_range": "",
+    "data_id": "0x470b94b04fcc35bf:0xcef1c72f7c8874be",
+    "street_view_url": "",
+    "place_id": "ChIJvzXMT7CUC0cRvnSIfC_H8c4",
+    "reservations": null,
+    "order_online": null,
+    "menu": {
+      "link": "",
+      "source": ""
+    },
+    "owner": {
+      "id": "",
+      "name": "",
+      "link": ""
+    },
+    "complete_address": {
+      "borough": "",
+      "street": "Jateční 306/2",
+      "city": "Praha 7-Holešovice",
+      "postal_code": "170 00",
+      "state": "",
+      "country": "CZ"
+    },
+    "credit_cards_accepted": null,
+    "about": [
+      {
+        "id": "accessibility",
+        "name": "Dostupnost",
+        "options": [
+          {
+            "name": "Bezbariérové parkování",
+            "enabled": true
+          },
+          {
+            "name": "Bezbariérový vstup",
+            "enabled": true
+          }
+        ]
+      }
+    ],
     "user_reviews": [
-      {"Name": "Anonymized", "ProfilePicture": "", "Rating": 5, "Description": "Anonymized review text 1.", "When": "před týdnem"}
-    ]
+      {
+        "Name": "Anonymized",
+        "ProfilePicture": "",
+        "Rating": 5,
+        "Description": "Anonymized review text.",
+        "When": "před 3 týdny"
+      },
+      {
+        "Name": "Anonymized",
+        "ProfilePicture": "",
+        "Rating": 1,
+        "Description": "Anonymized review text.",
+        "When": "před 2 týdny"
+      },
+      {
+        "Name": "Anonymized",
+        "ProfilePicture": "",
+        "Rating": 5,
+        "Description": "Anonymized review text.",
+        "When": "Upraveno před 7 měsíci"
+      },
+      {
+        "Name": "Anonymized",
+        "ProfilePicture": "",
+        "Rating": 1,
+        "Description": "Anonymized review text.",
+        "When": "před týdnem"
+      },
+      {
+        "Name": "Anonymized",
+        "ProfilePicture": "",
+        "Rating": 5,
+        "Description": "Anonymized review text.",
+        "When": "před měsícem"
+      }
+    ],
+    "user_reviews_extended": null,
+    "emails": null
   }
 ]

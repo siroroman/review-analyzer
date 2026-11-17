@@ -7,10 +7,10 @@ from app.domain import PlaceDetails
 from app.gateway import ClientError, ClientTimeout, GosomClient, PlaceDetailsLookup, Units
 from app.transport import FakeTransport, HttpError, HttpResponse, HttpTimeout
 
-# Built by hand in the shape of gosom's JSON output (`-depth 1`, `-lang cs`) with the figures of the live
-# test in #122. Replace it with a real recording when the sidecar (#128) runs.
+# Recorded on 2026-11-17 from `gosom/google-maps-scraper:latest` (`-json -depth 1 -lang cs`, query "Alza.cz
+# Showroom Praha 7"): one result of its output, with the names, photos and texts of the reviewers replaced.
 FIXTURE = Path(__file__).parents[1] / "fixtures/places/gosom-place-details-alza-showroom.json"
-PLACE = "ChIJexampleAlzaShowroom0001"
+PLACE = "ChIJvzXMT7CUC0cRvnSIfC_H8c4"
 BASE = "http://gosom.internal:8080"
 
 
@@ -44,16 +44,17 @@ def failure_of(*steps: HttpResponse | HttpError) -> ClientError:
 
 
 def test_the_recorded_place_is_mapped_field_by_field() -> None:
+    raw = results()[0]
     assert details_of(answer(results())) == PlaceDetails(
         rating=4.3,
-        review_count=26348,
-        reviews_per_rating={1: 1752, 2: 653, 3: 1939, 4: 5468, 5: 16536},
-        category="Obchod s elektronikou",
-        address="Jankovcova 1522/53, 170 00 Praha 7-Holešovice",
-        phone="+420 225 340 130",
-        website="https://www.alza.cz/",
-        maps_url="https://www.google.com/maps/place/Alza.cz+Showroom+Praha+7/data=!4m2!3m1!1s0x0:0x0",
-        thumbnail_url="https://lh3.googleusercontent.com/p/example-thumbnail=w408-h306-k-no",
+        review_count=26347,
+        reviews_per_rating={1: 1752, 2: 653, 3: 1939, 4: 5468, 5: 16535},
+        category="Prodej elektroniky",
+        address="Jateční 306/2, 170 00 Praha 7-Holešovice",
+        phone="225 340 111",
+        website="https://www.alza.cz/prodejna-praha-7-holesovice-595.htm",
+        maps_url=str(raw["link"]),
+        thumbnail_url=str(raw["thumbnail"]),
     )
 
 
@@ -67,21 +68,26 @@ def test_counts_that_do_not_sum_are_returned_as_received() -> None:
     item = results()[0] | {"reviews_per_rating": {"1": 1, "2": 1, "3": 1, "4": 1, "5": 1}}
     details = details_of(answer([item]))
     assert details.reviews_per_rating == {1: 1, 2: 1, 3: 1, 4: 1, 5: 1}
-    assert details.review_count == 26348
+    assert details.review_count == 26347
 
 
 @pytest.mark.parametrize(
-    "name", ["category", "address", "phone", "website", "link", "thumbnail", "reviews_per_rating"]
+    "name", ["category", "address", "phone", "web_site", "link", "thumbnail", "reviews_per_rating"]
 )
 def test_a_missing_optional_field_is_none(name: str) -> None:
     item = {key: value for key, value in results()[0].items() if key != name}
     details = details_of(answer([item]))
-    assert getattr(details, {"link": "maps_url", "thumbnail": "thumbnail_url"}.get(name, name)) is None
+    assert (
+        getattr(
+            details, {"link": "maps_url", "thumbnail": "thumbnail_url", "web_site": "website"}.get(name, name)
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize("value", [None, ""])
 def test_a_null_or_empty_website_is_none(value: object) -> None:
-    assert details_of(answer([results()[0] | {"website": value}])).website is None
+    assert details_of(answer([results()[0] | {"web_site": value}])).website is None
 
 
 def test_the_reviews_of_the_result_are_ignored() -> None:
@@ -124,7 +130,7 @@ def test_two_results_with_the_asked_place_id_are_ambiguous() -> None:
 
 def test_one_result_without_a_place_id_is_taken_for_the_asked_one() -> None:
     item = {key: value for key, value in results()[0].items() if key != "place_id"}
-    assert details_of(answer([item])).review_count == 26348
+    assert details_of(answer([item])).review_count == 26347
 
 
 def test_usage_is_one_place() -> None:

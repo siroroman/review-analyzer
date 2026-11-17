@@ -55,7 +55,7 @@ def _details(item: dict[str, Any]) -> PlaceDetails:
             category=_optional_text(item, "category"),
             address=_optional_text(item, "address"),
             phone=_optional_text(item, "phone"),
-            website=_optional_text(item, "website"),
+            website=_optional_text(item, "web_site"),
             maps_url=_optional_text(item, "link"),
             thumbnail_url=_optional_text(item, "thumbnail"),
         )
