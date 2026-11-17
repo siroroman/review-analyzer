@@ -279,3 +279,40 @@ def test_a_repeated_topic_that_is_less_confident_is_dropped() -> None:
     world.add(review(1))
     world.run()
     assert [(t.sentiment, t.confidence) for t in world.topics()] == [(Sentiment.POSITIVE, 0.9)]
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        entry("1", ("staff", "mixed", 0.9)),
+        {"id": 1, "topics": [{"key": "staff", "sentiment": "positive", "confidence": 0.9}]},
+        {"id": "1", "topics": [{"key": "staff", "sentiment": "positive"}]},
+        {"id": "1", "topics": "staff"},
+        "not an entry",
+    ],
+    ids=["sentiment", "integer-id", "malformed-topic", "topics-not-a-list", "not-an-object"],
+)
+def test_an_invalid_entry_is_dropped_and_the_others_of_the_batch_are_kept(bad: object) -> None:
+    world = World([answer(bad, entry("2", ("prices", "neutral", 0.7))), answer()])  # type: ignore[arg-type]
+    world.add(review(1), review(2))
+    assert world.run() == (1, 1)
+    assert {t.review_external_id: t.topic_key for t in world.topics()} == {
+        "r001": "unclassified",
+        "r002": "prices",
+    }
+    assert len(world.jev_requests) == 2  # the follow-up asks for r001 only, no repair retry
+    assert "Recenze číslo 2" not in world.jev_requests[1].prompt
+
+
+def test_a_review_whose_only_entry_is_invalid_is_answered_in_the_follow_up() -> None:
+    world = World([answer(entry("1", ("staff", "mixed", 0.9))), full_answer(1, key="prices")])
+    world.add(review(1))
+    assert world.run() == (1, 0)
+    assert [t.topic_key for t in world.topics()] == ["prices"]
+
+
+def test_a_results_value_that_is_not_a_list_still_goes_through_the_repair_retry() -> None:
+    world = World(['{"results": "none"}', full_answer(1)])
+    world.add(review(1))
+    assert world.run() == (1, 0)
+    assert len(world.jev_requests) == 2
