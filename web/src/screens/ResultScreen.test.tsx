@@ -89,9 +89,17 @@ it("shows exactly two boxes: the rating of each Source and the cost", async () =
   expect(within(google).getByText("4,0")).toBeInTheDocument();
   expect(within(google).getByText("18 recenzí")).toBeInTheDocument();
   expect(within(screen.getByRole("group", { name: "Náklady analýzy" })).getByText(/USD/)).toBeInTheDocument();
-  expect(screen.getAllByRole("group").filter((group) => group.className.includes("min-w-40"))).toHaveLength(2);
+  expect(screen.getAllByRole("group").map((group) => group.getAttribute("aria-label")).filter((label) => label === "Google Maps" || label === "Náklady analýzy")).toEqual(["Google Maps", "Náklady analýzy"]);
   expect(screen.queryByRole("group", { name: "Celkové hodnocení" })).not.toBeInTheDocument();
   expect(screen.queryByRole("group", { name: "Podezřelé recenze" })).not.toBeInTheDocument();
+});
+
+it("keeps two boxes when the Company has two Sources: Google Maps and the cost", async () => {
+  setup(fakeApi({ runResult: vi.fn(async () => twoSources()) }));
+  const google = await screen.findByRole("group", { name: "Google Maps" });
+  expect(within(google).getByText("4,4")).toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "Firmy.cz" })).not.toBeInTheDocument();
+  expect(screen.getByRole("group", { name: "Náklady analýzy" })).toBeInTheDocument();
 });
 
 it("has no buttons for the whole Company or a single Place", async () => {
@@ -233,14 +241,12 @@ it("marks a rise on the chart with its month", async () => {
   expect(await screen.findByText("▲ Leden: oživení")).toBeInTheDocument();
 });
 
-
 it("fits the rating axis to the data in half-star steps", async () => {
   const { container } = setup(fakeApi());
   await screen.findByRole("img", { name: /Vývoj hodnocení/ });
   const ticks = [...container.querySelectorAll(".recharts-yAxis-tick-labels text")].map((tick) => tick.textContent);
   expect(ticks).toEqual(["3,0", "3,5", "4,0", "4,5", "5,0"]);
 });
-
 
 it("shades the month of a drop with an area that has a width", async () => {
   const withDrop = fakeResult({
@@ -261,7 +267,6 @@ it("shows no list of changes when the Run found none", async () => {
   await screen.findByRole("img", { name: /Vývoj hodnocení/ });
   expect(screen.queryByRole("list", { name: "Poklesy a vzestupy" })).not.toBeInTheDocument();
 });
-
 
 it("warns that a partial result shows only what was finished", async () => {
   setup(fakeApi({ runResult: vi.fn(async () => fakeResult({ status: "partial" })) }));
@@ -293,7 +298,6 @@ it("explains that one month is too little to show a development", async () => {
   expect(screen.getByRole("img", { name: /Vývoj hodnocení/ })).toBeInTheDocument();
 });
 
-
 it("shows the shared header with the cache note and a Nové hledání button once the result is there", async () => {
   setup(fakeApi());
   const header = await screen.findByRole("banner");
@@ -320,17 +324,21 @@ it("keeps the way to a new search when the result cannot be loaded", async () =>
 
 it("says under the title which Sources and months the result covers, not a fixed year", async () => {
   setup(fakeApi());
-  expect(await screen.findByText(/^Google Maps · recenze od \d\d\/\d{4} do \d\d\/\d{4}$/)).toBeInTheDocument();
+  expect(await screen.findByText("Google Maps · recenze od 01/2026 do 02/2026")).toBeInTheDocument();
 });
 
 it("lists every Source of the Company in the sub-line", async () => {
   setup(fakeApi({ runResult: vi.fn(async () => twoSources()) }));
-  expect(await screen.findByText(/^Google Maps, Firmy.cz · recenze od /)).toBeInTheDocument();
+  expect(await screen.findByText("Google Maps, Firmy.cz · recenze od 06/2025 do 06/2026")).toBeInTheDocument();
 });
 
-
-
-
+it("draws every distribution bar in black", async () => {
+  setup(fakeApi());
+  const card = await screen.findByRole("group", { name: "Rozdělení hodnocení" });
+  const fills = [...card.querySelectorAll("button span[aria-hidden] > span")];
+  expect(fills).toHaveLength(5);
+  for (const fill of fills) expect(fill).toHaveClass("bg-ink");
+});
 
 it("shows the rating distribution from 5 to 1 stars with count and percent", async () => {
   setup(fakeApi());
@@ -384,7 +392,6 @@ it("leaves the distribution out when there are no Reviews", async () => {
   await screen.findByRole("heading", { level: 1 });
   expect(screen.queryByRole("group", { name: "Rozdělení hodnocení" })).not.toBeInTheDocument();
 });
-
 
 it("puts the Topics in a grid under the chart", async () => {
   const withTopics = fakeResult({

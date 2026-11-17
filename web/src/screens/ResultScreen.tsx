@@ -104,6 +104,7 @@ function Dashboard({ result }: { result: RunResult }) {
   const openInsight = (title: string, ids: string[]) => setPanel({ topic: null, request: { title, load: () => api.reviews(result.run_id, { ids }) } });
   const openRating = (stars: number) => setPanel({ topic: null, request: { title: `Recenze: ${stars} ★`, load: () => api.reviews(result.run_id, { rating: stars }) } });
   const closePanel = useMemo(() => () => setPanel(null), []);
+  const google = metrics.per_source.find((entry) => entry.source === "google_maps");
   const months = new Set(metrics.trend.map((point) => point.period_start)).size;
 
   return (
@@ -121,11 +122,11 @@ function Dashboard({ result }: { result: RunResult }) {
       <h1 className="text-2xl font-semibold">{company.name}</h1>
       <p className="mb-4 mt-1 text-sm text-muted">{sourceLine(company.places, metrics.trend)}</p>
       <div className="mb-6 flex flex-wrap gap-3">
-        {metrics.per_source.map(({ source, summary }) => (
-          <Card key={source} label={SOURCE_LABEL[source]}>
-            <Rating summary={summary} />
+        {google && (
+          <Card label={SOURCE_LABEL.google_maps}>
+            <Rating summary={google.summary} />
           </Card>
-        ))}
+        )}
         <Card label="Náklady analýzy">
           <p className="text-3xl font-semibold">{formatCost(result.cost)}</p>
         </Card>
