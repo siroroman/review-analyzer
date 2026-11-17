@@ -160,3 +160,21 @@ def test_the_fallback_names_the_biggest_of_several_changes() -> None:
         "Average rating 3.4 from 10 reviews. 1 drop and 1 rise detected; "
         "the biggest change is -0.8 stars on google_maps in 2026-10 (waiting)."
     )
+
+
+def test_an_insight_with_bold_markers_still_passes_grounding_and_the_checks() -> None:
+    gen, _ = setup(
+        answer(
+            item("Průměr **3,4** z 10 recenzí, hlavní problém je **čekání**.", ["r1"]),
+            item("Zkraťte **čekání** na obsluhu.", ["r2"], "suggestion"),
+            item("Citing missing, **bold** too.", ["r999"], "anomaly"),
+        )
+    )
+
+    result = gen.generate(metrics(), SAMPLES, run_id=RUN)
+
+    assert [(i.text, i.review_ids) for i in result.insights] == [
+        ("Průměr **3,4** z 10 recenzí, hlavní problém je **čekání**.", ("r1",)),
+        ("Zkraťte **čekání** na obsluhu.", ("r2",)),
+    ]
+    assert result.dropped == 1

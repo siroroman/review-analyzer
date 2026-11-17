@@ -57,3 +57,13 @@ def test_the_system_prompt_is_cached_and_the_task_is_insights() -> None:
     assert call.task == "insights"
     assert call.cache_system is True
     assert call.run_id == RUN
+
+
+def test_the_system_prompt_asks_for_key_facts_in_double_asterisks_in_summary_and_suggestions() -> None:
+    _, system = prompt_for(("r1", "x"))
+
+    assert system is not None
+    assert "**" in system
+    assert "key facts" in system.lower()
+    assert "summary" in system.lower()
+    assert "suggestion" in system.lower()
