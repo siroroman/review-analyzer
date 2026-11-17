@@ -215,7 +215,8 @@ def dated(count: int, text: str = "Dobrá káva, pomalá obsluha.", offset: int 
 
 def sent_texts(world: World) -> list[str]:
     prompt = requests(world.setup.anthropic)[0].prompt
-    return json.loads(prompt.split("<reviews>\n")[1].split("\n</reviews>")[0])
+    texts: list[str] = json.loads(prompt.split("<reviews>\n")[1].split("\n</reviews>")[0])
+    return texts
 
 
 def test_the_sample_is_the_newest_hundred_with_text_whatever_the_input_order() -> None:
@@ -228,9 +229,10 @@ def test_the_sample_is_the_newest_hundred_with_text_whatever_the_input_order() -
         for i, r in enumerate(reviews(100))
     ]
     texts = []
-    for order in (old + new, new + old, list(reversed(old + new))):
+    orders: list[list[Review]] = [old + new, new + old, list(reversed(old + new))]
+    for order in orders:
         world = World(topics_json(8))
-        world.get(sample=lambda order=order: order)
+        world.get(sample=lambda order=order: order)  # type: ignore[misc]
         texts.append(sent_texts(world))
     assert len(texts[0]) == 100
     assert all(t.startswith("new") for t in texts[0])
