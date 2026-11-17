@@ -106,3 +106,14 @@ def test_a_copied_result_stays_whole_when_a_newer_run_finishes_before_the_redeli
     assert world.service_calls() == before
     assert world.storage.insights.for_run(run_id) == world.storage.insights.for_run(first.run_id)
     assert world.storage.trends.for_run(run_id) == world.storage.trends.for_run(first.run_id)
+
+
+def test_an_empty_scrape_of_a_place_that_has_stored_reviews_is_a_source_error_not_zero_new_reviews() -> None:
+    world = World(scraped_reviews=month_of_reviews(40))
+    world.run()
+    world.clock.advance(timedelta(days=2))
+    world.scraped = []  # the sidecar is blocked and answers an empty page
+    second = world.run()
+    assert second.status is RunStatus.PARTIAL
+    assert second.reviews == 40
+    assert world.scrape_calls() == 2  # a source error is not retried
