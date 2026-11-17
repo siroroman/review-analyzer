@@ -13,16 +13,18 @@ export function Insights({ insights, onOpen }: { insights: RunResult["insights"]
   if (!summary && suggestions.length === 0) return null;
 
   const button = (title: string, ids: string[]) => (
-    <button onClick={() => onOpen(title, ids)} className="mt-2 inline-flex min-h-11 items-center rounded-lg bg-ink px-4 font-semibold text-white">
-      {`Zobrazit recenze (${ids.length})`}
-    </button>
+    <div className="mt-2 flex justify-end">
+      <button onClick={() => onOpen(title, ids)} className="inline-flex min-h-11 items-center rounded-lg bg-ink px-4 font-semibold text-white">
+        {`Zobrazit recenze (${ids.length})`}
+      </button>
+    </div>
   );
 
   return (
     <section className="rounded-card border border-line bg-card p-4">
       <h2 className="mb-2 text-lg font-semibold">Shrnutí a doporučení</h2>
       {summary && (
-        <div className="mb-4">
+        <div className="mb-4 pr-3">
           <p>{highlighted(summary.text)}</p>
           {button("Recenze ke shrnutí", summary.review_ids)}
         </div>
@@ -30,10 +32,10 @@ export function Insights({ insights, onOpen }: { insights: RunResult["insights"]
       <ol aria-label="Doporučení" className="flex flex-col gap-2">
         {suggestions.map((suggestion, index) => (
           <li key={index} className="flex gap-3 rounded-lg bg-page p-3">
-            <span aria-hidden="true" className="font-semibold">
+            <span aria-hidden="true" className="w-4 flex-none font-semibold">
               {index + 1}
             </span>
-            <div>
+            <div className="min-w-0 flex-1">
               <p>{highlighted(suggestion.text)}</p>
               {button(`Recenze k doporučení ${index + 1}`, suggestion.review_ids)}
             </div>

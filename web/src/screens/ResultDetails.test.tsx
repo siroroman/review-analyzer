@@ -153,6 +153,7 @@ describe("Summary and suggestions", () => {
     expect((await screen.findByText("čekání na jídlo")).tagName).toBe("STRONG");
     for (const button of screen.getAllByRole("button", { name: /Zobrazit recenze/ })) expect(button).toHaveClass("bg-ink", "text-white");
     expect(within(screen.getByRole("list", { name: "Doporučení" })).getAllByRole("listitem")[0]).toHaveClass("bg-page");
+    for (const button of screen.getAllByRole("button", { name: /Zobrazit recenze/ })) expect(button.parentElement).toHaveClass("flex", "justify-end");
   });
 
   it("shows nothing when there are no insights", async () => {
