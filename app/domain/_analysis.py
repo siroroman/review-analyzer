@@ -48,11 +48,15 @@ class SourceSummary(DomainModel):
 
 
 class PlaceSummary(DomainModel):
-    """The RatingSummary of one Place, for the comparison of Places."""
+    """The RatingSummary of one Place, for the comparison of Places.
+
+    `main_topic_key` is the Topic with the most negative mentions in the Place; None when it has none.
+    """
 
     source: Source
     place_external_id: str = Field(min_length=1)
     summary: RatingSummary
+    main_topic_key: str | None = None
 
 
 class ChangeKind(StrEnum):

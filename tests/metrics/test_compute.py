@@ -395,3 +395,31 @@ def test_reviews_without_text_count_in_every_number() -> None:
     assert {c.stars: c.count for c in metrics.rating_counts} == {5: 2, 4: 0, 3: 0, 2: 1, 1: 1}
     gm_march = next(t for t in metrics.trend if t.source is GM)
     assert (gm_march.count, gm_march.average_rating) == (3, 11 / 3)
+
+
+def test_the_main_topic_of_a_place_is_its_most_negative_topic() -> None:
+    reviews = [
+        _review("a", 1, date(2026, 3, 1), place="g1"),
+        _review("b", 2, date(2026, 3, 2), place="g1"),
+        _review("c", 5, date(2026, 3, 3), place="g2"),
+        _review("d", 1, date(2026, 3, 4), place="g3", flagged=True),
+    ]
+    topics = [
+        _topic("a", "waiting", Sentiment.NEGATIVE),
+        _topic("b", "waiting", Sentiment.NEGATIVE),
+        _topic("b", "staff", Sentiment.NEGATIVE),
+        _topic("a", "price", Sentiment.POSITIVE),
+        _topic("c", "staff", Sentiment.POSITIVE),
+        _topic("d", "price", Sentiment.NEGATIVE),
+    ]
+
+    main = {p.place_external_id: p.main_topic_key for p in compute(reviews, topics).per_place}
+
+    assert main == {"g1": "waiting", "g2": None}  # g2 has no negative mention; g3's only Review is Flagged
+
+
+def test_a_tie_of_negative_topics_goes_to_the_smaller_key() -> None:
+    reviews = [_review("a", 1, date(2026, 3, 1))]
+    topics = [_topic("a", "staff", Sentiment.NEGATIVE), _topic("a", "price", Sentiment.NEGATIVE)]
+
+    assert compute(reviews, topics).per_place[0].main_topic_key == "price"
