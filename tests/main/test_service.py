@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app import main
 from app.main import build_apps, build_service
 from app.storage import in_memory_storage
 from app.worker import FakeTokenVerifier
@@ -66,3 +67,24 @@ def test_the_admin_routes_need_the_admin_token_under_api_too(web: Path) -> None:
 def test_tasks_run_reaches_the_worker_not_the_spa(web: Path) -> None:
     refused = service(web).post("/tasks/run", json={"run_id": "r1"})
     assert refused.status_code == 401
+
+
+def test_the_lifespan_reaches_the_api(web: Path) -> None:
+    wall = clock()
+    built = build_apps(
+        ENVIRON, transport=Internet(), storage=in_memory_storage(wall), clock=wall, token_verifier=VERIFIER
+    )
+    with TestClient(build_service(built, web)) as client:
+        assert client.get("/").status_code == 200
+
+
+def test_service_app_reads_the_environment_and_serves_web_dir(
+    web: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    wall = clock()
+    built = build_apps(
+        ENVIRON, transport=Internet(), storage=in_memory_storage(wall), clock=wall, token_verifier=VERIFIER
+    )
+    monkeypatch.setattr(main, "build_apps", lambda environ: built)
+    monkeypatch.setenv("WEB_DIR", str(web))
+    assert TestClient(main.service_app()).get("/").text == "<html>spa</html>"

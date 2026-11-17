@@ -269,9 +269,7 @@ class _Spa(StaticFiles):
     async def get_response(self, path: str, scope: Scope) -> Response:
         try:
             response = await super().get_response(path, scope)
-        except HTTPException as error:
-            if error.status_code != 404:
-                raise
+        except HTTPException:  # only ever a 404 for a GET: no such file
             return await super().get_response("index.html", scope)
         return response
 
@@ -287,9 +285,6 @@ class _Service:
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "lifespan":
             await self._api(scope, receive, send)
-            return
-        if scope["type"] != "http":
-            await self._web(scope, receive, send)
             return
         path: str = scope["path"]
         if path == "/api" or path.startswith("/api/"):
