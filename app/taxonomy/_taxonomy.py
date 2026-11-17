@@ -110,7 +110,7 @@ def _industry_prompt(sample: Sequence[Review]) -> str:
 
 
 def _usable_sample(reviews: Sequence[Review]) -> list[Review]:
-    """The newest `MAX_SAMPLE` Reviews with text that are not Flagged, in a fixed order.
+    """All Reviews with text that are not Flagged, newest first, in a fixed order; callers keep `MAX_SAMPLE`.
 
     Star-only Reviews give a model nothing to read, so they are never in the sample; they stay in the Run
     for ratings and counts. Ties on the date are broken by identity so the choice never depends on the

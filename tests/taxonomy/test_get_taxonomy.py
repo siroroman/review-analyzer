@@ -258,3 +258,18 @@ def test_star_only_reviews_do_not_count_towards_the_minimum() -> None:
     with pytest.raises(SampleTooSmall) as raised:
         World(topics_json(8)).get(sample=lambda: [*dated(MIN_SAMPLE - 1), *dated(500, text="", offset=500)])
     assert raised.value.size == MIN_SAMPLE - 1
+
+
+def test_reviews_on_the_same_date_give_the_same_sample_in_any_input_order() -> None:
+    tied = [
+        r.model_copy(update={"text": f"tie {i:03d}", "external_id": f"t{i:03d}"})
+        for i, r in enumerate(reviews(150))
+    ]
+    samples = []
+    for order in (tied, list(reversed(tied))):
+        world = World(topics_json(8))
+        world.get(sample=lambda order=order: order)  # type: ignore[misc]
+        samples.append(sent_texts(world))
+    assert len(samples[0]) == 100
+    assert samples[0] == samples[1]
+    assert set(samples[0]) == {f"tie {i:03d}" for i in range(100)}
