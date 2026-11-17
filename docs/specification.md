@@ -77,7 +77,7 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 | `metrics` | `compute(reviews, topics) -> Metrics` (averages, `TrendPoint`, topic shares, drops and rises) | all computations and anomaly detection | pure functions, no mocks |
 | `insights` | `generate(metrics, samples) -> Insights` | prompts, Sonnet, schema validation, grounding check (the review IDs exist), content check | fake LLM port |
 | `llm` | `complete(task, prompt, schema) -> T` | model routing, retry, fallback, prompt caching, Langfuse tracing; provider calls go through `gateway` | fake gateway |
-| `gateway` | `call(service, operation, request) -> response`, `GatewayDenied`, `BudgetExceeded` | allow-list of services and operations, rate limit and concurrency per service, `budget.reserve` before and `record` after every call, a record of every call (no request or response bodies), provider adapters (OpenRouter, Anthropic, Apify, Google Places) | fake `ServiceClient`s, fake `Clock`, fake `CallLog` |
+| `gateway` | `call(service, operation, request) -> response`, `GatewayDenied`, `BudgetExceeded` | allow-list of services and operations, rate limit and concurrency per service, `budget.reserve` before and `record` after every call, a record of every call (no request or response bodies), provider adapters (OpenRouter, Anthropic, Apify, Google Places, YasogaN, gosom) | fake `ServiceClient`s, fake `Clock`, fake `CallLog` |
 | `budget` | `reserve(estimate)`, `record(cost)`, `BudgetExceeded` | cost estimate, cap per run, monthly cap, for every paid service | pure functions; called by `gateway` only |
 | `transport` | `HttpTransport.send(request) -> response`, `read_secret(environ, name)` | the HTTP call on the standard library, where keys are read from configuration; no key in a `repr`, error or log | local test server, fake transport |
 | `tracing` | `LangfuseTracer` (the `llm` `Tracer` port) | one Langfuse generation per model call with tokens and price; a Langfuse failure never fails a Run | fake transport, recorded Langfuse answers |
@@ -229,4 +229,4 @@ All open questions are decided, except how the branches of a chain are found and
 
 - [ ] Branch discovery for a chain: Google Places text search by name, filtered by name and address, plus user confirmation; precision on 3 real companies
 - [ ] Jev: whether it handles Czech (50 real reviews labelled by a model and corrected by a human, plus about 15 synthetic injection attacks; go if sentiment agreement is at least 80 %, topics at least 70 % and no injection false negatives, otherwise Haiku only; test key limited to 5 USD) and a client for the OpenRouter Decisions API, which is not OpenAI-compatible
-- [ ] Test run: jupri/firmy and oodoow/mapy-com-ppe (date, review ID, more than 3 reviews?) and a comparison of older dates from compass with Google Maps
+- [ ] Test run: jupri/firmy and oodoow/mapy-com-ppe (date, review ID, more than 3 reviews?)

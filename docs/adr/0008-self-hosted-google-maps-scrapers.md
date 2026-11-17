@@ -34,4 +34,4 @@ Roles: YasogaN is the only Source of Google Maps Reviews (at most 1000 newest pe
 - Two more services to deploy and monitor (images, IAM between worker and sidecars).
 - About half of Google Reviews have no text; they are kept, and the Taxonomy sample takes only Reviews with text (#123).
 - Gateway and budget are critical paths: the new Services touch `app/gateway/**`, so their tickets name that in the PR.
-- Tickets #121, #122, #124 and #125 are updated to match (see the comment on #120); new follow-ups: sidecar services and deployment, weekly canary.
+- #121 and #122 got a comment matching this decision; #123, #124 and #125 still fit it unchanged. New follow-ups: #128 (sidecar services and deployment) and #129 (weekly canary).

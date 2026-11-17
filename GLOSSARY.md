@@ -79,7 +79,7 @@ The cost cap of one Run (and the monthly cap across Runs) over all paid services
 _Avoid_: Quota, limit
 
 **Gateway**:
-The one module through which every paid or load-bearing external service (model providers, Apify, Google Places, the self-hosted Google Maps scrapers) is called. It applies the allow-list, the traffic limits and the Budget (a self-hosted scraper costs 0 per call, but is limited and logged the same way), and writes a Service call for each call.
+The one module through which every paid or self-hosted external service (model providers, Apify, Google Places, the self-hosted Google Maps scrapers) is called. It applies the allow-list, the traffic limits and the Budget, and writes a Service call for each call.
 _Avoid_: Proxy, middleware, client (a client is one provider's adapter behind the Gateway)
 
 **Service call**:
