@@ -1,5 +1,6 @@
 import json
 from collections.abc import Sequence
+from datetime import date
 
 import pytest
 
@@ -146,3 +147,19 @@ def test_a_new_industry_generates_its_own_taxonomy() -> None:
 
 def test_the_generic_key_is_a_valid_industry_key() -> None:
     assert World(answer(GENERIC_INDUSTRY)).infer() == GENERIC_INDUSTRY
+
+
+def test_the_industry_sample_is_the_newest_hundred_with_text_whatever_the_input_order() -> None:
+    old = [
+        r.model_copy(update={"text": f"old {i}", "published_on": date(2025, 1, 1)})
+        for i, r in enumerate(reviews(150))
+    ]
+    new = [
+        r.model_copy(update={"text": f"new {i}", "external_id": f"n{i}", "published_on": date(2026, 10, 1)})
+        for i, r in enumerate(reviews(100))
+    ]
+    world = World(answer("cafe"))
+    world.infer(old + new)
+    [request] = requests(world.setup.anthropic)
+    assert request.prompt.count("new ") == 100
+    assert "old " not in request.prompt
