@@ -1,7 +1,7 @@
 import hashlib
 from enum import StrEnum
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from app.domain._base import DomainModel
 
@@ -20,6 +20,34 @@ class Place(DomainModel):
     external_id: str = Field(min_length=1)
     name: str = Field(min_length=1)
     address: str
+
+
+class PlaceDetails(DomainModel):
+    """Totals and business data of one whole Place as its Source states them (not of the analyzed Reviews).
+
+    Only `rating` and `review_count` are always there; everything else may be missing and is then `None`.
+    `reviews_per_rating` maps a star (1 to 5) to its count and is kept as received: it is not forced to
+    sum to `review_count`. The phone is the business's, never a person's.
+    """
+
+    rating: float = Field(ge=1, le=5)
+    review_count: int = Field(ge=0)
+    reviews_per_rating: dict[int, int] | None = None
+    category: str | None = None
+    address: str | None = None
+    phone: str | None = None
+    website: str | None = None
+    maps_url: str | None = None
+    thumbnail_url: str | None = None
+
+    @field_validator("reviews_per_rating")
+    @classmethod
+    def _stars_one_to_five(cls, counts: dict[int, int] | None) -> dict[int, int] | None:
+        if counts is not None and (
+            any(star not in range(1, 6) for star in counts) or any(n < 0 for n in counts.values())
+        ):
+            raise ValueError("per star counts need stars 1 to 5 and no negative count")
+        return counts
 
 
 class Company(DomainModel):
