@@ -1,4 +1,7 @@
+import logging
 from datetime import timedelta
+
+import pytest
 
 from app.domain import RunStatus
 from app.gateway import ClientError, Suggestion
@@ -90,3 +93,12 @@ def test_suggestions_come_from_places() -> None:
 def _finish(api: Api, run_id: str) -> None:
     for status in (RunStatus.DOWNLOADING, RunStatus.CLASSIFYING, RunStatus.ANALYZING, RunStatus.DONE):
         api.storage.runs.advance(run_id, status)
+
+
+def test_the_reason_of_a_503_is_logged_without_the_place_or_the_key(caplog: pytest.LogCaptureFixture) -> None:
+    api = Api(known=[cafe()])
+    api.setup.google.error = ClientError("network")
+    with caplog.at_level(logging.WARNING):
+        response = api.client.post("/runs", json=RUN, headers=HEADERS)
+    assert response.status_code == 503
+    assert [r.getMessage() for r in caplog.records] == ["places unavailable: reason=network"]

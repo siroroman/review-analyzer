@@ -39,6 +39,6 @@ class UrllibTransport:
         except urllib.error.URLError as failure:
             if isinstance(failure.reason, TimeoutError):
                 raise HttpTimeout("timeout") from None
-            raise HttpError("connection failed") from None
-        except (OSError, http.client.HTTPException):
-            raise HttpError("connection failed") from None
+            raise HttpError(f"connection failed ({type(failure.reason).__name__})") from None
+        except (OSError, http.client.HTTPException) as failure:
+            raise HttpError(f"connection failed ({type(failure).__name__})") from None
