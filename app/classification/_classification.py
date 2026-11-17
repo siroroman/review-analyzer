@@ -1,8 +1,9 @@
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from app.domain import Review, ReviewTopic, Sentiment, Source
 from app.gateway import ClientError
@@ -42,7 +43,8 @@ class _Entry(BaseModel):
 class _Answer(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    results: list[_Entry]
+    # Entries are validated one by one in `_to_topics`: one bad entry must not fail the whole batch.
+    results: list[Any]
 
 
 def _system(taxonomy: StoredTaxonomy) -> str:
@@ -135,7 +137,11 @@ def _to_topics(
     """Keep only what the schema of a Taxonomy allows: known keys, confidence 0 to 1, best 3 per Review."""
     by_id = {str(number): review for number, review in enumerate(batch, start=1)}
     best: dict[str, dict[str, _Topic]] = {}
-    for entry in answer.results:
+    for raw in answer.results:
+        try:
+            entry = _Entry.model_validate(raw)
+        except ValidationError:
+            continue
         if entry.id not in by_id:
             continue
         found = best.setdefault(entry.id, {})
