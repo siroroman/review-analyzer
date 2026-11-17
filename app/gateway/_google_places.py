@@ -1,6 +1,7 @@
 """ServiceClient `google_places`: Places API (New) autocomplete, details and text search."""
 
 import json
+import logging
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -14,6 +15,7 @@ from app.gateway._types import ClientError, ClientResponse, ClientTimeout, Usage
 from app.transport import HttpError, HttpRequest, HttpResponse, HttpTimeout, HttpTransport
 
 GOOGLE_PLACES = "google_places"
+_log = logging.getLogger(__name__)
 _BASE = "https://places.googleapis.com/v1"
 _ID = re.compile(r"[A-Za-z0-9_-]{1,300}")
 _PAGE_SIZE = 20
@@ -136,6 +138,8 @@ class GooglePlacesClient:
         except HttpTimeout as slow:
             raise ClientTimeout from slow
         except HttpError as down:
+            # The message of an HttpError holds the type of the failure, never the URL, key or body.
+            _log.warning("google_places network failure: %s", down)
             raise ClientError("network") from down
         if answer.status >= 500:
             raise ClientError("unavailable")
