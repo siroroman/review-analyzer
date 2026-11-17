@@ -921,6 +921,145 @@
         "title": "Place",
         "description": "One branch of a Company on one Source, identified by that Source's external ID."
       },
+      "PlaceResultOut": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "place_external_id": {
+            "type": "string",
+            "title": "Place External Id"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website"
+          },
+          "maps_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maps Url"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "review_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Count"
+          },
+          "reviews_per_rating": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviews Per Rating"
+          },
+          "analyzed_count": {
+            "type": "integer",
+            "title": "Analyzed Count"
+          },
+          "analyzed_is_limited": {
+            "type": "boolean",
+            "title": "Analyzed Is Limited"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "place_external_id",
+          "category",
+          "address",
+          "phone",
+          "website",
+          "maps_url",
+          "thumbnail_url",
+          "rating",
+          "review_count",
+          "reviews_per_rating",
+          "analyzed_count",
+          "analyzed_is_limited"
+        ],
+        "title": "PlaceResultOut",
+        "description": "One Place of a Run: its Source's totals (Google Maps only, else `None`) and the analyzed count.\n\nThe totals describe the whole Place, not the analyzed Reviews. All of them are `None` when the Source\nhas none or the call for them failed."
+      },
       "PlaceSummary": {
         "properties": {
           "source": {
@@ -1008,6 +1147,13 @@
             "type": "array",
             "title": "Topics"
           },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceResultOut"
+            },
+            "type": "array",
+            "title": "Places"
+          },
           "reviews": {
             "type": "integer",
             "title": "Reviews"
@@ -1047,6 +1193,7 @@
           "metrics",
           "insights",
           "topics",
+          "places",
           "reviews",
           "flagged",
           "unclassified",
