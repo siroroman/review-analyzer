@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -222,3 +223,14 @@ def test_a_place_or_suggestion_that_is_not_the_documented_shape_is_a_bad_respons
     with pytest.raises(ClientError) as failure:
         adapter.call(operation, requests[operation])
     assert failure.value.kind == "bad_response"
+
+
+def test_a_network_failure_is_logged_with_its_type_and_nothing_of_the_request(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    adapter, _ = client(HttpError("connection failed (SSLCertVerificationError)"))
+    with caplog.at_level(logging.WARNING), pytest.raises(ClientError):
+        adapter.call("details", DetailsRequest("ChIJabc"))
+    assert [r.getMessage() for r in caplog.records] == [
+        "google_places network failure: connection failed (SSLCertVerificationError)"
+    ]

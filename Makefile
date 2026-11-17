@@ -43,6 +43,7 @@ test-scripts: ## Tests of the repo scripts and hooks
 	scripts/test-check-context-size.sh
 	scripts/test-check-script-tests.sh
 	scripts/test-check-secrets.sh
+	scripts/test-ca-bundle.sh
 	scripts/check-script-tests.sh
 
 db: ## Local run: start PostgreSQL in Docker and wait until it is ready
@@ -51,5 +52,7 @@ db: ## Local run: start PostgreSQL in Docker and wait until it is ready
 migrate: ## Local run: apply the migrations in app/storage/migrations to DATABASE_URL (from .env)
 	uv run --frozen --env-file .env python -m app.storage
 
-run-api: ## Local run: the backend on http://localhost:8000 with the in-process queue (keys from .env)
+run-api: ## Local run: the backend on http://localhost:8000 with the in-process queue (keys from .env; on macOS with a CA bundle)
+	@ca=$$(scripts/ca-bundle.sh); \
+	[ -z "$$ca" ] || export SSL_CERT_FILE="$$ca"; \
 	uv run --frozen --env-file .env uvicorn --factory app.main:api_app --port 8000

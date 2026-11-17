@@ -70,6 +70,14 @@ def test_no_listener_is_an_http_error_without_the_url() -> None:
     assert not isinstance(failure.value, HttpTimeout)
 
 
+def test_a_failed_tls_handshake_names_the_error_type_but_not_the_url(server: str) -> None:
+    # The test server speaks plain http, so a TLS client fails the handshake, like a missing root certificate.
+    with pytest.raises(HttpError) as failure:
+        UrllibTransport().send(post(server.replace("http://", "https://") + "/secret-path", timeout=2))
+    assert "SSLError" in str(failure.value)
+    assert "secret-path" not in str(failure.value)
+
+
 def test_only_http_and_https_are_sent() -> None:
     with pytest.raises(HttpError):
         UrllibTransport().send(post("file:///etc/passwd"))

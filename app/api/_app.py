@@ -1,4 +1,5 @@
 import hmac
+import logging
 import threading
 from collections.abc import Awaitable, Callable
 from datetime import UTC, date, datetime, timedelta
@@ -27,6 +28,7 @@ from app.taxonomy import UNCLASSIFIED_KEY
 
 _TEXT = r"^[\w\s.,'&/()\-]+$"  # letters (any language), digits, spaces and a little punctuation
 _PLACE_ID = r"^[A-Za-z0-9_\-]+$"
+_log = logging.getLogger(__name__)
 _PUBLIC = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
 _FINISHED = (RunStatus.DONE, RunStatus.PARTIAL)
 _MAX_IDS = 100
@@ -494,4 +496,5 @@ def _unavailable[T](call: Callable[[], T]) -> T:
             if unavailable.retry_after
             else None
         )
+        _log.warning("places unavailable: reason=%s", unavailable.reason)
         raise HTTPException(503, "places unavailable, try later", headers) from unavailable
