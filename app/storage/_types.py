@@ -8,6 +8,7 @@ from app.domain import (
     Change,
     Company,
     Insight,
+    PlaceDetails,
     Review,
     ReviewTopic,
     RunStatus,
@@ -92,6 +93,17 @@ class CompanyRepo(Protocol):
 
     def containing(self, source: Source, place_external_id: str) -> list[StoredCompany]:
         """Every Company that lists this Place, oldest first."""
+        ...
+
+    def set_place_details(self, source: Source, place_external_id: str, details: PlaceDetails) -> None:
+        """Store the totals of one Place, replacing any earlier ones (a Place has one set, whatever Company).
+
+        Raises `UnknownPlace` when no stored Company contains the Place.
+        """
+        ...
+
+    def place_details(self, source: Source, place_external_id: str) -> PlaceDetails | None:
+        """The stored totals of the Place, or `None` when none were stored (or the Place is unknown)."""
         ...
 
     def set_industry(self, company_id: int, industry: str) -> None:

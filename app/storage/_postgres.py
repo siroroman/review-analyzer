@@ -17,6 +17,7 @@ from app.domain import (
     Insight,
     InsightType,
     Place,
+    PlaceDetails,
     Review,
     ReviewTopic,
     RunStatus,
@@ -130,6 +131,26 @@ class PostgresCompanies:
                 (source.value, place_external_id),
             )
             return [self._load(cur, row[0]) for row in cur.fetchall()]
+
+    def set_place_details(self, source: Source, place_external_id: str, details: PlaceDetails) -> None:
+        with self._db.cursor() as cur:
+            cur.execute(
+                "UPDATE places SET details = %s WHERE source = %s AND external_id = %s",
+                (details.model_dump_json(), source.value, place_external_id),
+            )
+            if cur.rowcount == 0:
+                raise UnknownPlace(f"{source.value}:{place_external_id}")
+
+    def place_details(self, source: Source, place_external_id: str) -> PlaceDetails | None:
+        with self._db.cursor() as cur:
+            cur.execute(
+                "SELECT details FROM places WHERE source = %s AND external_id = %s",
+                (source.value, place_external_id),
+            )
+            row = cur.fetchone()
+            if row is None or row[0] is None:
+                return None
+            return PlaceDetails.model_validate(row[0], strict=False)
 
     def set_industry(self, company_id: int, industry: str) -> None:
         with self._db.cursor() as cur:
