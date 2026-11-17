@@ -63,3 +63,22 @@ it("lets an abort through as an abort", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new DOMException("aborted", "AbortError"))));
   await expect(createApi("tok", "http://api").suggest("k")).rejects.toMatchObject({ name: "AbortError" });
 });
+
+it("reads Reviews by their ids", async () => {
+  const review = { id: "r1", source: "google_maps", place_name: "Kavárna", rating: 4, date: "2026-10-01", text: "Dobré." };
+  const fetchMock = respond([review]);
+  expect(await createApi("tok", "http://api").reviews("r1", { ids: ["a", "b"] })).toEqual([review]);
+  expect(sent(fetchMock).url).toBe("http://api/runs/r1/reviews?ids=a&ids=b");
+});
+
+it("reads Reviews by a Topic", async () => {
+  const fetchMock = respond([]);
+  await createApi("tok", "http://api").reviews("r1", { topic: "staff" });
+  expect(sent(fetchMock).url).toBe("http://api/runs/r1/reviews?topic=staff");
+});
+
+it("does not serve Reviews by star rating yet", async () => {
+  const fetchMock = respond([]);
+  await expect(createApi("tok", "http://api").reviews("r1", { rating: 2 })).rejects.toMatchObject({ status: 501 });
+  expect(fetchMock).not.toHaveBeenCalled();
+});

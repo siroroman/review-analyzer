@@ -379,3 +379,31 @@ def test_rating_counts_of_no_reviews_are_zeros() -> None:
         (2, 0),
         (1, 0),
     ]
+
+
+def test_the_main_topic_of_a_place_is_its_most_negative_topic() -> None:
+    reviews = [
+        _review("a", 1, date(2026, 3, 1), place="g1"),
+        _review("b", 2, date(2026, 3, 2), place="g1"),
+        _review("c", 5, date(2026, 3, 3), place="g2"),
+        _review("d", 1, date(2026, 3, 4), place="g3", flagged=True),
+    ]
+    topics = [
+        _topic("a", "waiting", Sentiment.NEGATIVE),
+        _topic("b", "waiting", Sentiment.NEGATIVE),
+        _topic("b", "staff", Sentiment.NEGATIVE),
+        _topic("a", "price", Sentiment.POSITIVE),
+        _topic("c", "staff", Sentiment.POSITIVE),
+        _topic("d", "price", Sentiment.NEGATIVE),
+    ]
+
+    main = {p.place_external_id: p.main_topic_key for p in compute(reviews, topics).per_place}
+
+    assert main == {"g1": "waiting", "g2": None}  # g2 has no negative mention; g3's only Review is Flagged
+
+
+def test_a_tie_of_negative_topics_goes_to_the_smaller_key() -> None:
+    reviews = [_review("a", 1, date(2026, 3, 1))]
+    topics = [_topic("a", "staff", Sentiment.NEGATIVE), _topic("a", "price", Sentiment.NEGATIVE)]
+
+    assert compute(reviews, topics).per_place[0].main_topic_key == "price"
