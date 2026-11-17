@@ -109,6 +109,19 @@ def _industry_prompt(sample: Sequence[Review]) -> str:
     return f"<reviews>\n{json.dumps(texts, ensure_ascii=False).replace('<', chr(92) + 'u003c')}\n</reviews>"
 
 
+def _usable_sample(reviews: Sequence[Review]) -> list[Review]:
+    """All Reviews with text that are not Flagged, newest first, in a fixed order; callers keep `MAX_SAMPLE`.
+
+    Star-only Reviews give a model nothing to read, so they are never in the sample; they stay in the Run
+    for ratings and counts. Ties on the date are broken by identity so the choice never depends on the
+    order the caller listed the Reviews in.
+    """
+    usable = [review for review in reviews if review.has_text and not review.flagged]
+    usable.sort(key=lambda r: (r.source.value, r.place_external_id, r.external_id))
+    usable.sort(key=lambda r: r.published_on, reverse=True)
+    return usable
+
+
 class Taxonomies:
     """Gives every industry one Taxonomy: stored once, then reused by every later Run."""
 
@@ -119,12 +132,12 @@ class Taxonomies:
     def infer_industry(self, *, sample: Callable[[], Sequence[Review]], run_id: str) -> str:
         """The industry key of the Company the `sample` is from, named by the strong model.
 
-        Flagged Reviews are dropped and at most `MAX_SAMPLE` are sent, each cut to a short text, as data
-        inside `<reviews>`. The label is validated and normalized to a lowercase key. Raises
-        `SampleTooSmall` (before any call) and `InvalidIndustry`; errors of `llm`, the gateway and the
-        provider pass through. The caller decides on a fallback.
+        Only the newest `MAX_SAMPLE` Reviews with text, never a Flagged one, are sent, each cut to a
+        short text, as data inside `<reviews>`. The label is validated and normalized to a lowercase
+        key. Raises `SampleTooSmall` (before any call) and `InvalidIndustry`; errors of `llm`, the gateway
+        and the provider pass through. The caller decides on a fallback.
         """
-        usable = [review for review in sample() if review.has_text and not review.flagged]
+        usable = _usable_sample(sample())
         if len(usable) < MIN_SAMPLE:
             raise SampleTooSmall(len(usable))
         prompt = _industry_prompt(usable[:MAX_SAMPLE])
@@ -141,16 +154,16 @@ class Taxonomies:
     ) -> StoredTaxonomy:
         """The stored Taxonomy of `industry`, or a newly generated and stored one (version 1).
 
-        `sample` is called only when none is stored. Flagged Reviews are dropped from it. `llm` repairs
-        an invalid answer once; the list must hold `MIN_TOPICS` to `MAX_TOPICS` Topics, and `unclassified`
-        is added by code.
+        `sample` is called only when none is stored; its newest `MAX_SAMPLE` unflagged Reviews with text
+        are used. `llm` repairs an invalid answer once; the list must hold `MIN_TOPICS` to `MAX_TOPICS`
+        Topics, and `unclassified` is added by code.
         Raises `SampleTooSmall` (before any model call) and `InvalidTaxonomy` (nothing stored); errors
         of `llm`, the gateway and the provider pass through.
         """
         stored = self._repo.latest(industry)
         if stored is not None:
             return stored
-        usable = [review for review in sample() if review.has_text and not review.flagged]
+        usable = _usable_sample(sample())
         if len(usable) < MIN_SAMPLE:
             raise SampleTooSmall(len(usable))
         prompt = _prompt(industry, usable[:MAX_SAMPLE])

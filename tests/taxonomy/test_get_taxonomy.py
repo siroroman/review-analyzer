@@ -203,3 +203,73 @@ def test_a_failing_model_passes_its_error_through_and_stores_nothing() -> None:
     with pytest.raises(ClientError):
         world.get()
     assert world.storage.taxonomies.latest("cafe") is None
+
+
+def dated(count: int, text: str = "Dobrá káva, pomalá obsluha.", offset: int = 0) -> list[Review]:
+    """Reviews r<offset>.. where a higher index is a newer day (day 1 to 28 of October 2026)."""
+    return [
+        r.model_copy(update={"external_id": f"r{offset + i}", "published_on": date(2026, 10, 1 + i % 28)})
+        for i, r in enumerate(reviews(count, text))
+    ]
+
+
+def sent_texts(world: World) -> list[str]:
+    prompt = requests(world.setup.anthropic)[0].prompt
+    texts: list[str] = json.loads(prompt.split("<reviews>\n")[1].split("\n</reviews>")[0])
+    return texts
+
+
+def test_the_sample_is_the_newest_hundred_with_text_whatever_the_input_order() -> None:
+    old = [
+        r.model_copy(update={"text": f"old {i}", "published_on": date(2025, 1, 1)})
+        for i, r in enumerate(reviews(150))
+    ]
+    new = [
+        r.model_copy(update={"text": f"new {i}", "external_id": f"n{i}", "published_on": date(2026, 10, 1)})
+        for i, r in enumerate(reviews(100))
+    ]
+    texts = []
+    orders: list[list[Review]] = [old + new, new + old, list(reversed(old + new))]
+    for order in orders:
+        world = World(topics_json(8))
+        world.get(sample=lambda order=order: order)  # type: ignore[misc]
+        texts.append(sent_texts(world))
+    assert len(texts[0]) == 100
+    assert all(t.startswith("new") for t in texts[0])
+    assert sorted(texts[0]) == sorted(texts[1]) == sorted(texts[2])
+
+
+def test_of_1000_reviews_with_400_with_text_the_sample_is_100_reviews_with_text() -> None:
+    star_only = [r.model_copy(update={"text": ""}) for r in dated(600, offset=1000)]
+    with_text = dated(400)
+    world = World(topics_json(8))
+    world.get(sample=lambda: [*star_only, *with_text])
+    assert len(sent_texts(world)) == 100
+    assert all(sent_texts(world))
+
+
+def test_fewer_than_a_hundred_with_text_are_all_in_the_sample() -> None:
+    world = World(topics_json(8))
+    world.get(sample=lambda: [*dated(60), *dated(200, text="", offset=500)])
+    assert len(sent_texts(world)) == 60
+
+
+def test_star_only_reviews_do_not_count_towards_the_minimum() -> None:
+    with pytest.raises(SampleTooSmall) as raised:
+        World(topics_json(8)).get(sample=lambda: [*dated(MIN_SAMPLE - 1), *dated(500, text="", offset=500)])
+    assert raised.value.size == MIN_SAMPLE - 1
+
+
+def test_reviews_on_the_same_date_give_the_same_sample_in_any_input_order() -> None:
+    tied = [
+        r.model_copy(update={"text": f"tie {i:03d}", "external_id": f"t{i:03d}"})
+        for i, r in enumerate(reviews(150))
+    ]
+    samples = []
+    for order in (tied, list(reversed(tied))):
+        world = World(topics_json(8))
+        world.get(sample=lambda order=order: order)  # type: ignore[misc]
+        samples.append(sent_texts(world))
+    assert len(samples[0]) == 100
+    assert samples[0] == samples[1]
+    assert set(samples[0]) == {f"tie {i:03d}" for i in range(100)}
