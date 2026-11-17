@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.domain import Company, Place, Source
+from app.domain import Company, Place, PlaceDetails, Source
 
 
 def _place(external_id: str = "ChIJ1", source: Source = Source.GOOGLE_MAPS) -> Place:
@@ -68,3 +68,52 @@ def test_company_rejects_no_places() -> None:
 def test_company_rejects_the_same_place_twice() -> None:
     with pytest.raises(ValidationError):
         Company(name="Acme", industry="retail", places=(_place("a"), _place("a")))
+
+
+def _details(**changes: object) -> PlaceDetails:
+    fields: dict[str, object] = {"rating": 4.3, "review_count": 26348}
+    return PlaceDetails.model_validate(fields | changes)
+
+
+def test_place_details_need_only_rating_and_review_count() -> None:
+    details = _details()
+
+    assert details.reviews_per_rating is None
+    assert details.category is None
+    assert details.address is None
+    assert details.phone is None
+    assert details.website is None
+    assert details.maps_url is None
+    assert details.thumbnail_url is None
+
+
+def test_place_details_keep_per_star_counts_as_received_even_when_they_do_not_sum() -> None:
+    details = _details(reviews_per_rating={1: 1, 2: 0, 3: 0, 4: 0, 5: 1})
+
+    assert details.review_count == 26348
+    assert details.reviews_per_rating == {1: 1, 2: 0, 3: 0, 4: 0, 5: 1}
+
+
+def test_place_details_round_trip_through_json() -> None:
+    details = _details(
+        reviews_per_rating={1: 1752, 2: 653, 3: 1939, 4: 5468, 5: 16536},
+        category="Obchod s elektronikou",
+        website=None,
+    )
+
+    assert PlaceDetails.model_validate_json(details.model_dump_json()) == details
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"rating": 0.9},
+        {"rating": 5.1},
+        {"review_count": -1},
+        {"reviews_per_rating": {6: 1}},
+        {"reviews_per_rating": {1: -1}},
+    ],
+)
+def test_place_details_reject_out_of_range_numbers(changes: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        _details(**changes)

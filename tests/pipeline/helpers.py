@@ -20,7 +20,7 @@ from app.gateway import (
 )
 from app.insights import InsightGenerator
 from app.llm import CompletionRequest, FakeSleeper, FakeTracer, Llm, LlmConfig, ModelRef, Route
-from app.pipeline import Pipeline, PipelineConfig, RunResult
+from app.pipeline import Pipeline, PipelineConfig, PlaceDetailsFetcher, RunResult
 from app.sanitize import FakeInjectionDetector
 from app.sources import Sources
 from app.storage import CallFilter, Storage, StoredCompany, in_memory_storage
@@ -65,6 +65,7 @@ class World:
         max_attempts: int = 2,
         industry: str | None = "cafe",
         industry_answer: str = '{"label": "cafe"}',
+        place_details: PlaceDetailsFetcher | None = None,
     ) -> None:
         self.industry_answer = industry_answer
         self.clock = FakeClock(START)
@@ -99,6 +100,7 @@ class World:
             classifier=Classifier(llm, self.storage.reviews),
             insights=InsightGenerator(llm),
             sleeper=self.sleeper,
+            place_details=place_details,
             config=PipelineConfig(
                 reviews_per_place=1000,
                 max_attempts=max_attempts,

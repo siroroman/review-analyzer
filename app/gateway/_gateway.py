@@ -81,13 +81,11 @@ class Gateway:
             traffic = self._traffic[service]
             now = self._clock.now()
             self._check_traffic(service, operation, run_id, now, started)
-            reservation = None
-            if estimate > _ZERO:  # a free Service (ADR-0008) holds no money: nothing to reserve
-                try:
-                    reservation = self._budget.reserve(run_id, estimate)
-                except BudgetExceeded:
-                    self._log(service, operation, run_id, "denied", _ZERO, None, started, "budget_exceeded")
-                    raise
+            try:
+                reservation = self._budget.reserve(run_id, estimate)
+            except BudgetExceeded:
+                self._log(service, operation, run_id, "denied", _ZERO, None, started, "budget_exceeded")
+                raise
             traffic.calls.append(now)
             traffic.in_flight += 1
 
@@ -110,8 +108,7 @@ class Gateway:
                 # The money is spent but cannot be priced: book the estimate, never lose the call.
                 cost, error_kind = estimate, "unknown_price"
             with self._lock:
-                if reservation is not None:
-                    self._budget.record(reservation, cost)
+                self._budget.record(reservation, cost)
                 self._log(service, operation, run_id, "ok", cost, response.usage, started, error_kind)
         finally:
             with self._lock:
@@ -146,7 +143,7 @@ class Gateway:
 
     def _settle_failure(
         self,
-        reservation: Reservation | None,
+        reservation: Reservation,
         estimate: Decimal,
         service: str,
         operation: str,
@@ -167,8 +164,7 @@ class Gateway:
             except UnknownPrice:
                 cost, error_kind = estimate, "unknown_price"
         with self._lock:
-            if reservation is not None:
-                self._budget.record(reservation, cost)
+            self._budget.record(reservation, cost)
             self._log(service, operation, run_id, "failed", cost, charged, started, error_kind)
 
     def _deny(self, service: str, operation: str, run_id: str, reason: str) -> None:

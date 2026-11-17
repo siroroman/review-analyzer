@@ -9,6 +9,7 @@ from app.domain import (
     Clock,
     Company,
     Place,
+    PlaceDetails,
     Review,
     ReviewTopic,
     RunStatus,
@@ -34,6 +35,7 @@ class MemoryCompanies:
         # key -> (id, name, industry, Place keys in the order first given)
         self._companies: dict[str, tuple[int, str, str | None, tuple[tuple[Source, str], ...]]] = {}
         self.places: dict[tuple[Source, str], Place] = {}
+        self._details: dict[tuple[Source, str], PlaceDetails] = {}
 
     def get_or_create(self, company: Company) -> StoredCompany:
         for place in company.places:
@@ -63,6 +65,14 @@ class MemoryCompanies:
             for key, (_, _, _, places) in self._companies.items()
             if (source, place_external_id) in places
         ]
+
+    def set_place_details(self, source: Source, place_external_id: str, details: PlaceDetails) -> None:
+        if (source, place_external_id) not in self.places:
+            raise UnknownPlace(f"{source.value}:{place_external_id}")
+        self._details[(source, place_external_id)] = details
+
+    def place_details(self, source: Source, place_external_id: str) -> PlaceDetails | None:
+        return self._details.get((source, place_external_id))
 
     def set_industry(self, company_id: int, industry: str) -> None:
         for key, (stored_id, name, _, places) in self._companies.items():

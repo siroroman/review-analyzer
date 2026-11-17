@@ -54,3 +54,7 @@ def test_a_places_text_search_is_priced_per_request() -> None:
     usage = Units(service="google_places", unit="text_search_request", count=100)
 
     assert estimate_cost(usage) == Decimal("3.2")
+
+
+def test_a_gosom_place_costs_nothing_as_adr_0008_says() -> None:
+    assert estimate_cost(Units(service="gosom", unit="place", count=1)) == Decimal(0)
