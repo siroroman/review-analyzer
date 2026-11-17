@@ -346,7 +346,7 @@ def _status(storage: Storage, record: RunRecord) -> StatusOut:
     reached = record.classifying_at or record.analyzing_at or record.status is RunStatus.DONE
     if not reached:
         return out(downloaded, flagged)
-    to_classify = sum(1 for found in reviews.values() for r in found if not r.flagged)
+    to_classify = sum(1 for found in reviews.values() for r in found if r.has_text and not r.flagged)
     return out(
         downloaded,
         flagged,
@@ -361,7 +361,7 @@ def _classified(storage: Storage, industry: str | None, reviews: dict[Place, lis
         return 0
     done = 0
     for place, found in reviews.items():
-        unflagged = {r.external_id for r in found if not r.flagged}
+        unflagged = {r.external_id for r in found if r.has_text and not r.flagged}
         topics = storage.reviews.topics_for_place(place.source, place.external_id, taxonomy)
         done += len({t.review_external_id for t in topics if t.topic_key != UNCLASSIFIED_KEY} & unflagged)
     return done

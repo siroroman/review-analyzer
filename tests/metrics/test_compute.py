@@ -379,3 +379,19 @@ def test_rating_counts_of_no_reviews_are_zeros() -> None:
         (2, 0),
         (1, 0),
     ]
+
+
+def test_reviews_without_text_count_in_every_number() -> None:
+    texted = [_review("a", 5, date(2026, 3, 1)), _review("b", 5, date(2026, 3, 2))]
+    star_only = [
+        _review("c", 1, date(2026, 3, 3)).model_copy(update={"text": ""}),
+        _review("d", 2, date(2026, 3, 4), source=FC, place="f1").model_copy(update={"text": ""}),
+    ]
+    metrics = compute([*texted, *star_only], [])
+    assert metrics.overall is not None
+    assert (metrics.overall.count, metrics.overall.average_rating) == (4, 3.25)
+    assert {s.source: s.summary.count for s in metrics.per_source} == {GM: 3, FC: 1}
+    assert {p.place_external_id: p.summary.count for p in metrics.per_place} == {"p1": 3, "f1": 1}
+    assert {c.stars: c.count for c in metrics.rating_counts} == {5: 2, 4: 0, 3: 0, 2: 1, 1: 1}
+    gm_march = next(t for t in metrics.trend if t.source is GM)
+    assert (gm_march.count, gm_march.average_rating) == (3, 11 / 3)

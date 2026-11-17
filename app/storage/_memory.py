@@ -138,7 +138,7 @@ class MemoryReviews:
         return [
             r
             for r in self.list_for_place(source, place_external_id)
-            if not r.flagged and r.external_id not in done
+            if r.has_text and not r.flagged and r.external_id not in done
         ]
 
 

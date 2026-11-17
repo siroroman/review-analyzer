@@ -82,10 +82,14 @@ def test_review_rejects_a_fractional_rating() -> None:
         _review(rating=4.5)
 
 
-@pytest.mark.parametrize("text", ["", "   \n\t"])
-def test_review_rejects_empty_text(text: str) -> None:
+def test_review_rejects_whitespace_only_text() -> None:
     with pytest.raises(ValidationError):
-        _review(text=text)
+        _review(text="   \n\t")
+
+
+def test_review_may_have_no_text_and_says_so() -> None:
+    assert _review(text="").has_text is False
+    assert _review().has_text is True
 
 
 def test_review_rejects_an_empty_external_id() -> None:
