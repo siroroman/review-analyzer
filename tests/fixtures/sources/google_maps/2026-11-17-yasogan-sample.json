@@ -1,0 +1,87 @@
+[
+  {
+    "review_id": "ChdDSUhNMG9nS0VJQ0FnSUR-fixture-1",
+    "time": {
+      "published": 1793000000000,
+      "last_edited": null
+    },
+    "author": {
+      "name": "Anonymized Author",
+      "profile_url": "https://www.google.com/maps/contrib/0",
+      "id": "0"
+    },
+    "review": {
+      "rating": 3,
+      "text": "Anonymized review text 1.",
+      "language": null
+    }
+  },
+  {
+    "review_id": "ChdDSUhNMG9nS0VJQ0FnSUR-fixture-2",
+    "time": {
+      "published": 1792913600000,
+      "last_edited": null
+    },
+    "author": {
+      "name": "Anonymized Author",
+      "profile_url": "https://www.google.com/maps/contrib/0",
+      "id": "0"
+    },
+    "review": {
+      "rating": 5,
+      "text": null,
+      "language": null
+    }
+  },
+  {
+    "review_id": "ChdDSUhNMG9nS0VJQ0FnSUR-fixture-3",
+    "time": {
+      "published": 1792827200000,
+      "last_edited": null
+    },
+    "author": {
+      "name": "Anonymized Author",
+      "profile_url": "https://www.google.com/maps/contrib/0",
+      "id": "0"
+    },
+    "review": {
+      "rating": 4,
+      "text": "Anonymized<br>review text 3.",
+      "language": null
+    }
+  },
+  {
+    "review_id": "ChdDSUhNMG9nS0VJQ0FnSUR-fixture-4",
+    "time": {
+      "published": 1792740800000,
+      "last_edited": null
+    },
+    "author": {
+      "name": "Anonymized Author",
+      "profile_url": "https://www.google.com/maps/contrib/0",
+      "id": "0"
+    },
+    "review": {
+      "rating": 1,
+      "text": null,
+      "language": null
+    }
+  },
+  {
+    "review_id": "ChdDSUhNMG9nS0VJQ0FnSUR-fixture-5",
+    "time": {
+      "published": 1792654400000,
+      "last_edited": null
+    },
+    "author": {
+      "name": "Anonymized Author",
+      "profile_url": "https://www.google.com/maps/contrib/0",
+      "id": "0"
+    },
+    "review": {
+      "rating": 5,
+      "text": "Anonymized review text 5.",
+      "language": null
+    }
+  }
+]
