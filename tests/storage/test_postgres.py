@@ -82,4 +82,5 @@ def test_migrations_run_once_and_connecting_again_changes_nothing(
         "0003_run_step_times.sql",
         "0004_company_industry_nullable.sql",
         "0005_run_industry.sql",
+        "0006_place_details.sql",
     ]

@@ -14,6 +14,7 @@ from app.gateway._google_places import (
     Suggestion,
     TextSearchRequest,
 )
+from app.gateway._gosom import GET_PLACE_DETAILS, GosomClient, PlaceDetailsLookup
 from app.gateway._openrouter import OpenRouterClient
 from app.gateway._types import (
     CallLog,
@@ -32,6 +33,7 @@ from app.gateway._types import (
 )
 
 __all__ = [
+    "GET_PLACE_DETAILS",
     "GOOGLE_PLACES",
     "SCRAPE_GOOGLE_REVIEWS",
     "AnthropicClient",
@@ -53,7 +55,9 @@ __all__ = [
     "GatewayResponse",
     "GooglePage",
     "GooglePlacesClient",
+    "GosomClient",
     "OpenRouterClient",
+    "PlaceDetailsLookup",
     "ReviewScrape",
     "ScrapedReview",
     "ServiceCall",

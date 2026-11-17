@@ -12,6 +12,7 @@ _TOKEN_PRICES: dict[tuple[str, str], tuple[Decimal, Decimal]] = {
 # USD per unit, by (service, unit). PLACEHOLDERS, as above.
 _UNIT_PRICES: dict[tuple[str, str], Decimal] = {
     ("apify", "review"): Decimal("0.0006"),
+    ("gosom", "place"): Decimal(0),  # self-hosted sidecar, fixed hosting cost outside the Budget (ADR 0008)
     ("apify", "firmy_item"): Decimal("0.001"),
     ("google_places", "autocomplete_request"): Decimal("0.00283"),
     ("google_places", "details_request"): Decimal("0.017"),
