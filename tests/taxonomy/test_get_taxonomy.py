@@ -74,7 +74,7 @@ def test_generates_stores_and_returns_a_taxonomy_with_unclassified() -> None:
 
 
 def test_second_call_returns_the_stored_one_and_never_calls_the_model() -> None:
-    world = World(topics_json(10))
+    world = World(topics_json(6))
     first = world.taxonomies.get_taxonomy("cafe", sample=lambda: reviews(MIN_SAMPLE), run_id="run-1")
 
     def no_sample() -> list[Review]:
@@ -116,6 +116,20 @@ def test_a_wrong_number_of_topics_is_repaired_once_then_rejected_and_nothing_is_
         world.get()
     assert world.model_calls == 2
     assert world.storage.taxonomies.latest("cafe") is None
+
+
+def test_the_prompt_asks_for_broad_topics_within_a_fixed_range() -> None:
+    world = World(topics_json(MIN_TOPICS))
+    world.get()
+    system = requests(world.setup.anthropic)[0].system or ""
+    assert f"{MIN_TOPICS} to {MAX_TOPICS}" in system
+    assert "a tenth of the reviews" in system
+    assert "Merge narrow subtopics" in system
+    assert "mentioned only once" in system
+
+
+def test_the_topic_range_is_five_to_nine() -> None:
+    assert (MIN_TOPICS, MAX_TOPICS) == (5, 9)
 
 
 def test_a_bad_first_answer_is_repaired_by_a_good_second_one() -> None:
