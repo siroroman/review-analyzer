@@ -47,7 +47,7 @@ def test_every_review_of_the_recorded_output_is_mapped() -> None:
     reviews = adapter.call(SCRAPE_GOOGLE_REVIEWS, scrape()).payload
     assert isinstance(reviews, tuple) and len(reviews) == 5
     assert reviews[0] == ScrapedReview(
-        review_id="Ci9DQUlRQUNvZENodHljRjlvT201R09EQjFlbkJIVDB0Qk9EaEJOVlV4ZVRkU2VVRRAB",
+        review_id="anonymized-review-id-1",
         stars=3,
         text="Anonymized review text 1.",
         published_at=datetime(2026, 10, 30, 9, 46, 30, 439000, tzinfo=UTC),

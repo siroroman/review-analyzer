@@ -1,6 +1,6 @@
 [
   {
-    "review_id": "Ci9DQUlRQUNvZENodHljRjlvT201R09EQjFlbkJIVDB0Qk9EaEJOVlV4ZVRkU2VVRRAB",
+    "review_id": "anonymized-review-id-1",
     "time": {
       "published": "1793353590439",
       "last_edited": null
@@ -21,7 +21,7 @@
     "response": null
   },
   {
-    "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2pSRFRucHRSRkJRYzNsNlRFOXVORWhWV0U1cmFuYxAB",
+    "review_id": "anonymized-review-id-2",
     "time": {
       "published": "1792330535128",
       "last_edited": null
@@ -42,7 +42,7 @@
     "response": null
   },
   {
-    "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2pBMU5rTndhMnR2VFVoTGFYVkxNblpPWDFOTFpHYxAB",
+    "review_id": "anonymized-review-id-3",
     "time": {
       "published": "1789480451260",
       "last_edited": null
@@ -63,7 +63,7 @@
     "response": null
   },
   {
-    "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2tvdFltcEVWREp4VkRWM2VsZG5VMWxRVldvM04zYxAB",
+    "review_id": "anonymized-review-id-4",
     "time": {
       "published": "1789463567226",
       "last_edited": null
@@ -82,7 +82,7 @@
     "images": null,
     "source": "Google Local Search Panel",
     "response": {
-      "text": "Děkujeme moc za pěknou recenzi!",
+      "text": "Anonymized owner response.",
       "time": {
         "published": "před 2 měsíci",
         "last_edited": null
@@ -90,7 +90,7 @@
     }
   },
   {
-    "review_id": "Ci9DQUlRQUNvZENodHljRjlvT21WbE0wMDBjVU5pUkROV09VWnFORkJNYVZkNlEzYxAB",
+    "review_id": "anonymized-review-id-5",
     "time": {
       "published": "1788115358639",
       "last_edited": null
@@ -109,7 +109,7 @@
     "images": null,
     "source": "Google Local Search Panel",
     "response": {
-      "text": "Ani nevíte, jam moc nás těší Vaše slova. Pro milé hosty ta práce stojí za to a těší nás když jí někdo ocení. Bude nám ctí a potěšení se opět setkat! Děkujeme",
+      "text": "Anonymized owner response.",
       "time": {
         "published": "před 2 měsíci",
         "last_edited": null
