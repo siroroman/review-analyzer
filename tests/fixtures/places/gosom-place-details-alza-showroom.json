@@ -1,0 +1,19 @@
+[
+  {
+    "input_id": "place_id:ChIJexampleAlzaShowroom0001",
+    "link": "https://www.google.com/maps/place/Alza.cz+Showroom+Praha+7/data=!4m2!3m1!1s0x0:0x0",
+    "title": "Alza.cz Showroom Praha 7",
+    "category": "Obchod s elektronikou",
+    "address": "Jankovcova 1522/53, 170 00 Praha 7-Holešovice",
+    "website": "https://www.alza.cz/",
+    "phone": "+420 225 340 130",
+    "review_count": 26348,
+    "review_rating": 4.3,
+    "reviews_per_rating": {"1": 1752, "2": 653, "3": 1939, "4": 5468, "5": 16536},
+    "thumbnail": "https://lh3.googleusercontent.com/p/example-thumbnail=w408-h306-k-no",
+    "place_id": "ChIJexampleAlzaShowroom0001",
+    "user_reviews": [
+      {"Name": "Anonymized", "ProfilePicture": "", "Rating": 5, "Description": "Anonymized review text 1.", "When": "před týdnem"}
+    ]
+  }
+]
