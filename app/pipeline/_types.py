@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from decimal import Decimal
 
-from app.domain import Company, Insight, Metrics, RunStatus, Source, Topic
+from app.domain import Company, Insight, Metrics, PlaceResult, RunStatus, Source, Topic
 
 
 @dataclass(frozen=True)
@@ -67,6 +67,7 @@ class RunReport:
     metrics: Metrics
     insights: tuple[Insight, ...]
     topics: tuple[Topic, ...] = ()
+    places: tuple[PlaceResult, ...] = ()
 
     @property
     def status(self) -> RunStatus:

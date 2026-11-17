@@ -14,7 +14,7 @@ from app.domain._analysis import (
     TrendPoint,
 )
 from app.domain._clock import Clock, FakeClock
-from app.domain._places import Company, Place, PlaceDetails, Source
+from app.domain._places import Company, Place, PlaceDetails, PlaceResult, Source
 from app.domain._reviews import DatePrecision, Rating, RawReview, Review
 from app.domain._run_status import InvalidTransition, RunStatus, advance
 from app.domain._topics import ReviewTopic, Sentiment, Taxonomy, Topic
@@ -40,6 +40,7 @@ __all__ = [
     "FakeClock",
     "Place",
     "PlaceDetails",
+    "PlaceResult",
     "Rating",
     "RawReview",
     "Review",

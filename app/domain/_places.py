@@ -50,6 +50,21 @@ class PlaceDetails(DomainModel):
         return counts
 
 
+class PlaceResult(DomainModel):
+    """What a Run says of one Place: the Source's own totals and how many Reviews were analyzed.
+
+    `details` is `None` when the Source has none (Firmy.cz) or the call for them failed. `analyzed_count`
+    counts stored Reviews of the Place that are not Flagged, Reviews without text included.
+    `analyzed_is_limited` is true when the Place has more Reviews than were analyzed.
+    """
+
+    source: Source
+    place_external_id: str = Field(min_length=1)
+    details: PlaceDetails | None = None
+    analyzed_count: int = Field(ge=0)
+    analyzed_is_limited: bool
+
+
 class Company(DomainModel):
     """A set of Places the user confirmed as belonging together; the same set is the same Company.
 
