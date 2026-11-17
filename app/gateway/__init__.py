@@ -2,7 +2,6 @@
 
 from app.budget import BudgetExceeded, Tokens, Units
 from app.gateway._anthropic import AnthropicClient
-from app.gateway._apify import SCRAPE_GOOGLE_REVIEWS, ApifyClient, ReviewScrape, ScrapedReview
 from app.gateway._fakes import FakeCallLog, FakeServiceClient
 from app.gateway._gateway import Gateway
 from app.gateway._google_places import (
@@ -31,13 +30,13 @@ from app.gateway._types import (
     ServicePolicy,
     Usage,
 )
+from app.gateway._yasogan import SCRAPE_GOOGLE_REVIEWS, ScrapedReview, YasogaNClient, YasogaNScrape
 
 __all__ = [
     "GET_PLACE_DETAILS",
     "GOOGLE_PLACES",
     "SCRAPE_GOOGLE_REVIEWS",
     "AnthropicClient",
-    "ApifyClient",
     "AutocompleteRequest",
     "BudgetExceeded",
     "CallLog",
@@ -58,7 +57,6 @@ __all__ = [
     "GosomClient",
     "OpenRouterClient",
     "PlaceDetailsLookup",
-    "ReviewScrape",
     "ScrapedReview",
     "ServiceCall",
     "ServiceClient",
@@ -68,4 +66,6 @@ __all__ = [
     "Tokens",
     "Units",
     "Usage",
+    "YasogaNClient",
+    "YasogaNScrape",
 ]

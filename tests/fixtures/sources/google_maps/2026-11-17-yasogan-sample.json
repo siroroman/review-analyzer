@@ -1,0 +1,119 @@
+[
+  {
+    "review_id": "Ci9DQUlRQUNvZENodHljRjlvT201R09EQjFlbkJIVDB0Qk9EaEJOVlV4ZVRkU2VVRRAB",
+    "time": {
+      "published": "1793353590439",
+      "last_edited": null
+    },
+    "author": {
+      "name": "Anonymized Author",
+      "profile_url": "https://lh3.googleusercontent.com/a-/anonymized",
+      "url": "https://www.google.com/maps/contrib/0/reviews?hl=cs-CZ",
+      "id": "0"
+    },
+    "review": {
+      "rating": 3,
+      "text": "Anonymized review text 1.",
+      "language": "cs"
+    },
+    "images": null,
+    "source": "Google Local Search Panel",
+    "response": null
+  },
+  {
+    "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2pSRFRucHRSRkJRYzNsNlRFOXVORWhWV0U1cmFuYxAB",
+    "time": {
+      "published": "1792330535128",
+      "last_edited": null
+    },
+    "author": {
+      "name": "Anonymized Author",
+      "profile_url": "https://lh3.googleusercontent.com/a-/anonymized",
+      "url": "https://www.google.com/maps/contrib/0/reviews?hl=cs-CZ",
+      "id": "0"
+    },
+    "review": {
+      "rating": 5,
+      "text": null,
+      "language": null
+    },
+    "images": null,
+    "source": "Google Local Search Panel",
+    "response": null
+  },
+  {
+    "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2pBMU5rTndhMnR2VFVoTGFYVkxNblpPWDFOTFpHYxAB",
+    "time": {
+      "published": "1789480451260",
+      "last_edited": null
+    },
+    "author": {
+      "name": "Anonymized Author",
+      "profile_url": "https://lh3.googleusercontent.com/a-/anonymized",
+      "url": "https://www.google.com/maps/contrib/0/reviews?hl=cs-CZ",
+      "id": "0"
+    },
+    "review": {
+      "rating": 5,
+      "text": "Anonymized review text 3.",
+      "language": "cs"
+    },
+    "images": null,
+    "source": "Google Local Search Panel",
+    "response": null
+  },
+  {
+    "review_id": "Ci9DQUlRQUNvZENodHljRjlvT2tvdFltcEVWREp4VkRWM2VsZG5VMWxRVldvM04zYxAB",
+    "time": {
+      "published": "1789463567226",
+      "last_edited": null
+    },
+    "author": {
+      "name": "Anonymized Author",
+      "profile_url": "https://lh3.googleusercontent.com/a-/anonymized",
+      "url": "https://www.google.com/maps/contrib/0/reviews?hl=cs-CZ",
+      "id": "0"
+    },
+    "review": {
+      "rating": 5,
+      "text": "Anonymized review text 4.",
+      "language": "cs"
+    },
+    "images": null,
+    "source": "Google Local Search Panel",
+    "response": {
+      "text": "Děkujeme moc za pěknou recenzi!",
+      "time": {
+        "published": "před 2 měsíci",
+        "last_edited": null
+      }
+    }
+  },
+  {
+    "review_id": "Ci9DQUlRQUNvZENodHljRjlvT21WbE0wMDBjVU5pUkROV09VWnFORkJNYVZkNlEzYxAB",
+    "time": {
+      "published": "1788115358639",
+      "last_edited": null
+    },
+    "author": {
+      "name": "Anonymized Author",
+      "profile_url": "https://lh3.googleusercontent.com/a-/anonymized",
+      "url": "https://www.google.com/maps/contrib/0/reviews?hl=cs-CZ",
+      "id": "0"
+    },
+    "review": {
+      "rating": 5,
+      "text": "Anonymized<br>review text 5.",
+      "language": null
+    },
+    "images": null,
+    "source": "Google Local Search Panel",
+    "response": {
+      "text": "Ani nevíte, jam moc nás těší Vaše slova. Pro milé hosty ta práce stojí za to a těší nás když jí někdo ocení. Bude nám ctí a potěšení se opět setkat! Děkujeme",
+      "time": {
+        "published": "před 2 měsíci",
+        "last_edited": null
+      }
+    }
+  }
+]

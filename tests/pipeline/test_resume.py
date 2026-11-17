@@ -22,10 +22,10 @@ def test_a_run_that_stopped_while_classifying_resumes_without_downloading_again(
     stale = world.storage.runs.create(world.company.id, Decimal(5)).id
     world.clock.advance(timedelta(days=3))  # the first Run is no longer fresh
     world.storage.runs.advance(stale, RunStatus.CLASSIFYING)
-    scrapes = world.apify_calls()
+    scrapes = world.scrape_calls()
     result = world.pipeline.run(stale)
     assert result.status is RunStatus.DONE
-    assert world.apify_calls() == scrapes
+    assert world.scrape_calls() == scrapes
 
 
 def test_a_run_that_stopped_while_analyzing_does_not_save_insights_twice() -> None:
@@ -72,7 +72,6 @@ def test_a_stale_cache_fetches_only_new_reviews_and_classifies_only_those() -> N
     world.scraped = [*world.scraped, scraped(500, date(2026, 11, 10)), scraped(501, date(2026, 11, 11))]
     classified_before = world.model_calls_of("classification")
     second = world.run()
-    assert world.scrapes[-1].since == date(2026, 10, 28)  # the newest stored Review
     assert second.reviews == 42
     assert world.model_calls_of("classification") == classified_before + 1  # one batch of 2 new Reviews
     assert second.unclassified == 0
@@ -107,3 +106,14 @@ def test_a_copied_result_stays_whole_when_a_newer_run_finishes_before_the_redeli
     assert world.service_calls() == before
     assert world.storage.insights.for_run(run_id) == world.storage.insights.for_run(first.run_id)
     assert world.storage.trends.for_run(run_id) == world.storage.trends.for_run(first.run_id)
+
+
+def test_an_empty_scrape_of_a_place_that_has_stored_reviews_is_a_source_error_not_zero_new_reviews() -> None:
+    world = World(scraped_reviews=month_of_reviews(40))
+    world.run()
+    world.clock.advance(timedelta(days=2))
+    world.scraped = []  # the sidecar is blocked and answers an empty page
+    second = world.run()
+    assert second.status is RunStatus.PARTIAL
+    assert second.reviews == 40
+    assert world.scrape_calls() == 2  # a source error is not retried

@@ -42,7 +42,7 @@ class SourceFetcher(Protocol):
     """The part of `sources.Sources` that `pipeline` uses."""
 
     def fetch_reviews(
-        self, place: Place, since: date | None, limit: int, *, run_id: str
+        self, place: Place, since: date | None, limit: int, *, run_id: str, known_count: int | None = None
     ) -> list[RawReview]: ...
 
 
@@ -256,7 +256,12 @@ class Pipeline:
             stored = self._storage.reviews.list_for_place(place.source, place.external_id)
             since = max((r.published_on for r in stored), default=None)
             fetch = partial(
-                self._sources.fetch_reviews, place, since, self._config.reviews_per_place, run_id=run_id
+                self._sources.fetch_reviews,
+                place,
+                since,
+                self._config.reviews_per_place,
+                run_id=run_id,
+                known_count=len(stored),  # an empty answer for a Place with stored Reviews is an error
             )
             raw = self._attempt(fetch)
             prepared = prepare(raw, self._detector)
