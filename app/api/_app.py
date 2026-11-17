@@ -29,6 +29,9 @@ _TEXT = r"^[\w\s.,'&/()\-]+$"  # letters (any language), digits, spaces and a li
 _PLACE_ID = r"^[A-Za-z0-9_\-]+$"
 _PUBLIC = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
 _FINISHED = (RunStatus.DONE, RunStatus.PARTIAL)
+_MAX_IDS = 100
+_MAX_BY_TOPIC = 200
+_MODELS = {"openrouter", "anthropic"}  # the Services that are Models in the cost split
 
 
 class SuggestionOut(BaseModel):
@@ -94,9 +97,22 @@ class ResultOut(BaseModel):
     flagged: int
     unclassified: int
     cost: Decimal
+    # `cost` split by Service: `apify`, `models`, `google_places` always, any other Service by its name.
+    cost_by_service: dict[str, Decimal]
     # What to know about how the result was made; `industry_fallback`: the industry could not be inferred
     # and the generic Taxonomy was used.
     notes: list[str]
+
+
+class ReviewOut(BaseModel):
+    """One Review as the side panel shows it. Flagged Reviews are never served."""
+
+    id: str
+    source: Source
+    place_name: str
+    rating: int
+    date: date
+    text: str
 
 
 class SpendOut(BaseModel):
@@ -235,6 +251,7 @@ def create_app(
                 report = pipeline.report(run_id)
             except UnknownRun as unknown:
                 raise HTTPException(404, "unknown Run") from unknown
+            cost_by_service = _cost_by_service(storage, run_id)
         return ResultOut(
             run_id=run_id,
             status=report.status,
@@ -246,8 +263,29 @@ def create_app(
             flagged=report.result.flagged,
             unclassified=report.result.unclassified,
             cost=report.result.cost,
+            cost_by_service=cost_by_service,
             notes=list(report.result.notes),
         )
+
+    @app.get(
+        "/runs/{run_id}/reviews",
+        summary="Reviews of a Run by `ids` (Insight.review_ids) or by `topic` (a Topic key)",
+        description="Exactly one of `ids` and `topic`. Only Reviews of the Run's Company are returned; "
+        f"unknown IDs are skipped and Flagged Reviews never appear. By `topic`: newest first, at most "
+        f"{_MAX_BY_TOPIC}.",
+    )
+    def run_reviews(
+        _: Demo,
+        run_id: str,
+        ids: Annotated[
+            list[Annotated[str, Field(min_length=1, max_length=300)]] | None, Query(max_length=_MAX_IDS)
+        ] = None,
+        topic: Annotated[str | None, Query(min_length=1, max_length=100)] = None,
+    ) -> list[ReviewOut]:
+        if (ids is None) == (topic is None):
+            raise HTTPException(422, "give exactly one of ids and topic")
+        with work:
+            return _reviews(storage, _run(storage, run_id), ids, topic)
 
     @app.get(
         "/admin/spend",
@@ -346,7 +384,7 @@ def _status(storage: Storage, record: RunRecord) -> StatusOut:
     reached = record.classifying_at or record.analyzing_at or record.status is RunStatus.DONE
     if not reached:
         return out(downloaded, flagged)
-    to_classify = sum(1 for found in reviews.values() for r in found if not r.flagged)
+    to_classify = sum(1 for found in reviews.values() for r in found if r.has_text and not r.flagged)
     return out(
         downloaded,
         flagged,
@@ -355,13 +393,57 @@ def _status(storage: Storage, record: RunRecord) -> StatusOut:
     )
 
 
+def _cost_by_service(storage: Storage, run_id: str) -> dict[str, Decimal]:
+    split: dict[str, Decimal] = {"apify": Decimal(0), "models": Decimal(0), "google_places": Decimal(0)}
+    for service, cost in storage.calls.cost_by_service(CallFilter(run_id=run_id)).items():
+        name = "models" if service in _MODELS else service
+        split[name] = split.get(name, Decimal(0)) + cost
+    return split
+
+
+def _reviews(
+    storage: Storage, record: RunRecord, ids: list[str] | None, topic: str | None
+) -> list[ReviewOut]:
+    """Unflagged Reviews with text of the Run's Company, by ID or by Topic; newest first."""
+    stored = storage.companies.by_id(record.company_id)
+    if stored is None:
+        return []
+    industry = record.industry or stored.company.industry
+    taxonomy = None if industry is None else storage.taxonomies.latest(industry)
+    wanted = None if ids is None else set(ids)
+    found: list[tuple[Place, Review]] = []
+    for place in stored.company.places:
+        mentioning: set[str] = set()
+        if topic is not None and taxonomy is not None:
+            topics = storage.reviews.topics_for_place(place.source, place.external_id, taxonomy)
+            mentioning = {t.review_external_id for t in topics if t.topic_key == topic}
+        for review in storage.reviews.list_for_place(place.source, place.external_id):
+            chosen = review.external_id in mentioning if wanted is None else review.external_id in wanted
+            if chosen and review.has_text and not review.flagged:
+                found.append((place, review))
+    found.sort(key=lambda pair: (pair[1].published_on, pair[1].external_id), reverse=True)
+    if wanted is None:
+        found = found[:_MAX_BY_TOPIC]
+    return [
+        ReviewOut(
+            id=review.external_id,
+            source=review.source,
+            place_name=place.name,
+            rating=review.rating,
+            date=review.published_on,
+            text=review.text,
+        )
+        for place, review in found
+    ]
+
+
 def _classified(storage: Storage, industry: str | None, reviews: dict[Place, list[Review]]) -> int:
     taxonomy = None if industry is None else storage.taxonomies.latest(industry)
     if taxonomy is None:
         return 0
     done = 0
     for place, found in reviews.items():
-        unflagged = {r.external_id for r in found if not r.flagged}
+        unflagged = {r.external_id for r in found if r.has_text and not r.flagged}
         topics = storage.reviews.topics_for_place(place.source, place.external_id, taxonomy)
         done += len({t.review_external_id for t in topics if t.topic_key != UNCLASSIFIED_KEY} & unflagged)
     return done

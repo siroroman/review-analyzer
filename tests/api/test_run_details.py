@@ -95,6 +95,18 @@ def test_a_review_that_failed_classification_is_not_counted_as_classified() -> N
     assert _status(api, run_id)["classified"] == 0
 
 
+def test_a_review_without_text_is_downloaded_but_never_to_classify_nor_classified() -> None:
+    api = Api(known=[cafe()])
+    run_id = _start(api)
+    star_only = review("r2").model_copy(update={"text": ""})
+    api.storage.reviews.add([review("r1"), star_only])
+    api.storage.runs.advance(run_id, RunStatus.CLASSIFYING)
+    _classify(api, _taxonomy(api), "r1", "r2")
+    status = _status(api, run_id)
+    assert (status["classified"], status["to_classify"]) == (1, 1)
+    assert status["downloaded"] == {"google_maps": 2}
+
+
 def test_the_costs_of_all_steps_are_final_after_the_run() -> None:
     api = Api(known=[cafe()])
     run_id = _start(api)

@@ -379,3 +379,47 @@ def test_rating_counts_of_no_reviews_are_zeros() -> None:
         (2, 0),
         (1, 0),
     ]
+
+
+def test_reviews_without_text_count_in_every_number() -> None:
+    texted = [_review("a", 5, date(2026, 3, 1)), _review("b", 5, date(2026, 3, 2))]
+    star_only = [
+        _review("c", 1, date(2026, 3, 3)).model_copy(update={"text": ""}),
+        _review("d", 2, date(2026, 3, 4), source=FC, place="f1").model_copy(update={"text": ""}),
+    ]
+    metrics = compute([*texted, *star_only], [])
+    assert metrics.overall is not None
+    assert (metrics.overall.count, metrics.overall.average_rating) == (4, 3.25)
+    assert {s.source: s.summary.count for s in metrics.per_source} == {GM: 3, FC: 1}
+    assert {p.place_external_id: p.summary.count for p in metrics.per_place} == {"p1": 3, "f1": 1}
+    assert {c.stars: c.count for c in metrics.rating_counts} == {5: 2, 4: 0, 3: 0, 2: 1, 1: 1}
+    gm_march = next(t for t in metrics.trend if t.source is GM)
+    assert (gm_march.count, gm_march.average_rating) == (3, 11 / 3)
+
+
+def test_the_main_topic_of_a_place_is_its_most_negative_topic() -> None:
+    reviews = [
+        _review("a", 1, date(2026, 3, 1), place="g1"),
+        _review("b", 2, date(2026, 3, 2), place="g1"),
+        _review("c", 5, date(2026, 3, 3), place="g2"),
+        _review("d", 1, date(2026, 3, 4), place="g3", flagged=True),
+    ]
+    topics = [
+        _topic("a", "waiting", Sentiment.NEGATIVE),
+        _topic("b", "waiting", Sentiment.NEGATIVE),
+        _topic("b", "staff", Sentiment.NEGATIVE),
+        _topic("a", "price", Sentiment.POSITIVE),
+        _topic("c", "staff", Sentiment.POSITIVE),
+        _topic("d", "price", Sentiment.NEGATIVE),
+    ]
+
+    main = {p.place_external_id: p.main_topic_key for p in compute(reviews, topics).per_place}
+
+    assert main == {"g1": "waiting", "g2": None}  # g2 has no negative mention; g3's only Review is Flagged
+
+
+def test_a_tie_of_negative_topics_goes_to_the_smaller_key() -> None:
+    reviews = [_review("a", 1, date(2026, 3, 1))]
+    topics = [_topic("a", "staff", Sentiment.NEGATIVE), _topic("a", "price", Sentiment.NEGATIVE)]
+
+    assert compute(reviews, topics).per_place[0].main_topic_key == "price"

@@ -87,6 +87,14 @@ def test_flagged_reviews_are_left_out_of_the_sample() -> None:
     assert "SECRET-FLAGGED" not in request.prompt
 
 
+def test_reviews_without_text_do_not_count_towards_the_minimum() -> None:
+    star_only = [r.model_copy(update={"text": ""}) for r in reviews(MIN_SAMPLE)]
+    world = World()
+    with pytest.raises(SampleTooSmall):
+        world.infer(star_only)
+    assert world.sent == []
+
+
 def test_flagged_reviews_do_not_count_towards_the_minimum() -> None:
     flagged = [r.model_copy(update={"flagged": True}) for r in reviews(MIN_SAMPLE)]
     world = World()

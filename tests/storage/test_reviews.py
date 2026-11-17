@@ -42,6 +42,20 @@ def test_review_of_an_unknown_place_is_refused_and_nothing_is_stored(storage: St
     assert storage.reviews.list_for_place(Source.GOOGLE_MAPS, "g1") == []
 
 
+def test_a_review_without_text_is_stored_but_never_unclassified(storage: Storage) -> None:
+    storage.companies.get_or_create(company())
+    empty = review("r2").model_copy(update={"text": ""})
+    storage.reviews.add([review("r1"), empty])
+    assert [r.text for r in storage.reviews.list_for_place(Source.GOOGLE_MAPS, "g1")] == [
+        review("r1").text,
+        "",
+    ]
+    v1 = storage.taxonomies.save(
+        Taxonomy(industry="cafe", topics=(Topic(key="staff", name="Staff", description=""),))
+    )
+    assert [r.external_id for r in storage.reviews.unclassified(Source.GOOGLE_MAPS, "g1", v1)] == ["r1"]
+
+
 def test_unclassified_follows_the_taxonomy_version_and_skips_flagged(storage: Storage) -> None:
     storage.companies.get_or_create(company())
     storage.reviews.add([review("r1"), review("r2"), review("r3", flagged=True)])

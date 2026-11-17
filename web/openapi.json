@@ -238,6 +238,95 @@
         }
       }
     },
+    "/runs/{run_id}/reviews": {
+      "get": {
+        "summary": "Reviews of a Run by `ids` (Insight.review_ids) or by `topic` (a Topic key)",
+        "description": "Exactly one of `ids` and `topic`. Only Reviews of the Run's Company are returned; unknown IDs are skipped and Flagged Reviews never appear. By `topic`: newest first, at most 200.",
+        "operationId": "run_reviews_runs__run_id__reviews_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "maxItems": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ids"
+            }
+          },
+          {
+            "name": "topic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewOut"
+                  },
+                  "title": "Response Run Reviews Runs  Run Id  Reviews Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/spend": {
       "get": {
         "summary": "Spend per service, day and Run, and the share of the monthly cap used",
@@ -844,6 +933,17 @@
           },
           "summary": {
             "$ref": "#/components/schemas/RatingSummary"
+          },
+          "main_topic_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Main Topic Key"
           }
         },
         "additionalProperties": false,
@@ -854,7 +954,7 @@
           "summary"
         ],
         "title": "PlaceSummary",
-        "description": "The RatingSummary of one Place, for the comparison of Places."
+        "description": "The RatingSummary of one Place, for the comparison of Places.\n\n`main_topic_key` is the Topic with the most negative mentions in the Place; None when it has none."
       },
       "RatingSummary": {
         "properties": {
@@ -924,6 +1024,13 @@
             "type": "string",
             "title": "Cost"
           },
+          "cost_by_service": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Cost By Service"
+          },
           "notes": {
             "items": {
               "type": "string"
@@ -944,9 +1051,49 @@
           "flagged",
           "unclassified",
           "cost",
+          "cost_by_service",
           "notes"
         ],
         "title": "ResultOut"
+      },
+      "ReviewOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "place_name": {
+            "type": "string",
+            "title": "Place Name"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "place_name",
+          "rating",
+          "date",
+          "text"
+        ],
+        "title": "ReviewOut",
+        "description": "One Review as the side panel shows it. Flagged Reviews are never served."
       },
       "RunIn": {
         "properties": {
