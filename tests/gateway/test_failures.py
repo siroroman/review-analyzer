@@ -1,9 +1,21 @@
+import logging
 from datetime import timedelta
 
 import pytest
+from pydantic import SecretStr
 
-from app.gateway import BudgetExceeded, ClientError, ClientTimeout, Tokens
-from tests.gateway.helpers import D, Setup
+from app.gateway import (
+    BudgetExceeded,
+    ClientError,
+    ClientTimeout,
+    DetailsRequest,
+    Gateway,
+    GatewayConfig,
+    GooglePlacesClient,
+    Tokens,
+)
+from app.transport import FakeTransport, HttpError
+from tests.gateway.helpers import D, Setup, policy
 
 CHARGED = Tokens("anthropic", "claude-haiku", 100_000, 0)  # 0.1 USD already charged by the provider
 UNPRICED = Tokens("anthropic", "some-routed-model", 1_000, 0)  # charged, but not in the price table
@@ -78,3 +90,23 @@ def test_a_failure_charged_by_an_unpriced_model_is_booked_at_the_estimate_and_lo
     assert second.status == "failed"
     with pytest.raises(BudgetExceeded):
         s.gateway.call("anthropic", "complete", "x", run_id="run-1")
+
+
+def test_a_network_failure_of_google_places_through_the_gateway_is_logged_with_its_type(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    transport = FakeTransport(HttpError("connection failed (SSLCertVerificationError)"))
+    adapter = GooglePlacesClient(SecretStr("not-a-real-key"), transport)
+    s = Setup()
+    config = GatewayConfig(
+        services={"google_places": policy(("details",))}, run_cap=D("5"), monthly_cap=D("30")
+    )
+    gateway = Gateway(config, {"google_places": adapter}, s.clock, s.log)
+
+    with caplog.at_level(logging.WARNING), pytest.raises(ClientError):
+        gateway.call("google_places", "details", DetailsRequest("ChIJabc"), run_id="run-1")
+
+    assert [r.getMessage() for r in caplog.records] == [
+        "google_places network failure: connection failed (SSLCertVerificationError)"
+    ]
+    assert s.log.calls[0].error_kind == "network"
