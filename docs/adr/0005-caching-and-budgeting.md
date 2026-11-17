@@ -1,6 +1,6 @@
 # 0005: Caching and budgeting of Runs
 
-Status: accepted, 2026-11-12. Changed in part by [0006](0006-gateway-for-paid-services.md): `budget.reserve` and `record` are called by the gateway, not by `llm` or `sources`.
+Status: accepted, 2026-11-12. Changed in part by [0006](0006-gateway-for-paid-services.md): `budget.reserve` and `record` are called by the gateway, not by `llm` or `sources`. Changed in part by [0008](0008-self-hosted-google-maps-scrapers.md): Google Maps scrapers cost 0 per call and the Reviews limit for Google Maps is 1000.
 
 ## Context
 

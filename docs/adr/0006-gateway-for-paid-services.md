@@ -1,6 +1,6 @@
 # 0006: One gateway for all paid services
 
-Status: accepted, 2026-11-12
+Status: accepted, 2026-11-12. Extended by [0008](0008-self-hosted-google-maps-scrapers.md): the self-hosted Google Maps scrapers are also Services behind the Gateway, with a cost of 0 per call.
 
 ## Context
 
