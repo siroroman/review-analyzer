@@ -77,9 +77,12 @@ class Budget:
         self._run_spent: dict[str, Decimal] = {}
 
     def reserve(self, run_id: str, estimate: Decimal) -> Reservation:
-        """Hold `estimate` USD for a call, or raise `BudgetExceeded`. Exactly at a cap is allowed."""
-        if estimate <= _ZERO:
-            raise ValueError("estimate must be positive")
+        """Hold `estimate` USD for a call, or raise `BudgetExceeded`. Exactly at a cap is allowed.
+
+        An estimate of 0 is valid (self-hosted scrapers, ADR 0008) and fits any cap that is not yet exceeded.
+        """
+        if estimate < _ZERO:
+            raise ValueError("estimate must not be negative")
 
         month_needed = self._monthly_total() + self._in_flight() + estimate
         if month_needed > self._config.monthly_cap:

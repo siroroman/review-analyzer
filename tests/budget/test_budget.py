@@ -111,12 +111,27 @@ def test_a_failed_call_recorded_at_zero_releases_the_reservation() -> None:
     budget.reserve("run-1", D(5))
 
 
-@pytest.mark.parametrize("estimate", ["0", "-0.01", "-5"])
-def test_a_zero_or_negative_estimate_is_rejected(estimate: str) -> None:
+@pytest.mark.parametrize("estimate", ["-0.01", "-5"])
+def test_a_negative_estimate_is_rejected(estimate: str) -> None:
     budget, _, _ = make()
 
     with pytest.raises(ValueError, match="estimate"):
         budget.reserve("run-1", D(estimate))
+
+
+def test_a_zero_estimate_is_reserved_and_costs_nothing() -> None:
+    budget, _, _ = make(run_cap="5")
+    budget.record(budget.reserve("run-1", D(0)), D(0))
+
+    budget.reserve("run-1", D(5))
+
+
+def test_a_zero_estimate_is_still_refused_once_a_cap_is_exceeded() -> None:
+    budget, _, _ = make(run_cap="5")
+    budget.record(budget.reserve("run-1", D(5)), D(6))
+
+    with pytest.raises(BudgetExceeded):
+        budget.reserve("run-1", D(0))
 
 
 def test_a_rejected_estimate_reserves_nothing() -> None:
