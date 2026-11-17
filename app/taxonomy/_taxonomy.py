@@ -134,8 +134,8 @@ class Taxonomies:
 
         Only the newest `MAX_SAMPLE` Reviews with text, never a Flagged one, are sent, each cut to a
         short text, as data inside `<reviews>`. The label is validated and normalized to a lowercase
-        key. Raises `SampleTooSmall` (before any call) and `InvalidIndustry`; errors of `llm`, the gateway and the
-        provider pass through. The caller decides on a fallback.
+        key. Raises `SampleTooSmall` (before any call) and `InvalidIndustry`; errors of `llm`, the gateway
+        and the provider pass through. The caller decides on a fallback.
         """
         usable = _usable_sample(sample())
         if len(usable) < MIN_SAMPLE:
