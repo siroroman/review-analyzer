@@ -1,8 +1,9 @@
 """Entrypoint: the one place that sees every module. It reads the environment and wires the real adapters
 behind the ports (ADR-0004, ADR-0006) into the API app and the worker app. Google Maps is the only Source.
 
-Run with `uvicorn --factory app.main:api_app` and `uvicorn --factory app.main:worker_app`. Without the
-CLOUD_TASKS_* settings the API hands Runs to an in-process `LocalQueue` and needs no worker app.
+Run with `uvicorn --factory app.main:api_app` and `uvicorn --factory app.main:worker_app`, or
+both and the built web as one service with `uvicorn --factory app.main:service_app` (the container image).
+Without the CLOUD_TASKS_* settings the API hands Runs to an in-process `LocalQueue` and needs no worker app.
 """
 
 import json
@@ -13,9 +14,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 from fastapi import FastAPI
 from pydantic import SecretStr
+from starlette.exceptions import HTTPException
+from starlette.responses import PlainTextResponse, Response
+from starlette.staticfiles import StaticFiles
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.api import ApiConfig, create_app
 from app.classification import Classifier
@@ -255,3 +261,53 @@ def api_app() -> FastAPI:
 def worker_app() -> FastAPI:
     """Factory for `uvicorn --factory app.main:worker_app`."""
     return build_apps(os.environ).worker
+
+
+class _Spa(StaticFiles):
+    """The built web: a path that is no file is a client route, so it gets `index.html`."""
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        try:
+            response = await super().get_response(path, scope)
+        except HTTPException:  # only ever a 404 for a GET: no such file
+            if "." in path.rsplit("/", 1)[-1]:  # a missing asset (a stale hash) is a 404, not the page
+                return PlainTextResponse("Not Found", status_code=404)
+            return await super().get_response("index.html", scope)
+        return response
+
+
+class _Service:
+    """One ASGI app for one Cloud Run service: `/api/*` and `/admin/*` to the API (the prefix `/api` is
+    stripped, so the API sees the same paths as behind the dev proxy), `/tasks/*` to the worker, anything
+    else to the web."""
+
+    def __init__(self, apps: Apps, web: ASGIApp) -> None:
+        self._api, self._worker, self._web = apps.api, apps.worker, web
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "lifespan":
+            await self._api(scope, receive, send)
+            return
+        path: str = scope["path"]
+        if path == "/api" or path.startswith("/api/"):
+            stripped = path[len("/api") :] or "/"
+            raw: bytes = scope.get("raw_path") or path.encode()
+            await self._api(
+                {**scope, "path": stripped, "raw_path": raw[len(b"/api") :] or b"/"}, receive, send
+            )
+        elif path == "/admin" or path.startswith("/admin/"):
+            await self._api(scope, receive, send)
+        elif path == "/tasks" or path.startswith("/tasks/"):
+            await self._worker(scope, receive, send)
+        else:
+            await self._web(scope, receive, send)
+
+
+def build_service(apps: Apps, web_dir: Path) -> ASGIApp:
+    """The API, the worker and the built web (`web_dir`, the output of `npm run build`) as one app."""
+    return _Service(apps, _Spa(directory=web_dir, html=True))
+
+
+def service_app() -> ASGIApp:
+    """Factory for `uvicorn --factory app.main:service_app`. The built web is in `WEB_DIR`."""
+    return build_service(build_apps(os.environ), Path(os.environ.get("WEB_DIR", "web/dist")))

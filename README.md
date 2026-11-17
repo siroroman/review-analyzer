@@ -50,6 +50,8 @@ cd web && npm install && npm run dev
 
 **What costs money:** every Run calls paid services with your keys: Apify (scraping the Reviews), the model provider (classification, Taxonomy and insights) and Google Places (search). Set spending limits at each provider first and try a branch with few Reviews. Langfuse and PostgreSQL in Docker cost nothing here. The cost of a Run is shown in the app and is recorded in the Call log.
 
+**As one container** (what Cloud Run will run): `docker build -t review-analyzer .`, then `docker run --rm -p 8080:8080 --add-host host.docker.internal:host-gateway --env-file .env review-analyzer`. In `.env` point `DATABASE_URL` at `host.docker.internal:5433` and set `WORKER_AUTH_DISABLED=true`. Open `http://localhost:8080/?token=<one value of DEMO_TOKENS>`: the web is served from `/`, the API from `/api`, `/admin/*` and `/tasks/run` reach the backend.
+
 To stop and clean up: `docker compose down` (add `-v` to delete the local data).
 
 ![Architecture](docs/images/architecture.png)
