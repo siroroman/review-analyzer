@@ -16,7 +16,7 @@ _Avoid_: Location, branch (as a data term), listing
 
 **Source**:
 A public site that hosts reviews: Google Maps or Firmy.cz.
-_Avoid_: Platform, provider (a provider is an external service such as Apify or a model API)
+_Avoid_: Platform, provider (a provider is an external service such as Apify, a scraper or a model API)
 
 **Review**:
 One public rating with text and date of a Place on a Source, stored without any personal data.
@@ -79,7 +79,7 @@ The cost cap of one Run (and the monthly cap across Runs) over all paid services
 _Avoid_: Quota, limit
 
 **Gateway**:
-The one module through which every paid external service (model providers, Apify, Google Places) is called. It applies the allow-list, the traffic limits and the Budget, and writes a Service call for each call.
+The one module through which every paid or self-hosted external service (model providers, Apify, Google Places, the self-hosted Google Maps scrapers) is called. It applies the allow-list, the traffic limits and the Budget, and writes a Service call for each call.
 _Avoid_: Proxy, middleware, client (a client is one provider's adapter behind the Gateway)
 
 **Service call**:

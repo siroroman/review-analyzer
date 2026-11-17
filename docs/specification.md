@@ -19,7 +19,7 @@ The user enters a company name and within a few minutes gets a dashboard: overal
 
 ![Architecture](images/architecture.png)
 
-The dashboard only calls the API. Scraping and model calls run in a worker through a queue, so a long run does not block a request and can be retried on failure. Every paid service (models, Apify, Google Places) is reached only through the `gateway` module, which limits traffic, enforces the Budget and logs every call ([ADR 0006](adr/0006-gateway-for-paid-services.md)). The code is split into deep modules with clear interfaces that can be tested in isolation (see [Code structure](#code-structure-deep-modules)).
+The dashboard only calls the API. Scraping and model calls run in a worker through a queue, so a long run does not block a request and can be retried on failure. Every paid or self-hosted external service (models, Apify, Google Places, the Google Maps scrapers) is reached only through the `gateway` module, which limits traffic, enforces the Budget and logs every call ([ADR 0006](adr/0006-gateway-for-paid-services.md)). The code is split into deep modules with clear interfaces that can be tested in isolation (see [Code structure](#code-structure-deep-modules)).
 
 ## Processing flow
 
@@ -38,11 +38,11 @@ I recommend a Python backend on Google Cloud Run: Python has the best AI ecosyst
 | Worker | Python, same image as the API | scraping and AI processing run asynchronously, outside the request |
 | Task queue | Google Cloud Tasks (or Pub/Sub) | reliable triggering and retry of jobs |
 | Database | PostgreSQL (Neon, free tier); pgvector only later | run state, cache, reviews, results, costs; aggregations by month and branch in SQL |
-| Scraping | Apify: compass/google-maps-reviews-scraper; Firmy.cz: jupri/firmy (being tested) | ready-made scrapers, pay per use, spending limit |
+| Scraping | Google Maps: self-hosted sidecar services on Cloud Run, [YasogaN/google-maps-review-scraper](https://github.com/YasogaN/google-maps-review-scraper) for Reviews and [gosom/google-maps-scraper](https://github.com/gosom/google-maps-scraper) for Place details and totals ([ADR 0008](adr/0008-self-hosted-google-maps-scrapers.md)); Firmy.cz: Apify (mapy-com-ppe) | no per-Review fee, 1000 newest Reviews with an exact date, Place totals; versions pinned; Apify stays pay per use with a spending limit |
 | Autocomplete | Google Places Autocomplete (New) | unambiguous choice of company or branch; place_id goes straight to the scraper |
 | Fast model | Jev 1.14 (TypeSafe) via OpenRouter, fallback Claude Haiku | typed classification of topics and sentiment, latency 70 to 500 ms, very cheap |
 | Strong model | Claude Sonnet | summary, comparison of sources, explanation of trends, suggestions |
-| Gateway | in-process Python module `gateway` | one place for rate limits, allow-list, Budget and the call log of all paid services; no extra service to run |
+| Gateway | in-process Python module `gateway` | one place for rate limits, allow-list, Budget and the call log of all paid and self-hosted services; no extra service to run |
 | Admin access | secret admin token from configuration | protects the admin screen and `/admin/*` without a login |
 | Guardrails | Pydantic schemas, JEV as a prompt injection detector | detection of prompt injection in reviews, output validation |
 | Observability and costs | Langfuse | prompt tracing, tokens and price of every run |
@@ -60,7 +60,7 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 - A module is a Python package `app/<module>/`. The public interface is in `__init__.py`: `Protocol`s and Pydantic types of inputs and outputs. Everything else is internal (`_impl`) and importing it from outside is forbidden; import-linter guards the boundaries in CI.
 - Dependencies go one way: `api`/`worker` → `pipeline` → domain modules → `gateway` → `budget` and ports. Only `gateway` imports `budget`. No cycles.
 - External services (Apify, OpenRouter, Anthropic, Google Places, Langfuse, the database) sit behind ports (`Protocol`) only. An adapter is thin and replaceable; in tests a fake replaces it.
-- Paid external services (Apify, OpenRouter, Anthropic, Google Places) are reached only through `gateway`: it owns their ports and adapters, and import-linter forbids importing those adapters from anywhere else. `budget` is called by `gateway` only.
+- Paid and self-hosted external services (Apify, OpenRouter, Anthropic, Google Places, the Google Maps scrapers) are reached only through `gateway`: it owns their ports and adapters, and import-linter forbids importing those adapters from anywhere else. `budget` is called by `gateway` only.
 - Numbers and trends are pure functions without I/O. I/O stays at the edge (adapters, repositories).
 - `api` and `worker` are thin layers: parse the request, call `pipeline`, serialize. No business logic.
 - A module changes only at the price of an interface change; if the interface stays, the tests stay green.
@@ -70,14 +70,14 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 | Module | Public interface | What it hides | How it is tested |
 | --- | --- | --- | --- |
 | `places` | `suggest(query)`, `resolve(place_id) -> Place`, `branches(place) -> list[Place]`, `confirm(place_ids) -> Company`, `match_other_sources(place)` | finding candidate branches of a chain, matching a branch on Firmy.cz by name and address, a Company as the user-confirmed set of Places (the same set is the same Company); Google Places calls go through `gateway` | fake gateway and HTTP clients, contract tests on recorded responses |
-| `sources` | `fetch_reviews(place, since, limit) -> list[RawReview]` | Apify actors (called through `gateway`), polling, pagination, field mapping, dates | fake gateway, fake Apify client, fixtures from real outputs |
+| `sources` | `fetch_reviews(place, since, limit) -> list[RawReview]` | Apify actors for Firmy.cz and the YasogaN scraper for Google Maps (both called through `gateway`), polling, pagination, field mapping, dates | fake gateway, fake clients, fixtures from real outputs |
 | `sanitize` | `prepare(raw) -> PreparedReviews(clean, flagged)` | removal of HTML and hidden characters, PII, deduplication (hash), prompt injection detector | pure functions, fake detector, property-based tests |
 | `taxonomy` | `infer_industry(sample) -> str`, `get_taxonomy(industry) -> Taxonomy` | naming the industry of a Company with the strong model from a bounded sample (data delimiters, validated key), generating topics from a sample, freezing them; the pipeline falls back to the generic industry `general` when the industry cannot be inferred | fake `llm` over fake gateway |
 | `classification` | `classify(source, place_id, taxonomy, run_id) -> ClassificationResult(classified, unclassified)` | only Reviews without a ReviewTopic for the Taxonomy version, batching, delimited prompt, validation of the answer, `unclassified` when both models fail; Jev with fallback to Haiku is `llm`'s routing | fake `llm` over fake gateway, in-memory storage |
 | `metrics` | `compute(reviews, topics) -> Metrics` (averages, `TrendPoint`, topic shares, drops and rises) | all computations and anomaly detection | pure functions, no mocks |
 | `insights` | `generate(metrics, samples) -> Insights` | prompts, Sonnet, schema validation, grounding check (the review IDs exist), content check | fake LLM port |
 | `llm` | `complete(task, prompt, schema) -> T` | model routing, retry, fallback, prompt caching, Langfuse tracing; provider calls go through `gateway` | fake gateway |
-| `gateway` | `call(service, operation, request) -> response`, `GatewayDenied`, `BudgetExceeded` | allow-list of services and operations, rate limit and concurrency per service, `budget.reserve` before and `record` after every call, a record of every call (no request or response bodies), provider adapters (OpenRouter, Anthropic, Apify, Google Places) | fake `ServiceClient`s, fake `Clock`, fake `CallLog` |
+| `gateway` | `call(service, operation, request) -> response`, `GatewayDenied`, `BudgetExceeded` | allow-list of services and operations, rate limit and concurrency per service, `budget.reserve` before and `record` after every call, a record of every call (no request or response bodies), provider adapters (OpenRouter, Anthropic, Apify, Google Places, YasogaN, gosom) | fake `ServiceClient`s, fake `Clock`, fake `CallLog` |
 | `budget` | `reserve(estimate)`, `record(cost)`, `BudgetExceeded` | cost estimate, cap per run, monthly cap, for every paid service | pure functions; called by `gateway` only |
 | `transport` | `HttpTransport.send(request) -> response`, `read_secret(environ, name)` | the HTTP call on the standard library, where keys are read from configuration; no key in a `repr`, error or log | local test server, fake transport |
 | `tracing` | `LangfuseTracer` (the `llm` `Tracer` port) | one Langfuse generation per model call with tokens and price; a Langfuse failure never fails a Run | fake transport, recorded Langfuse answers |
@@ -162,7 +162,7 @@ Every run has a fixed budget and its actual cost is shown on the dashboard. The 
 - **Input limits:** max. number of reviews per source and branch, max. review length
 - **Model routing:** bulk work (classification) is done by a cheap model in batches, the expensive model receives only aggregated data and samples of reviews
 - **Token savings:** prompt caching for system prompts, Batch API for non-urgent runs
-- **Budget per run:** `gateway` checks the price estimate before every paid call (models, Apify, Google Places); when exceeded, the run stops with a partial result
+- **Budget per run:** `gateway` checks the price estimate before every paid call (models, Apify, Google Places; the Google Maps scrapers are estimated at 0); when exceeded, the run stops with a partial result
 - **Provider limits:** spending limit in Apify and in the model API keys, a daily limit of runs per user; they are the backstop if our code is wrong
 - **Measurement:** the gateway records every call (service, operation, cost, units, status) in the Call log, a run has the sum of costs of all services; Langfuse additionally traces prompts, tokens and price of model calls
 - **Admin view:** spend per service, per day and per run, and the Call log, on the admin screen (see [Dashboard](#dashboard))
@@ -215,8 +215,8 @@ All open questions are decided, except how the branches of a chain are found and
 | Topic taxonomy | generated per industry, the industry is inferred ([ADR 0007](adr/0007-infer-industry-with-strong-model.md)) | the strong model names the industry from a sample of the downloaded reviews, an LLM proposes topics once per industry, then they are frozen and JEV classifies every review into them; when the industry cannot be inferred the Run uses a generic Taxonomy and the result says so |
 | Autocomplete | Google Places Autocomplete (New) | place_id goes straight to the Google Maps scraper; a branch on Firmy.cz is matched by name and address; Mapy.com dropped out as an autocomplete source |
 | Firmy.cz | **Candidate, not decided** (go/no-go after the terms of use are read). Technically feasible with [oodoow/mapy-com-ppe](https://apify.com/oodoow/mapy-com-ppe) (Mapy.com serves the Firmy.cz profiles: the Place id equals the Firmy.cz detail id); jupri/firmy is not used (it needs full access to the Apify account) | tested 2026-11-13 on 3 Places: all Reviews are returned (165 to 329), each with an ISO date and rating, but **no review ID** (the adapter derives one by hashing date, reviewer and text), the rating is on a 0-100 scale (convert to 1-5) and the same Place can come back several times in one run (deduplicate by Place id). The terms of use were not read, so the owner decides go/no-go; see `docs/research/firmy-cz-branch-discovery-and-fixtures.md` |
-| Review dates | a scraper with an exact date | Google Maps: [compass/google-maps-reviews-scraper](https://apify.com/compass/google-maps-reviews-scraper) (field publishedAtDate in ISO, filter reviewsStartDate), deduplication by reviewId; Firmy.cz via mapy-com-ppe gives an ISO `date` (day precision, fixed +01:00 offset). Tested 2026-11-13: compass `publishedAtDate` has milliseconds and is probably computed from the relative text, so the exactness of old dates is not proven |
-| Budget | up to 30 USD per month | set spending limits in Apify and in the API keys accordingly |
+| Review dates | a scraper with an exact date | Google Maps: YasogaN `google-maps-review-scraper` (`time.published`, Unix time in milliseconds, newest first, at most 1000 per Place and Run, `since` applied after fetching), deduplication by `review_id` ([ADR 0008](adr/0008-self-hosted-google-maps-scrapers.md); replaces compass, whose dates were probably computed from relative text); Firmy.cz via mapy-com-ppe gives an ISO `date` (day precision, fixed +01:00 offset) |
+| Budget | up to 30 USD per month | set spending limits in Apify (Firmy.cz) and in the API keys; Google Maps scrapers cost 0 per call, their hosting is a fixed cost outside the Run Budget ([ADR 0008](adr/0008-self-hosted-google-maps-scrapers.md)) |
 | Code architecture | deep modules with a clear interface, external services only behind ports | every module is tested in isolation with fake dependencies |
 | Tests and coverage | coverage of at least 90 % (branches and lines), diff coverage 90 %, checked in CI | a merge is blocked when coverage is lower |
 | Code review | a separate agent in a fresh session before every merge, CI checks that the review exists | an independent view without the author's context |
@@ -229,4 +229,4 @@ All open questions are decided, except how the branches of a chain are found and
 
 - [ ] Branch discovery for a chain: Google Places text search by name, filtered by name and address, plus user confirmation; precision on 3 real companies
 - [ ] Jev: whether it handles Czech (50 real reviews labelled by a model and corrected by a human, plus about 15 synthetic injection attacks; go if sentiment agreement is at least 80 %, topics at least 70 % and no injection false negatives, otherwise Haiku only; test key limited to 5 USD) and a client for the OpenRouter Decisions API, which is not OpenAI-compatible
-- [ ] Test run: jupri/firmy and oodoow/mapy-com-ppe (date, review ID, more than 3 reviews?) and a comparison of older dates from compass with Google Maps
+- [ ] Test run: jupri/firmy and oodoow/mapy-com-ppe (date, review ID, more than 3 reviews?)
