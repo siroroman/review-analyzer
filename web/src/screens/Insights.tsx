@@ -24,7 +24,7 @@ export function Insights({ insights, onOpen }: { insights: RunResult["insights"]
     <section className="rounded-card border border-line bg-card p-4">
       <h2 className="mb-2 text-lg font-semibold">Shrnutí a doporučení</h2>
       {summary && (
-        <div className="mb-4 pr-3">
+        <div className="mb-8 pr-3">
           <p>{highlighted(summary.text)}</p>
           {button("Recenze ke shrnutí", summary.review_ids)}
         </div>
