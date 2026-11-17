@@ -1,4 +1,5 @@
 import json
+from dataclasses import fields
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -46,10 +47,10 @@ def test_every_review_of_the_recorded_output_is_mapped() -> None:
     reviews = adapter.call(SCRAPE_GOOGLE_REVIEWS, scrape()).payload
     assert isinstance(reviews, tuple) and len(reviews) == 5
     assert reviews[0] == ScrapedReview(
-        review_id="ChdDSUhNMG9nS0VJQ0FnSUR-fixture-1",
+        review_id="Ci9DQUlRQUNvZENodHljRjlvT201R09EQjFlbkJIVDB0Qk9EaEJOVlV4ZVRkU2VVRRAB",
         stars=3,
         text="Anonymized review text 1.",
-        published_at=datetime(2026, 10, 26, 7, 33, 20, tzinfo=UTC),
+        published_at=datetime(2026, 10, 30, 9, 46, 30, 439000, tzinfo=UTC),
     )
 
 
@@ -57,21 +58,22 @@ def test_a_review_with_only_stars_comes_back_with_empty_text_and_its_rating() ->
     adapter, _ = client(answer(items()))
     reviews = adapter.call(SCRAPE_GOOGLE_REVIEWS, scrape()).payload
     assert isinstance(reviews, tuple)
-    assert (reviews[1].text, reviews[1].stars) == ("", 5)
+    assert (reviews[1].text, reviews[1].stars) == ("", 5)  # the real output has `text: null` here
 
 
 def test_a_br_tag_becomes_a_line_break() -> None:
     adapter, _ = client(answer(items()))
     reviews = adapter.call(SCRAPE_GOOGLE_REVIEWS, scrape()).payload
     assert isinstance(reviews, tuple)
-    assert reviews[2].text == "Anonymized\nreview text 3."
+    assert reviews[4].text == "Anonymized\nreview text 5."
 
 
 def test_no_author_field_reaches_the_result() -> None:
+    assert [f.name for f in fields(ScrapedReview)] == ["review_id", "stars", "text", "published_at"]
     adapter, _ = client(answer(items()))
     reviews = adapter.call(SCRAPE_GOOGLE_REVIEWS, scrape()).payload
     assert isinstance(reviews, tuple)
-    assert not any("Author" in repr(review) or "contrib" in repr(review) for review in reviews)
+    assert not any("Anonymized Author" in repr(review) or "contrib" in repr(review) for review in reviews)
 
 
 def test_usage_is_the_number_of_reviews_returned_and_it_costs_nothing() -> None:
@@ -79,6 +81,20 @@ def test_usage_is_the_number_of_reviews_returned_and_it_costs_nothing() -> None:
     usage = adapter.call(SCRAPE_GOOGLE_REVIEWS, scrape()).usage
     assert usage == Units("yasogan", "review", 3)
     assert estimate_cost(usage) == Decimal(0)
+
+
+def test_the_timestamp_is_a_string_of_milliseconds_in_the_real_output_and_a_number_is_accepted_too() -> None:
+    data = items()[:2]
+    assert data[0]["time"]["published"] == "1793353590439"  # type: ignore[index]
+    data[1]["time"]["published"] = 1793353590439  # type: ignore[index]
+    adapter, _ = client(answer(data))
+    reviews = adapter.call(SCRAPE_GOOGLE_REVIEWS, scrape()).payload
+    assert isinstance(reviews, tuple)
+    assert (
+        reviews[0].published_at
+        == reviews[1].published_at
+        == datetime(2026, 10, 30, 9, 46, 30, 439000, tzinfo=UTC)
+    )
 
 
 def test_an_empty_answer_is_a_valid_empty_result() -> None:
@@ -117,6 +133,7 @@ def test_a_base_url_with_a_trailing_slash_gives_the_same_url() -> None:
         lambda i: i["review"].update(rating="five"),
         lambda i: i["review"].update(text=5),
         lambda i: i["time"].update(published="yesterday"),
+        lambda i: i["time"].update(published=None),
         lambda i: i.pop("review"),
         lambda i: i.pop("time"),
     ],

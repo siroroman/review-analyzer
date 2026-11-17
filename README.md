@@ -22,6 +22,7 @@ cp .env.example .env
 
 - `DATABASE_URL`: set it to `postgresql://review_analyzer:review_analyzer@localhost:5433/review_analyzer`, which matches `docker-compose.yml`.
 - `GOOGLE_PLACES_API_KEY`, `ANTHROPIC_API_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`: your own keys.
+- `YASOGAN_URL`: the base URL of the YasogaN scraper sidecar (ADR 0008); the backend refuses to start without it. Locally any URL works until the sidecar exists (#128).
 - `DEMO_TOKENS`: any string you choose; it is the access token for the web.
 - Delete the five lines `CLOUD_TASKS_PROJECT`, `CLOUD_TASKS_LOCATION`, `CLOUD_TASKS_QUEUE`, `WORKER_URL` and `WORKER_SERVICE_ACCOUNT`. With none set, the local queue is used; with only some set, the backend refuses to start.
 - Add the line `WORKER_AUTH_DISABLED=true`: the worker app is not used locally, and without its Cloud Tasks audience the backend refuses to start unless the check is switched off this way.

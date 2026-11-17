@@ -196,7 +196,7 @@ def test_the_recorded_scraper_output_goes_through_the_whole_chain() -> None:
     transport = FakeTransport(HttpResponse(200, FIXTURE.read_bytes()))
     adapter, log = sources(YasogaNClient("https://yasogan.example", transport))
     result = adapter.fetch_reviews(PLACE, None, 1000, run_id=RUN)
-    assert [r.rating for r in result] == [3, 5, 4, 1, 5]  # star-only Reviews 2 and 4 are kept
+    assert [r.rating for r in result] == [3, 5, 5, 5, 5]  # the star-only Review (`text: null`) is kept
     assert [r.text for r in result][1] == ""
     assert all(r.source is Source.GOOGLE_MAPS and r.place_external_id == PLACE.external_id for r in result)
     assert [r.published_on for r in result] == sorted((r.published_on for r in result), reverse=True)

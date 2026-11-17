@@ -46,6 +46,15 @@ def _object(item: Mapping[str, object], name: str) -> Mapping[str, object]:
     return value
 
 
+def _millis(value: object) -> int:
+    """Unix time in milliseconds: the library delivers it as a string of digits, a number is accepted too."""
+    if isinstance(value, str) and value.isascii() and value.isdigit():
+        return int(value)
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    raise ClientError("schema_changed")
+
+
 def _scraped(item: object) -> ScrapedReview:
     """One review object, or `schema_changed` when a field the adapter relies on is missing or off."""
     if not isinstance(item, dict):
@@ -59,12 +68,11 @@ def _scraped(item: object) -> ScrapedReview:
         raise ClientError("schema_changed")
     if isinstance(stars, bool) or not isinstance(stars, int) or not 1 <= stars <= 5:
         raise ClientError("schema_changed")
-    if isinstance(published, bool) or not isinstance(published, int):
-        raise ClientError("schema_changed")
+    millis = _millis(published)
     if text is not None and not isinstance(text, str):
         raise ClientError("schema_changed")
     try:
-        published_at = datetime.fromtimestamp(published / 1000, UTC)
+        published_at = datetime.fromtimestamp(millis / 1000, UTC)
     except (OverflowError, OSError, ValueError):
         raise ClientError("schema_changed") from None
     return ScrapedReview(review_id, stars, _BR.sub("\n", text or ""), published_at)

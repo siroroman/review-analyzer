@@ -53,7 +53,7 @@ def scraped_items(count: int = 40) -> list[dict[str, object]]:
         {
             **template,
             "review_id": f"review-{index:03d}",
-            "time": {"published": 1_792_000_000_000 + index * day_ms, "last_edited": None},
+            "time": {"published": str(1_792_000_000_000 + index * day_ms), "last_edited": None},
             "review": {"rating": 4, "text": f"Dobrá obsluha číslo {index}", "language": None},
         }
         for index in range(count)
