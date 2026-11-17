@@ -9,6 +9,7 @@ from app.domain import (
     Company,
     Metrics,
     Place,
+    PlaceDetails,
     RawReview,
     Review,
     ReviewTopic,
@@ -43,6 +44,12 @@ class SourceFetcher(Protocol):
     def fetch_reviews(
         self, place: Place, since: date | None, limit: int, *, run_id: str
     ) -> list[RawReview]: ...
+
+
+class PlaceDetailsFetcher(Protocol):
+    """The part of `sources.PlaceDetailsSource` that `pipeline` uses."""
+
+    def fetch_place_details(self, place: Place, *, run_id: str) -> PlaceDetails: ...
 
 
 class TaxonomyProvider(Protocol):
@@ -87,6 +94,7 @@ class Pipeline:
         insights: InsightMaker,
         sleeper: Sleeper,
         config: PipelineConfig,
+        place_details: PlaceDetailsFetcher | None = None,
     ) -> None:
         self._storage = storage
         self._sources = sources
@@ -96,6 +104,7 @@ class Pipeline:
         self._insights = insights
         self._sleeper = sleeper
         self._config = config
+        self._place_details = place_details
 
     def run(self, run_id: str) -> RunResult:
         """Run it to the end and return the result: `done`, `partial` (Budget exceeded or a step failed
@@ -227,8 +236,23 @@ class Pipeline:
             found += self._storage.reviews.list_for_place(place.source, place.external_id)
         return found
 
+    def _refresh_details(self, place: Place, run_id: str) -> None:
+        """Store the Place's current totals. A failure leaves the old ones (or none): details are a bonus.
+
+        Only a failed call is swallowed (`ClientError`, `GatewayDenied`, `BudgetExceeded`); a bug propagates.
+        """
+        if self._place_details is None:
+            return
+        fetch = partial(self._place_details.fetch_place_details, place, run_id=run_id)
+        try:
+            details = self._attempt(fetch)
+        except (ClientError, GatewayDenied, BudgetExceeded):
+            return
+        self._storage.companies.set_place_details(place.source, place.external_id, details)
+
     def _download(self, run_id: str, company: Company) -> None:
         for place in self._places(company):
+            self._refresh_details(place, run_id)
             stored = self._storage.reviews.list_for_place(place.source, place.external_id)
             since = max((r.published_on for r in stored), default=None)
             fetch = partial(
