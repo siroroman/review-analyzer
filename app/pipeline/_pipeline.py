@@ -41,7 +41,7 @@ class SourceFetcher(Protocol):
     """The part of `sources.Sources` that `pipeline` uses."""
 
     def fetch_reviews(
-        self, place: Place, since: date | None, limit: int, *, run_id: str
+        self, place: Place, since: date | None, limit: int, *, run_id: str, known_count: int | None = None
     ) -> list[RawReview]: ...
 
 
