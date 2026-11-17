@@ -19,7 +19,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from pydantic import SecretStr
 from starlette.exceptions import HTTPException
-from starlette.responses import Response
+from starlette.responses import PlainTextResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -270,6 +270,8 @@ class _Spa(StaticFiles):
         try:
             response = await super().get_response(path, scope)
         except HTTPException:  # only ever a 404 for a GET: no such file
+            if "." in path.rsplit("/", 1)[-1]:  # a missing asset (a stale hash) is a 404, not the page
+                return PlainTextResponse("Not Found", status_code=404)
             return await super().get_response("index.html", scope)
         return response
 

@@ -88,3 +88,7 @@ def test_service_app_reads_the_environment_and_serves_web_dir(
     monkeypatch.setattr(main, "build_apps", lambda environ: built)
     monkeypatch.setenv("WEB_DIR", str(web))
     assert TestClient(main.service_app()).get("/").text == "<html>spa</html>"
+
+
+def test_a_missing_asset_is_a_404_not_the_spa(web: Path) -> None:
+    assert service(web).get("/assets/old-hash.js").status_code == 404
