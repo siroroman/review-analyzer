@@ -105,10 +105,37 @@ def test_text_hash_ignores_case_spacing_and_masked_details() -> None:
     assert len(a.text_hash) == 64
 
 
-def test_empty_text_is_dropped_and_counted() -> None:
-    result = prepare([raw(""), raw("<br>​", "r2"), raw("ok", "r3")], FakeInjectionDetector())
+def test_reviews_without_text_are_kept_apart_from_the_clean_ones() -> None:
+    result = prepare([raw(""), raw("<br>​", "r2", rating=2), raw("ok", "r3")], FakeInjectionDetector())
     assert [r.external_id for r in result.clean] == ["r3"]
-    assert result.empty == 2
+    assert [(r.external_id, r.rating, r.text, r.flagged) for r in result.textless] == [
+        ("r1", 4, "", False),
+        ("r2", 2, "", False),
+    ]
+
+
+def test_reviews_without_text_never_reach_the_injection_detector() -> None:
+    seen: list[str] = []
+
+    class Spy:
+        def is_injection(self, text: str) -> bool:
+            seen.append(text)
+            return False
+
+    prepare([raw(""), raw("ok", "r2")], Spy())
+    assert seen == ["ok"]
+
+
+def test_star_only_reviews_of_the_same_day_and_rating_are_not_duplicates() -> None:
+    result = prepare([raw("", "r1"), raw("", "r2")], FakeInjectionDetector())
+    assert [r.external_id for r in result.textless] == ["r1", "r2"]
+    assert result.duplicates == 0
+
+
+def test_a_repeated_external_id_without_text_is_still_a_duplicate() -> None:
+    result = prepare([raw("", "r1"), raw("", "r1")], FakeInjectionDetector())
+    assert len(result.textless) == 1
+    assert result.duplicates == 1
 
 
 def test_same_source_and_external_id_is_deduplicated() -> None:
@@ -198,16 +225,18 @@ def test_pattern_detector_passes_normal_reviews() -> None:
 
 def test_empty_input() -> None:
     result = prepare([], FakeInjectionDetector())
-    assert (result.clean, result.flagged, result.duplicates, result.empty) == ([], [], 0, 0)
+    assert (result.clean, result.flagged, result.textless, result.duplicates) == ([], [], [], 0)
 
 
 @given(st.lists(st.text(max_size=60), max_size=20))
 def test_every_input_is_accounted_for_and_output_is_valid(texts: list[str]) -> None:
     reviews = [raw(t, f"id{i}") for i, t in enumerate(texts)]
     result = prepare(reviews, FakeInjectionDetector())
-    assert len(result.clean) + len(result.flagged) + result.duplicates + result.empty == len(reviews)
-    ids = [r.external_id for r in result.clean + result.flagged]
+    kept = result.clean + result.flagged + result.textless
+    assert len(kept) + result.duplicates == len(reviews)
+    ids = [r.external_id for r in kept]
     assert len(ids) == len(set(ids))
+    assert all(not r.has_text for r in result.textless)
     for r in result.clean + result.flagged:
         assert r.text.strip() and len(r.text) <= MAX_TEXT_LENGTH
         assert "<" not in r.text and "​" not in r.text

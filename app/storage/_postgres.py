@@ -267,7 +267,8 @@ class PostgresReviews:
         with self._db.cursor() as cur:
             cur.execute(
                 f"SELECT {_REVIEW_COLUMNS} FROM reviews r JOIN places p ON p.id = r.place_id "  # noqa: S608
-                "WHERE r.source = %s AND p.external_id = %s AND NOT r.flagged AND NOT EXISTS ("
+                "WHERE r.source = %s AND p.external_id = %s AND NOT r.flagged AND r.text <> '' "
+                "AND NOT EXISTS ("
                 "SELECT 1 FROM review_topics t WHERE t.review_id = r.id "
                 "AND t.industry = %s AND t.version = %s) "
                 "ORDER BY r.published_on, r.external_id",

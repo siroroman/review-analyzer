@@ -236,7 +236,7 @@ class Pipeline:
             )
             raw = self._attempt(fetch)
             prepared = prepare(raw, self._detector)
-            self._storage.reviews.add([*prepared.clean, *prepared.flagged])
+            self._storage.reviews.add([*prepared.clean, *prepared.flagged, *prepared.textless])
 
     def _industry(self, record: RunRecord, company: Company) -> str:
         """The Company's industry; inferred from the downloaded Reviews while it is unknown or generic.
@@ -309,7 +309,9 @@ class Pipeline:
             status=record.status,
             reviews=len(reviews),
             flagged=sum(r.flagged for r in reviews),
-            unclassified=sum(1 for r in reviews if not r.flagged and r.external_id not in real),
+            unclassified=sum(
+                1 for r in reviews if r.has_text and not r.flagged and r.external_id not in real
+            ),
             insights=len(self._storage.insights.for_run(record.id)),
             trend_points=len(self._storage.trends.for_run(record.id)),
             cost=spent.get(record.id, Decimal(0)),

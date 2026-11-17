@@ -48,7 +48,7 @@ class ModelAnswer(BaseModel):
 
 def sample_of(samples: Sequence[Review]) -> list[Review]:
     """The Reviews the prompt shows: unflagged, in the order given, at most `MAX_SAMPLES`."""
-    return [r for r in samples if not r.flagged][:MAX_SAMPLES]
+    return [r for r in samples if r.has_text and not r.flagged][:MAX_SAMPLES]
 
 
 def build(metrics: Metrics, shown: Sequence[Review]) -> str:

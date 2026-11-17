@@ -80,7 +80,11 @@ class Classifier:
         Each batch is saved as soon as it is done. A Review the model did not answer for, even after one
         follow-up, gets the Topic `unclassified` and is counted.
         """
-        todo = [r for r in self._reviews.unclassified(source, place_external_id, taxonomy) if not r.flagged]
+        todo = [
+            r
+            for r in self._reviews.unclassified(source, place_external_id, taxonomy)
+            if r.has_text and not r.flagged
+        ]
         classified = 0
         unclassified = 0
         for start in range(0, len(todo), BATCH_SIZE):

@@ -124,7 +124,7 @@ class Taxonomies:
         `SampleTooSmall` (before any call) and `InvalidIndustry`; errors of `llm`, the gateway and the
         provider pass through. The caller decides on a fallback.
         """
-        usable = [review for review in sample() if not review.flagged]
+        usable = [review for review in sample() if review.has_text and not review.flagged]
         if len(usable) < MIN_SAMPLE:
             raise SampleTooSmall(len(usable))
         prompt = _industry_prompt(usable[:MAX_SAMPLE])
@@ -150,7 +150,7 @@ class Taxonomies:
         stored = self._repo.latest(industry)
         if stored is not None:
             return stored
-        usable = [review for review in sample() if not review.flagged]
+        usable = [review for review in sample() if review.has_text and not review.flagged]
         if len(usable) < MIN_SAMPLE:
             raise SampleTooSmall(len(usable))
         prompt = _prompt(industry, usable[:MAX_SAMPLE])

@@ -12,11 +12,12 @@ class InjectionDetector(Protocol):
 
 
 class PreparedReviews(BaseModel):
-    """The result of sanitizing: Reviews safe for the analysis, Flagged reviews, and what was dropped."""
+    """The result of sanitizing: Reviews safe for the analysis, Flagged reviews, star-only Reviews (stored
+    and counted, never analysed as text) and the duplicates dropped."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     clean: list[Review]
     flagged: list[Review]
+    textless: list[Review]
     duplicates: int
-    empty: int

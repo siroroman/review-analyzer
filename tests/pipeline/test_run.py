@@ -1,7 +1,9 @@
+from datetime import UTC, datetime
+
 import pytest
 
 from app.domain import RunStatus, Source
-from app.gateway import ClientError
+from app.gateway import ClientError, ScrapedReview
 from app.storage import CallFilter, UnknownRun
 from tests.pipeline.helpers import (
     FIRMY,
@@ -29,6 +31,26 @@ def test_flagged_reviews_are_stored_but_never_classified_or_shown_to_the_model()
     world.run()
     stored = world.storage.reviews.list_for_place(Source.GOOGLE_MAPS, PLACE.external_id)
     assert sum(r.flagged for r in stored) == 2
+
+
+def test_reviews_without_text_are_stored_and_counted_but_never_sent_to_a_model() -> None:
+    star_only = [
+        ScrapedReview(PLACE.external_id, f"star{i}", 1, "", datetime(2026, 10, 5, 10, tzinfo=UTC), "cs")
+        for i in range(3)
+    ]
+    world = World(scraped_reviews=[*month_of_reviews(40), *star_only])
+    result = world.run()
+    assert result.status is RunStatus.DONE
+    assert (result.reviews, result.unclassified) == (43, 0)
+    stored = world.storage.reviews.list_for_place(Source.GOOGLE_MAPS, PLACE.external_id)
+    assert sum(not r.has_text for r in stored) == 3
+    report = world.pipeline.report(result.run_id)
+    assert report.metrics.overall is not None
+    assert report.metrics.overall.count == 43
+    taxonomy = world.storage.taxonomies.latest("cafe")
+    assert taxonomy is not None
+    topics = world.storage.reviews.topics_for_place(Source.GOOGLE_MAPS, PLACE.external_id, taxonomy)
+    assert not {t.review_external_id for t in topics} & {r.external_id for r in stored if not r.has_text}
 
 
 def test_budget_exceeded_while_classifying_gives_a_partial_result() -> None:

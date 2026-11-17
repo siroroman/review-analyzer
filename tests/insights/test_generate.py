@@ -50,6 +50,16 @@ def test_a_review_the_prompt_never_showed_does_not_ground_an_insight() -> None:
     assert result.dropped == 1
 
 
+def test_a_review_without_text_is_not_shown_and_does_not_ground_an_insight() -> None:
+    gen, completer = setup(answer(item("Star only.", ["re"])))
+    empty = review("re").model_copy(update={"text": ""})
+
+    result = gen.generate(metrics(), [review("r1"), empty], run_id=RUN)
+
+    assert result.insights == ()
+    assert 'id="re"' not in completer.calls[0].prompt
+
+
 def test_when_everything_is_dropped_the_summary_comes_from_the_metrics() -> None:
     gen, _ = setup(answer(item("Invented.", ["nope"])))
 
