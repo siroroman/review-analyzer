@@ -60,6 +60,13 @@ def test_reviews_by_ids_skip_unknown_ids_and_flagged_reviews() -> None:
     assert [r["id"] for r in found] == ["r1"]
 
 
+def test_a_review_without_text_is_never_returned_not_even_by_its_id() -> None:
+    api, run_id = _api_with_reviews()
+    api.storage.reviews.add([review("star", "g1").model_copy(update={"text": ""})])
+    assert _get(api, run_id, "ids=r1&ids=star").json()[0]["id"] == "r1"
+    assert [r["id"] for r in _get(api, run_id, "ids=r1&ids=star").json()] == ["r1"]
+
+
 def test_reviews_of_another_runs_company_are_not_returned() -> None:
     api, run_id = _api_with_reviews()
     api.setup.google.known["g9"] = cafe("g9")

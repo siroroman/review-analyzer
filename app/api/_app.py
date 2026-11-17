@@ -404,7 +404,7 @@ def _cost_by_service(storage: Storage, run_id: str) -> dict[str, Decimal]:
 def _reviews(
     storage: Storage, record: RunRecord, ids: list[str] | None, topic: str | None
 ) -> list[ReviewOut]:
-    """Unflagged Reviews of the Run's Company, by ID or by Topic; newest first."""
+    """Unflagged Reviews with text of the Run's Company, by ID or by Topic; newest first."""
     stored = storage.companies.by_id(record.company_id)
     if stored is None:
         return []
@@ -419,7 +419,7 @@ def _reviews(
             mentioning = {t.review_external_id for t in topics if t.topic_key == topic}
         for review in storage.reviews.list_for_place(place.source, place.external_id):
             chosen = review.external_id in mentioning if wanted is None else review.external_id in wanted
-            if chosen and not review.flagged:
+            if chosen and review.has_text and not review.flagged:
                 found.append((place, review))
     found.sort(key=lambda pair: (pair[1].published_on, pair[1].external_id), reverse=True)
     if wanted is None:
