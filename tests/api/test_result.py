@@ -8,6 +8,8 @@ from app.domain import (
     Insight,
     InsightType,
     Metrics,
+    PlaceDetails,
+    PlaceResult,
     RatingSummary,
     RunStatus,
     Source,
@@ -30,7 +32,12 @@ def _finish(api: Api, run_id: str, last: RunStatus = RunStatus.DONE) -> None:
         api.storage.runs.advance(run_id, status)
 
 
-def _report(run_id: str, status: RunStatus, notes: tuple[str, ...] = ()) -> RunReport:
+def _report(
+    run_id: str,
+    status: RunStatus,
+    notes: tuple[str, ...] = (),
+    places: tuple[PlaceResult, ...] = (),
+) -> RunReport:
     insight = Insight(
         type=InsightType.SUMMARY,
         period_start=date(2026, 10, 1),
@@ -65,7 +72,9 @@ def _report(run_id: str, status: RunStatus, notes: tuple[str, ...] = ()) -> RunR
     )
     company = Company(name="Kavárna", places=(cafe(),))
     topics = (Topic(key="staff", name="Obsluha", description="Friendliness of the staff"),)
-    return RunReport(result=result, company=company, metrics=metrics, insights=(insight,), topics=topics)
+    return RunReport(
+        result=result, company=company, metrics=metrics, insights=(insight,), topics=topics, places=places
+    )
 
 
 def test_a_run_that_is_not_finished_has_no_result_yet() -> None:
@@ -161,3 +170,68 @@ def test_the_result_splits_the_cost_by_service_and_the_parts_sum_to_the_cost() -
         "other": Decimal("0.03"),
     }
     assert sum(split.values()) == Decimal("0.25") == Decimal(body["cost"])
+
+
+def _place_result(details: PlaceDetails | None, analyzed: int, limited: bool = False) -> PlaceResult:
+    return PlaceResult(
+        source=Source.GOOGLE_MAPS,
+        place_external_id="g1",
+        details=details,
+        analyzed_count=analyzed,
+        analyzed_is_limited=limited,
+    )
+
+
+def _places_of(api: Api, place: PlaceResult) -> list[dict[str, object]]:
+    run_id = _start(api)
+    _finish(api, run_id)
+    api.reporter.reports[run_id] = _report(run_id, RunStatus.DONE, places=(place,))
+    body = api.client.get(f"/runs/{run_id}/result", headers=HEADERS).json()
+    places: list[dict[str, object]] = body["places"]
+    return places
+
+
+def test_the_result_has_the_totals_and_details_of_each_place() -> None:
+    details = PlaceDetails(
+        rating=4.3,
+        review_count=26348,
+        reviews_per_rating={5: 20000, 4: 4000, 3: 1000, 2: 500, 1: 848},
+        category="Cafe",
+        address="Praha 1",
+        phone="+420 123 456 789",
+        website="https://example.cz",
+        maps_url="https://maps.google.com/?cid=1",
+        thumbnail_url="https://example.cz/t.jpg",
+    )
+    (place,) = _places_of(Api(known=[cafe()]), _place_result(details, 1000, limited=True))
+    assert place == {
+        "source": "google_maps",
+        "place_external_id": "g1",
+        "category": "Cafe",
+        "address": "Praha 1",
+        "phone": "+420 123 456 789",
+        "website": "https://example.cz",
+        "maps_url": "https://maps.google.com/?cid=1",
+        "thumbnail_url": "https://example.cz/t.jpg",
+        "rating": 4.3,
+        "review_count": 26348,
+        "reviews_per_rating": {"5": 20000, "4": 4000, "3": 1000, "2": 500, "1": 848},
+        "analyzed_count": 1000,
+        "analyzed_is_limited": True,
+    }
+
+
+def test_the_limited_flag_is_what_the_pipeline_reports() -> None:
+    (limited,) = _places_of(
+        Api(known=[cafe()]), _place_result(PlaceDetails(rating=4, review_count=26348), 1000, True)
+    )
+    (whole,) = _places_of(Api(known=[cafe()]), _place_result(PlaceDetails(rating=4, review_count=800), 800))
+    assert (limited["analyzed_is_limited"], whole["analyzed_is_limited"]) == (True, False)
+
+
+def test_a_place_without_details_has_null_totals_and_still_its_analyzed_count() -> None:
+    (place,) = _places_of(Api(known=[cafe()]), _place_result(None, 40))
+    google_fields = ("category", "address", "phone", "website", "maps_url", "thumbnail_url")
+    assert [place[f] for f in google_fields] == [None] * 6
+    assert (place["rating"], place["review_count"], place["reviews_per_rating"]) == (None, None, None)
+    assert (place["analyzed_count"], place["analyzed_is_limited"]) == (40, False)

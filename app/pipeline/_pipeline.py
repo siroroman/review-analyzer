@@ -10,6 +10,7 @@ from app.domain import (
     Metrics,
     Place,
     PlaceDetails,
+    PlaceResult,
     RawReview,
     Review,
     ReviewTopic,
@@ -161,6 +162,19 @@ class Pipeline:
             metrics=metrics,
             insights=tuple(self._storage.insights.for_run(run_id)),
             topics=self._mentioned_topics(company, metrics),
+            places=tuple(self._place_result(place) for place in self._places(company)),
+        )
+
+    def _place_result(self, place: Place) -> PlaceResult:
+        details = self._storage.companies.place_details(place.source, place.external_id)
+        stored = self._storage.reviews.list_for_place(place.source, place.external_id)
+        analyzed = sum(1 for review in stored if not review.flagged)
+        return PlaceResult(
+            source=place.source,
+            place_external_id=place.external_id,
+            details=details,
+            analyzed_count=analyzed,
+            analyzed_is_limited=details is not None and details.review_count > self._config.reviews_per_place,
         )
 
     def _mentioned_topics(self, company: Company, metrics: Metrics) -> tuple[Topic, ...]:

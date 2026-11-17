@@ -307,6 +307,42 @@ export interface components {
             address: string;
         };
         /**
+         * PlaceResultOut
+         * @description One Place of a Run: its Source's totals (Google Maps only, else `None`) and the analyzed count.
+         *
+         *     The totals describe the whole Place, not the analyzed Reviews. All of them are `None` when the Source
+         *     has none or the call for them failed.
+         */
+        PlaceResultOut: {
+            source: components["schemas"]["Source"];
+            /** Place External Id */
+            place_external_id: string;
+            /** Category */
+            category: string | null;
+            /** Address */
+            address: string | null;
+            /** Phone */
+            phone: string | null;
+            /** Website */
+            website: string | null;
+            /** Maps Url */
+            maps_url: string | null;
+            /** Thumbnail Url */
+            thumbnail_url: string | null;
+            /** Rating */
+            rating: number | null;
+            /** Review Count */
+            review_count: number | null;
+            /** Reviews Per Rating */
+            reviews_per_rating: {
+                [key: string]: number;
+            } | null;
+            /** Analyzed Count */
+            analyzed_count: number;
+            /** Analyzed Is Limited */
+            analyzed_is_limited: boolean;
+        };
+        /**
          * PlaceSummary
          * @description The RatingSummary of one Place, for the comparison of Places.
          *
@@ -341,6 +377,8 @@ export interface components {
             insights: components["schemas"]["Insight"][];
             /** Topics */
             topics: components["schemas"]["TopicOut"][];
+            /** Places */
+            places: components["schemas"]["PlaceResultOut"][];
             /** Reviews */
             reviews: number;
             /** Flagged */
