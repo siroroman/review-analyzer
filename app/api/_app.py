@@ -14,7 +14,7 @@ from pydantic import AwareDatetime, BaseModel, Field
 
 from app.api._limits import DailyCounter, SlidingWindow
 from app.api._types import ApiConfig, Reporter
-from app.domain import Clock, Company, Insight, Metrics, Place, Review, RunStatus, Source
+from app.domain import Clock, Company, Insight, Metrics, Place, PlaceResult, Review, RunStatus, Source
 from app.gateway import CallStatus, ServiceCall
 from app.places import (
     InvalidCompany,
@@ -88,6 +88,28 @@ class TopicOut(BaseModel):
     name: str  # the display name of the Topic
 
 
+class PlaceResultOut(BaseModel):
+    """One Place of a Run: its Source's totals (Google Maps only, else `None`) and the analyzed count.
+
+    The totals describe the whole Place, not the analyzed Reviews. All of them are `None` when the Source
+    has none or the call for them failed.
+    """
+
+    source: Source
+    place_external_id: str
+    category: str | None
+    address: str | None
+    phone: str | None
+    website: str | None
+    maps_url: str | None
+    thumbnail_url: str | None
+    rating: float | None
+    review_count: int | None
+    reviews_per_rating: dict[int, int] | None  # keys 1 to 5
+    analyzed_count: int  # stored Reviews of the Place, Flagged excluded
+    analyzed_is_limited: bool  # the Place has more Reviews than were analyzed
+
+
 class ResultOut(BaseModel):
     run_id: str
     status: RunStatus
@@ -95,6 +117,7 @@ class ResultOut(BaseModel):
     metrics: Metrics
     insights: list[Insight]
     topics: list[TopicOut]  # a name for every `topic_key` the metrics mention
+    places: list[PlaceResultOut]
     reviews: int
     flagged: int
     unclassified: int
@@ -261,6 +284,7 @@ def create_app(
             metrics=report.metrics,
             insights=list(report.insights),
             topics=[TopicOut(key=topic.key, name=topic.name) for topic in report.topics],
+            places=[_place_out(place) for place in report.places],
             reviews=report.result.reviews,
             flagged=report.result.flagged,
             unclassified=report.result.unclassified,
@@ -334,6 +358,25 @@ def create_app(
         return CallsOut(total=len(found), items=[_call_out(c) for c in found[offset : offset + limit]])
 
     return app
+
+
+def _place_out(place: PlaceResult) -> PlaceResultOut:
+    totals = {} if place.details is None else place.details.model_dump()
+    return PlaceResultOut(
+        source=place.source,
+        place_external_id=place.place_external_id,
+        category=totals.get("category"),
+        address=totals.get("address"),
+        phone=totals.get("phone"),
+        website=totals.get("website"),
+        maps_url=totals.get("maps_url"),
+        thumbnail_url=totals.get("thumbnail_url"),
+        rating=totals.get("rating"),
+        review_count=totals.get("review_count"),
+        reviews_per_rating=totals.get("reviews_per_rating"),
+        analyzed_count=place.analyzed_count,
+        analyzed_is_limited=place.analyzed_is_limited,
+    )
 
 
 def _bearer(header: str | None) -> str | None:
