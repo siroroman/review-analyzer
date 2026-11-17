@@ -18,17 +18,7 @@ export function TopicsCard({
   return (
     <section className="rounded-card border border-line bg-card p-4">
       <h2 className="mb-2 text-lg font-semibold">Témata</h2>
-      <p className="mb-3 flex gap-4 text-sm text-muted">
-        <span className="flex items-center gap-1">
-          <span aria-hidden="true" className="inline-block size-3 rounded-sm bg-positive" />
-          Pozitivní
-        </span>
-        <span className="flex items-center gap-1">
-          <span aria-hidden="true" className="inline-block size-3 rounded-sm bg-negative" />
-          Negativní
-        </span>
-      </p>
-      <ul aria-label="Témata" className="flex flex-col gap-2">
+      <ul aria-label="Témata" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {shares.map((share) => {
           const total = share.positive + share.neutral + share.negative;
           const name = topicName(topics, share.topic_key);

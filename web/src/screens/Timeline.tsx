@@ -76,16 +76,6 @@ export function Timeline({
 
   return (
     <div>
-      <ul aria-label="Legenda grafu" className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-        {sources.map((source) => (
-          <li key={source} className="flex items-center gap-1.5">
-            <svg width="22" height="6" aria-hidden="true">
-              <line x1="0" y1="3" x2="22" y2="3" stroke={LINES[source].color} strokeWidth="3" strokeDasharray={LINES[source].dash} />
-            </svg>
-            {SOURCE_LABEL[source]}
-          </li>
-        ))}
-      </ul>
       <div role="img" aria-label={describe(trend)} className="h-72">
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 640, height: 280 }}>
           <LineChart data={rows} margin={{ top: 24, right: 16, bottom: 4, left: 0 }}>
@@ -98,7 +88,7 @@ export function Timeline({
                 <ReferenceArea key={`area-${change.source}-${change.period_start}`} x1={change.period_start} x2={change.period_start} fill={DROP} fillOpacity={0.12} />
               ))}
             {sources.map((source) => (
-              <Line key={source} dataKey={source} name={SOURCE_LABEL[source]} stroke={LINES[source].color} strokeDasharray={LINES[source].dash} strokeWidth={2} connectNulls isAnimationActive={false} />
+              <Line key={source} type="monotone" dot={false} activeDot={false} dataKey={source} name={SOURCE_LABEL[source]} stroke={LINES[source].color} strokeDasharray={LINES[source].dash} strokeWidth={2} connectNulls isAnimationActive={false} />
             ))}
             {changes.map((change) => {
               const y = ratingAt(change.source, change.period_start);
@@ -119,7 +109,6 @@ export function Timeline({
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <p className="mt-2 text-sm text-muted">Zvýrazněný měsíc je pokles hodnocení o 0,5 hvězdy a víc oproti předchozímu měsíci, značka ▲ je vzestup o stejnou hodnotu.</p>
       {changes.length > 0 && (
         <ul aria-label="Poklesy a vzestupy" className="mt-3 space-y-1 text-sm">
           {changes.map((change) => (
