@@ -32,7 +32,7 @@ def test_redelivery_of_a_finished_run_costs_nothing_and_adds_no_reviews() -> Non
     worker = Worker(world.pipeline)
     run_id = world.new_run()
     worker.handle(run_id)
-    calls, scrapes = world.service_calls(), world.apify_calls()
+    calls, scrapes = world.service_calls(), world.scrape_calls()
     reviews = len(reviews_of(world))
     cost = world.pipeline.run(run_id).cost
     assert calls > 0 and reviews > 0 and cost > Decimal(0)
@@ -41,7 +41,7 @@ def test_redelivery_of_a_finished_run_costs_nothing_and_adds_no_reviews() -> Non
     worker.handle(run_id)
 
     assert world.service_calls() == calls
-    assert world.apify_calls() == scrapes
+    assert world.scrape_calls() == scrapes
     assert len(reviews_of(world)) == reviews
     assert world.pipeline.run(run_id).cost == cost
 
@@ -52,14 +52,14 @@ def test_redelivery_after_a_crash_resumes_without_paying_twice() -> None:
     run_id = world.new_run()
     with pytest.raises(RuntimeError):
         worker.handle(run_id)
-    scrapes = world.apify_calls()
+    scrapes = world.scrape_calls()
     reviews = len(reviews_of(world))
     assert world.status(run_id) == RunStatus.CLASSIFYING
 
     worker.handle(run_id)
 
     assert world.status(run_id) == RunStatus.DONE
-    assert world.apify_calls() == scrapes
+    assert world.scrape_calls() == scrapes
     assert len(reviews_of(world)) == reviews
 
 

@@ -113,10 +113,10 @@ def test_a_base_url_with_a_trailing_slash_gives_the_same_url() -> None:
     [
         lambda i: i.pop("review_id"),
         lambda i: i.update(review_id=""),
-        lambda i: i["review"].update(rating=9),  # type: ignore[attr-defined]
-        lambda i: i["review"].update(rating="five"),  # type: ignore[attr-defined]
-        lambda i: i["review"].update(text=5),  # type: ignore[attr-defined]
-        lambda i: i["time"].update(published="yesterday"),  # type: ignore[attr-defined]
+        lambda i: i["review"].update(rating=9),
+        lambda i: i["review"].update(rating="five"),
+        lambda i: i["review"].update(text=5),
+        lambda i: i["time"].update(published="yesterday"),
         lambda i: i.pop("review"),
         lambda i: i.pop("time"),
     ],

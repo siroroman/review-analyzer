@@ -30,12 +30,12 @@ from app.gateway import (
     GOOGLE_PLACES,
     SCRAPE_GOOGLE_REVIEWS,
     AnthropicClient,
-    ApifyClient,
     Gateway,
     GatewayConfig,
     GooglePlacesClient,
     ServiceClient,
     ServicePolicy,
+    YasogaNClient,
 )
 from app.insights import InsightGenerator
 from app.llm import Llm, LlmConfig, ModelRef, Route
@@ -63,7 +63,6 @@ CLOUD_TASKS_VARIABLES = (
 SECRET_VARIABLES = (
     "DATABASE_URL",
     "GOOGLE_PLACES_API_KEY",
-    "APIFY_TOKEN",
     "ANTHROPIC_API_KEY",
     "LANGFUSE_PUBLIC_KEY",
     "LANGFUSE_SECRET_KEY",
@@ -71,16 +70,17 @@ SECRET_VARIABLES = (
 )
 SETTING_VARIABLES = (
     "ADMIN_TOKEN",
+    "YASOGAN_URL",
     "LANGFUSE_HOST",
     *CLOUD_TASKS_VARIABLES,
 )
 
 _ANTHROPIC = "anthropic"
-_APIFY = "apify"
+_YASOGAN = "yasogan"
 _HAIKU = ModelRef(_ANTHROPIC, "claude-haiku")
 _SONNET = ModelRef(_ANTHROPIC, "claude-sonnet")
 _MODEL_IDS = {"claude-haiku": "claude-haiku-5-5", "claude-sonnet": "claude-sonnet-5-5"}
-_REVIEWS_PER_PLACE = 100
+_REVIEWS_PER_PLACE = 1000  # ADR-0008: the input limit for Google Maps
 _TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"  # noqa: S105
 _TOKEN_MARGIN = timedelta(seconds=60)
 
@@ -173,7 +173,7 @@ def build_apps(
     api_config = ApiConfig.from_environ(environ)
     dsn = read_secret(environ, "DATABASE_URL")
     google_key = read_secret(environ, "GOOGLE_PLACES_API_KEY")
-    apify_token = read_secret(environ, "APIFY_TOKEN")
+    yasogan_url = read_secret(environ, "YASOGAN_URL").get_secret_value()
     anthropic_key = read_secret(environ, "ANTHROPIC_API_KEY")
     langfuse = LangfuseConfig.from_environ(environ)
     tasks = _cloud_tasks_config(environ)
@@ -184,14 +184,14 @@ def build_apps(
 
     clients: dict[str, ServiceClient] = {
         GOOGLE_PLACES: GooglePlacesClient(google_key, transport),
-        _APIFY: ApifyClient(apify_token, transport),
+        _YASOGAN: YasogaNClient(yasogan_url, transport),
         _ANTHROPIC: AnthropicClient(anthropic_key, transport, _MODEL_IDS),
     }
     gateway = Gateway(
         GatewayConfig(
             {
                 GOOGLE_PLACES: _policy({"autocomplete", "details", "text_search"}, 600, 4),
-                _APIFY: _policy({SCRAPE_GOOGLE_REVIEWS}, 10, 2),
+                _YASOGAN: _policy({SCRAPE_GOOGLE_REVIEWS}, 10, 2),
                 _ANTHROPIC: _policy({"complete"}, 100, 4),
             },
             run_cap=Decimal(api_config.run_cap),

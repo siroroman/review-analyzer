@@ -20,7 +20,13 @@ def test_units_are_priced_per_unit() -> None:
 
 
 def test_zero_usage_costs_nothing() -> None:
-    assert estimate_cost(Units(service="apify", unit="review", count=0)) == Decimal(0)
+    assert estimate_cost(Units(service="google_places", unit="details_request", count=0)) == Decimal(0)
+
+
+def test_a_self_hosted_scraper_review_costs_nothing_and_the_apify_review_is_no_longer_priced() -> None:
+    assert estimate_cost(Units(service="yasogan", unit="review", count=1000)) == Decimal(0)
+    with pytest.raises(UnknownPrice):
+        estimate_cost(Units(service="apify", unit="review", count=1))
 
 
 @pytest.mark.parametrize(

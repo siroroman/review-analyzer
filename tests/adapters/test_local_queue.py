@@ -110,13 +110,13 @@ def test_a_run_goes_through_the_worker_and_a_repeat_after_it_costs_nothing() -> 
     queue.enqueue(run_id)
     queue.join()
     assert world.status(run_id) == RunStatus.DONE
-    calls, scrapes = world.service_calls(), world.apify_calls()
+    calls, scrapes = world.service_calls(), world.scrape_calls()
 
     queue.enqueue(run_id)
     queue.join()
 
     assert world.service_calls() == calls
-    assert world.apify_calls() == scrapes
+    assert world.scrape_calls() == scrapes
 
 
 def test_the_status_of_a_run_through_the_local_queue_ends_with_the_final_counts() -> None:

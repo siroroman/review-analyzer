@@ -8,7 +8,7 @@ from app.domain import FakeClock
 from app.transport import HttpRequest, HttpResponse
 
 FIXTURES = Path(__file__).parents[1] / "adapters" / "fixtures"
-GOOGLE_ITEMS = Path(__file__).parents[1] / "fixtures/sources/google_maps/2026-11-13-camp-velo.json"
+GOOGLE_ITEMS = Path(__file__).parents[1] / "fixtures/sources/google_maps/2026-11-17-yasogan-sample.json"
 START = datetime(2026, 11, 13, 8, 0, tzinfo=UTC)
 PLACE_ID = "ChIJ_RjZFHvsC0cRk0DRRqTuJlA"  # the id in google_places_details_ok.json
 ACCESS_TOKEN = "metadata-token-value"  # noqa: S105 - a test value
@@ -20,7 +20,7 @@ ENVIRON = {
     "ADMIN_TOKEN": "admin-token-1",
     "DATABASE_URL": "postgresql://user:db-secret@localhost/none",
     "GOOGLE_PLACES_API_KEY": "google-secret",
-    "APIFY_TOKEN": "apify-secret",
+    "YASOGAN_URL": "https://yasogan.example",
     "ANTHROPIC_API_KEY": "anthropic-secret",
     "LANGFUSE_PUBLIC_KEY": "langfuse-public",
     "LANGFUSE_SECRET_KEY": "langfuse-secret",
@@ -46,16 +46,15 @@ def _file(name: str, status: int = 200) -> HttpResponse:
 
 
 def scraped_items(count: int = 40) -> list[dict[str, object]]:
-    """Apify items in the shape of the recorded run, with new ids so there are enough for a Taxonomy."""
+    """Scraper output in the shape of the recorded sample, with new ids so there are enough for a Taxonomy."""
     template = json.loads(GOOGLE_ITEMS.read_text())[0]
+    day_ms = 86_400_000
     return [
         {
             **template,
-            "placeId": PLACE_ID,
-            "reviewId": f"review-{index:03d}",
-            "stars": 4,
-            "text": f"Dobrá obsluha číslo {index}",
-            "publishedAtDate": f"2026-10-{1 + index % 28:02d}T10:00:00.000Z",
+            "review_id": f"review-{index:03d}",
+            "time": {"published": 1_792_000_000_000 + index * day_ms, "last_edited": None},
+            "review": {"rating": 4, "text": f"Dobrá obsluha číslo {index}", "language": None},
         }
         for index in range(count)
     ]
@@ -101,7 +100,7 @@ def _model_answer(request: HttpRequest) -> HttpResponse:
 
 
 class Internet:
-    """An `HttpTransport` that plays every service by its URL: Google, Apify, Anthropic, Langfuse,
+    """An `HttpTransport` that plays every service by its URL: Google, the scraper, Anthropic, Langfuse,
     Cloud Tasks and the metadata server. It remembers every request; nothing leaves the process."""
 
     def __init__(self) -> None:
@@ -120,7 +119,7 @@ class Internet:
                 if "autocomplete" in url
                 else "google_places_details_ok.json"
             )
-        if host == "api.apify.com":
+        if host == "yasogan.example":
             return _json(scraped_items())
         if host == "api.anthropic.com":
             return _model_answer(request)

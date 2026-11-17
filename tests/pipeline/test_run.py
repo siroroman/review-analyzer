@@ -34,10 +34,7 @@ def test_flagged_reviews_are_stored_but_never_classified_or_shown_to_the_model()
 
 
 def test_reviews_without_text_are_stored_and_counted_but_never_sent_to_a_model() -> None:
-    star_only = [
-        ScrapedReview(PLACE.external_id, f"star{i}", 1, "", datetime(2026, 10, 5, 10, tzinfo=UTC), "cs")
-        for i in range(3)
-    ]
+    star_only = [ScrapedReview(f"star{i}", 1, "", datetime(2026, 10, 5, 10, tzinfo=UTC)) for i in range(3)]
     world = World(scraped_reviews=[*month_of_reviews(40), *star_only])
     result = world.run()
     assert result.status is RunStatus.DONE
@@ -64,11 +61,9 @@ def test_budget_exceeded_while_classifying_gives_a_partial_result() -> None:
     assert world.model_calls_of("insights") == 0
 
 
-def test_budget_exceeded_while_downloading_gives_a_partial_result_with_nothing() -> None:
-    world = World(run_cap="0.0001")
-    result = world.run()
-    assert result.status is RunStatus.PARTIAL
-    assert result.reviews == 0
+def test_the_download_costs_nothing_so_a_tiny_run_cap_does_not_stop_it() -> None:
+    world = World(run_cap="0.0001", scraped_reviews=month_of_reviews(40))
+    assert world.pipeline.run(world.new_run()).reviews == 40
 
 
 def test_budget_exceeded_in_insights_keeps_reviews_topics_and_trend() -> None:
@@ -90,13 +85,13 @@ def test_a_transient_failure_is_retried_and_the_run_succeeds() -> None:
     world = World(failures={"download": [ClientError("timeout")]})
     result = world.run()
     assert result.status is RunStatus.DONE
-    assert world.apify_calls() == 2
+    assert world.scrape_calls() == 2
 
 
 def test_a_failure_that_is_not_transient_is_not_retried() -> None:
     world = World(always_fail={"download": ClientError("schema_changed")})
     result = world.run()
-    assert world.apify_calls() == 1
+    assert world.scrape_calls() == 1
     assert result.status is RunStatus.FAILED  # no Review exists at all
 
 
@@ -120,7 +115,7 @@ def test_a_place_of_a_source_without_an_adapter_is_skipped() -> None:
     world = World(places=(PLACE, FIRMY))
     result = world.run()
     assert result.status is RunStatus.DONE
-    assert world.apify_calls() == 1
+    assert world.scrape_calls() == 1
 
 
 def test_an_unknown_run_is_reported() -> None:
