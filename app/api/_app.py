@@ -33,7 +33,7 @@ _PUBLIC = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
 _FINISHED = (RunStatus.DONE, RunStatus.PARTIAL)
 _MAX_IDS = 100
 _MAX_BY_TOPIC = 200
-_MODELS = {"openrouter", "anthropic"}  # the Services that are Models in the cost split
+_MODELS = {"openrouter", "openrouter_chat"}  # the Services that are Models in the cost split
 
 
 class SuggestionOut(BaseModel):

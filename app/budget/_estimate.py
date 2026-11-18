@@ -7,8 +7,6 @@ _TOKEN_PRICES: dict[tuple[str, str], tuple[Decimal, Decimal]] = {
     ("openrouter", "jev-1.14"): (Decimal("0.10"), Decimal("0.30")),
     # DeepSeek V4.1 Flash: OpenRouter lists $0.05 to $3 per million input by provider; this is a mid price.
     ("openrouter_chat", "deepseek-v4.1-flash"): (Decimal("0.30"), Decimal("1.20")),
-    ("anthropic", "claude-haiku"): (Decimal(1), Decimal(5)),
-    ("anthropic", "claude-sonnet"): (Decimal(3), Decimal(15)),
 }
 
 # USD per unit, by (service, unit). PLACEHOLDERS, as above.

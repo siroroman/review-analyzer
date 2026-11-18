@@ -60,9 +60,9 @@ def test_every_attempt_on_every_model_is_traced() -> None:
     assert [(e.model, e.outcome) for e in s.tracer.events] == [
         ("jev-1.14", "invalid"),
         ("jev-1.14", "invalid"),
-        ("claude-haiku", "ok"),
+        ("deepseek-v4.1-flash", "ok"),
     ]
-    assert s.tracer.events[-1].cost == D("0.2")
+    assert s.tracer.events[-1].cost == D("0.45")
 
 
 def test_usage_in_units_is_traced_with_zero_tokens() -> None:

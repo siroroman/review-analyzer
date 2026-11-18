@@ -8,10 +8,10 @@ from app.domain import Review, SeededRandom
 from app.llm import ModelRef, Route
 from app.storage import in_memory_storage
 from app.taxonomy import MAX_SAMPLE, MIN_SAMPLE, Taxonomies
-from tests.llm.helpers import HAIKU_USAGE, Setup, requests, scripted
+from tests.llm.helpers import CHAT_USAGE, Setup, requests, scripted
 from tests.taxonomy.test_get_taxonomy import reviews, topics_json
 
-ROUTES = {"taxonomy": Route(ModelRef("anthropic", "claude-haiku"))}
+ROUTES = {"taxonomy": Route(ModelRef("openrouter_chat", "deepseek-v4.1-flash"))}
 
 
 def numbered(count: int, *, text_from: int = 0, flagged_from: int | None = None) -> list[Review]:
@@ -28,10 +28,10 @@ def numbered(count: int, *, text_from: int = 0, flagged_from: int | None = None)
 
 
 def texts_sent(found: Sequence[Review], seed: int) -> list[str]:
-    setup = Setup(haiku=lambda clock: scripted(HAIKU_USAGE, topics_json(8), clock=clock), routes=ROUTES)
+    setup = Setup(chat=lambda clock: scripted(CHAT_USAGE, topics_json(8), clock=clock), routes=ROUTES)
     taxonomies = Taxonomies(setup.llm, in_memory_storage(setup.clock).taxonomies, SeededRandom(seed))
     taxonomies.get_taxonomy("cafe", sample=lambda: found, run_id="run-1")
-    prompt = requests(setup.anthropic)[0].prompt
+    prompt = requests(setup.chat)[0].prompt
     texts: list[str] = json.loads(prompt.split("<reviews>\n")[1].split("\n</reviews>")[0])
     return texts
 

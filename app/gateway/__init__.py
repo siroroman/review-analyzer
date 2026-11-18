@@ -1,7 +1,6 @@
 """Gateway: the only way to call a paid service. Allow-list, traffic limits, Budget, Call log (ADR-0006)."""
 
 from app.budget import BudgetExceeded, Tokens, Units
-from app.gateway._anthropic import AnthropicClient
 from app.gateway._fakes import FakeCallLog, FakeServiceClient
 from app.gateway._gateway import Gateway
 from app.gateway._google_places import (
@@ -37,7 +36,6 @@ __all__ = [
     "GET_PLACE_DETAILS",
     "GOOGLE_PLACES",
     "SCRAPE_GOOGLE_REVIEWS",
-    "AnthropicClient",
     "AutocompleteRequest",
     "BudgetExceeded",
     "CallLog",

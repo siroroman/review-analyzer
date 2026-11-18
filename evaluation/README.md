@@ -7,7 +7,7 @@ It runs by hand or as a nightly job, never in CI, and calls paid models (a few c
 ## Run
 
 ```bash
-export OPENROUTER_API_KEY=... ANTHROPIC_API_KEY=...   # never commit them; the command prints no key
+export OPENROUTER_API_KEY=...    # never commit it; the command prints no key
 make evaluate                    # prints the table and the change since evaluation/reports/last.json
 make evaluate ARGS=--save        # the same, and stores this report as the new last one
 make evaluate ARGS="--data evaluation/data/sample.jsonl --taxonomy evaluation/data/sample-taxonomy.json"

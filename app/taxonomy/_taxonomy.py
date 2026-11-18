@@ -141,7 +141,7 @@ class Taxonomies:
         return self._random.sample(usable, MAX_SAMPLE)
 
     def infer_industry(self, *, sample: Callable[[], Sequence[Review]], run_id: str) -> str:
-        """The industry key of the Company the `sample` is from, named by the strong model.
+        """The industry key of the Company the `sample` is from, named by DeepSeek.
 
         Only a random sample of at most `MAX_SAMPLE` Reviews with text, never a Flagged one, is sent, each
         cut to a short text, as data inside `<reviews>`. The label is validated and normalized to a lowercase

@@ -16,8 +16,8 @@ from app.gateway import (
 D = Decimal
 START = datetime(2026, 11, 12, 8, 0, tzinfo=UTC)
 
-# Placeholder prices of app/budget/_estimate.py: haiku 1 / 5 USD per million tokens, Places details 0.017.
-HAIKU_700K = Tokens("anthropic", "claude-haiku", 200_000, 100_000)  # 0.2 + 0.5 = 0.7 USD
+# Placeholder prices of app/budget/_estimate.py: Jev 0.10 / 0.30 USD per million tokens, Places details 0.017.
+HAIKU_700K = Tokens("openrouter", "jev-1.14", 1_000_000, 2_000_000)  # 0.1 + 0.6 = 0.7 USD
 PLACES_ONE = Units("google_places", "details_request", 1)  # 0.017 USD
 
 
@@ -49,10 +49,12 @@ class Setup:
         self.clock = FakeClock(START)
         self.log = FakeCallLog()
         self.clients = (
-            clients if clients is not None else {"anthropic": self.client(took=took, fail_with=fail_with)}
+            clients
+            if clients is not None
+            else {"openrouter_chat": self.client(took=took, fail_with=fail_with)}
         )
         config = GatewayConfig(
-            services=services if services is not None else {"anthropic": policy()},
+            services=services if services is not None else {"openrouter_chat": policy()},
             run_cap=D(run_cap),
             monthly_cap=D(monthly_cap),
         )

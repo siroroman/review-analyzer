@@ -29,10 +29,11 @@ from app.domain import Clock, Source, SystemRandom
 from app.gateway import (
     GOOGLE_PLACES,
     SCRAPE_GOOGLE_REVIEWS,
-    AnthropicClient,
     Gateway,
     GatewayConfig,
     GooglePlacesClient,
+    OpenRouterChatClient,
+    OpenRouterClient,
     ServiceClient,
     ServicePolicy,
     YasogaNClient,
@@ -63,7 +64,7 @@ CLOUD_TASKS_VARIABLES = (
 SECRET_VARIABLES = (
     "DATABASE_URL",
     "GOOGLE_PLACES_API_KEY",
-    "ANTHROPIC_API_KEY",
+    "OPENROUTER_API_KEY",
     "LANGFUSE_PUBLIC_KEY",
     "LANGFUSE_SECRET_KEY",
     "DEMO_TOKENS",
@@ -75,11 +76,14 @@ SETTING_VARIABLES = (
     *CLOUD_TASKS_VARIABLES,
 )
 
-_ANTHROPIC = "anthropic"
+_OPENROUTER = "openrouter"
+_OPENROUTER_CHAT = "openrouter_chat"
 _YASOGAN = "yasogan"
-_HAIKU = ModelRef(_ANTHROPIC, "claude-haiku")
-_SONNET = ModelRef(_ANTHROPIC, "claude-sonnet")
-_MODEL_IDS = {"claude-haiku": "claude-haiku-5-5", "claude-sonnet": "claude-sonnet-5-5"}
+# Jev assigns Topics; DeepSeek proposes them and writes the insights. Both through OpenRouter (ADR 0009).
+_JEV = ModelRef(_OPENROUTER, "jev-1.14")
+_DEEPSEEK = ModelRef(_OPENROUTER_CHAT, "deepseek-v4.1-flash")
+_JEV_IDS = {"jev-1.14": "typesafe/jev-1.14"}
+_DEEPSEEK_IDS = {"deepseek-v4.1-flash": "deepseek/deepseek-v4.1-flash"}
 _REVIEWS_PER_PLACE = 1000  # ADR-0008: the input limit for Google Maps
 _TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"  # noqa: S105
 _TOKEN_MARGIN = timedelta(seconds=60)
@@ -174,7 +178,7 @@ def build_apps(
     dsn = read_secret(environ, "DATABASE_URL")
     google_key = read_secret(environ, "GOOGLE_PLACES_API_KEY")
     yasogan_url = read_secret(environ, "YASOGAN_URL").get_secret_value()
-    anthropic_key = read_secret(environ, "ANTHROPIC_API_KEY")
+    openrouter_key = read_secret(environ, "OPENROUTER_API_KEY")
     langfuse = LangfuseConfig.from_environ(environ)
     tasks = _cloud_tasks_config(environ)
 
@@ -185,14 +189,16 @@ def build_apps(
     clients: dict[str, ServiceClient] = {
         GOOGLE_PLACES: GooglePlacesClient(google_key, transport),
         _YASOGAN: YasogaNClient(yasogan_url, transport),
-        _ANTHROPIC: AnthropicClient(anthropic_key, transport, _MODEL_IDS),
+        _OPENROUTER: OpenRouterClient(openrouter_key, transport, _JEV_IDS),
+        _OPENROUTER_CHAT: OpenRouterChatClient(openrouter_key, transport, _DEEPSEEK_IDS),
     }
     gateway = Gateway(
         GatewayConfig(
             {
                 GOOGLE_PLACES: _policy({"autocomplete", "details", "text_search"}, 600, 4),
                 _YASOGAN: _policy({SCRAPE_GOOGLE_REVIEWS}, 10, 2),
-                _ANTHROPIC: _policy({"complete"}, 100, 4),
+                _OPENROUTER: _policy({"complete"}, 600, 4),
+                _OPENROUTER_CHAT: _policy({"complete"}, 100, 4),
             },
             run_cap=Decimal(api_config.run_cap),
             monthly_cap=api_config.monthly_cap,
@@ -205,10 +211,10 @@ def build_apps(
     llm = Llm(
         LlmConfig(
             {
-                "taxonomy": Route(_HAIKU),
-                "classification": Route(_HAIKU),
-                "industry": Route(_SONNET),
-                "insights": Route(_SONNET),
+                "taxonomy": Route(_DEEPSEEK),
+                "classification": Route(_JEV),
+                "industry": Route(_DEEPSEEK),
+                "insights": Route(_DEEPSEEK),
             }
         ),
         gateway,

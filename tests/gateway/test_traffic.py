@@ -8,64 +8,64 @@ from tests.gateway.helpers import HAIKU_700K, PLACES_ONE, D, Setup, ok_client, p
 
 
 def test_the_rate_limit_denies_the_call_over_it_and_says_when_to_retry() -> None:
-    s = Setup(services={"anthropic": policy(max_calls=2, per=timedelta(seconds=60))})
+    s = Setup(services={"openrouter_chat": policy(max_calls=2, per=timedelta(seconds=60))})
 
-    s.gateway.call("anthropic", "complete", "x", run_id="run-1")
+    s.gateway.call("openrouter_chat", "complete", "x", run_id="run-1")
     s.clock.advance(timedelta(seconds=10))
-    s.gateway.call("anthropic", "complete", "x", run_id="run-1")
+    s.gateway.call("openrouter_chat", "complete", "x", run_id="run-1")
     s.clock.advance(timedelta(seconds=5))
     with pytest.raises(GatewayDenied) as denied:
-        s.gateway.call("anthropic", "complete", "x", run_id="run-1")
+        s.gateway.call("openrouter_chat", "complete", "x", run_id="run-1")
 
     assert denied.value.reason == "rate_limited"
     assert denied.value.retry_after == timedelta(seconds=45)  # the first call leaves the 60 s window at t=60
-    assert len(s.clients["anthropic"].calls) == 2
+    assert len(s.clients["openrouter_chat"].calls) == 2
     assert (s.log.calls[-1].status, s.log.calls[-1].error_kind) == ("denied", "rate_limited")
 
 
 def test_the_rate_limit_frees_up_when_the_window_has_passed() -> None:
-    s = Setup(services={"anthropic": policy(max_calls=1, per=timedelta(seconds=60))})
-    s.gateway.call("anthropic", "complete", "x", run_id="run-1")
+    s = Setup(services={"openrouter_chat": policy(max_calls=1, per=timedelta(seconds=60))})
+    s.gateway.call("openrouter_chat", "complete", "x", run_id="run-1")
 
     s.clock.advance(timedelta(seconds=60))
 
-    s.gateway.call("anthropic", "complete", "x", run_id="run-1")
-    assert len(s.clients["anthropic"].calls) == 2
+    s.gateway.call("openrouter_chat", "complete", "x", run_id="run-1")
+    assert len(s.clients["openrouter_chat"].calls) == 2
 
 
 def test_a_call_over_the_rate_limit_does_not_reserve_budget_or_use_a_slot() -> None:
-    s = Setup(services={"anthropic": policy(max_calls=1, per=timedelta(seconds=60))}, monthly_cap="0.7")
-    s.gateway.call("anthropic", "complete", "x", run_id="run-1")
+    s = Setup(services={"openrouter_chat": policy(max_calls=1, per=timedelta(seconds=60))}, monthly_cap="0.7")
+    s.gateway.call("openrouter_chat", "complete", "x", run_id="run-1")
 
     for _ in range(3):  # three denials, none of them may take a slot or hold money
         with pytest.raises(GatewayDenied):
-            s.gateway.call("anthropic", "complete", "x", run_id="run-1")
+            s.gateway.call("openrouter_chat", "complete", "x", run_id="run-1")
 
     s.clock.advance(timedelta(seconds=60))
     with pytest.raises(BudgetExceeded):  # now the rate limit lets it through and the cap is what stops it
-        s.gateway.call("anthropic", "complete", "x", run_id="run-1")
+        s.gateway.call("openrouter_chat", "complete", "x", run_id="run-1")
 
 
 def test_a_refused_budget_does_not_use_a_rate_limit_slot() -> None:
-    s = Setup(services={"anthropic": policy(max_calls=2, per=timedelta(seconds=60))}, run_cap="1")
-    s.gateway.call("anthropic", "complete", "x", run_id="run-1")  # slot 1, 0.7 of the run cap 1
+    s = Setup(services={"openrouter_chat": policy(max_calls=2, per=timedelta(seconds=60))}, run_cap="1")
+    s.gateway.call("openrouter_chat", "complete", "x", run_id="run-1")  # slot 1, 0.7 of the run cap 1
     with pytest.raises(BudgetExceeded):
-        s.gateway.call("anthropic", "complete", "x", run_id="run-1")  # refused: must not take slot 2
+        s.gateway.call("openrouter_chat", "complete", "x", run_id="run-1")  # refused: must not take slot 2
 
-    s.gateway.call("anthropic", "complete", "x", run_id="run-2")  # slot 2 is still free
+    s.gateway.call("openrouter_chat", "complete", "x", run_id="run-2")  # slot 2 is still free
 
 
 def test_limits_are_per_service() -> None:
     places = FakeServiceClient(PLACES_ONE, lambda *_: ClientResponse("place", PLACES_ONE))
     s = Setup(
-        clients={"anthropic": ok_client(), "google_places": places},
+        clients={"openrouter_chat": ok_client(), "google_places": places},
         services={
-            "anthropic": policy(max_calls=1, per=timedelta(seconds=60)),
+            "openrouter_chat": policy(max_calls=1, per=timedelta(seconds=60)),
             "google_places": policy(("details",), max_calls=1, per=timedelta(seconds=60)),
         },
     )
 
-    s.gateway.call("anthropic", "complete", "x", run_id="run-1")
+    s.gateway.call("openrouter_chat", "complete", "x", run_id="run-1")
     s.gateway.call("google_places", "details", "pid", run_id="run-1")  # its own window
 
 
@@ -78,20 +78,22 @@ def test_the_concurrency_limit_denies_a_call_while_another_is_in_flight() -> Non
         return ClientResponse("answer", HAIKU_700K)
 
     s = Setup(
-        clients={"anthropic": FakeServiceClient(HAIKU_700K, slow)},
-        services={"anthropic": policy(max_concurrent=1)},
+        clients={"openrouter_chat": FakeServiceClient(HAIKU_700K, slow)},
+        services={"openrouter_chat": policy(max_concurrent=1)},
     )
-    first = threading.Thread(target=lambda: s.gateway.call("anthropic", "complete", "x", run_id="run-1"))
+    first = threading.Thread(
+        target=lambda: s.gateway.call("openrouter_chat", "complete", "x", run_id="run-1")
+    )
     first.start()
     assert entered.wait(timeout=5)
 
     with pytest.raises(GatewayDenied) as denied:
-        s.gateway.call("anthropic", "complete", "x", run_id="run-2")
+        s.gateway.call("openrouter_chat", "complete", "x", run_id="run-2")
     release.set()
     first.join(timeout=5)
 
     assert denied.value.reason == "concurrency_limit"
-    s.gateway.call("anthropic", "complete", "x", run_id="run-2")  # the slot is free again
+    s.gateway.call("openrouter_chat", "complete", "x", run_id="run-2")  # the slot is free again
     assert [c.status for c in s.log.calls] == ["denied", "ok", "ok"]
 
 
@@ -108,14 +110,16 @@ def test_concurrent_calls_never_overspend_the_monthly_cap() -> None:
 
     client = FakeServiceClient(HAIKU_700K, slow)
     s = Setup(
-        clients={"anthropic": client}, services={"anthropic": policy(max_concurrent=8)}, monthly_cap="2.2"
+        clients={"openrouter_chat": client},
+        services={"openrouter_chat": policy(max_concurrent=8)},
+        monthly_cap="2.2",
     )
     outcomes: list[str] = []
     done = threading.Semaphore(0)
 
     def ask(n: int) -> None:
         try:
-            s.gateway.call("anthropic", "complete", "x", run_id=f"run-{n}")
+            s.gateway.call("openrouter_chat", "complete", "x", run_id=f"run-{n}")
             outcomes.append("ok")
         except BudgetExceeded:
             outcomes.append("exceeded")
