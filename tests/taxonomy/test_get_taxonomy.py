@@ -238,3 +238,17 @@ def test_star_only_reviews_do_not_count_towards_the_minimum() -> None:
     with pytest.raises(SampleTooSmall) as raised:
         World(topics_json(8)).get(sample=lambda: [*dated(MIN_SAMPLE - 1), *dated(500, text="", offset=500)])
     assert raised.value.size == MIN_SAMPLE - 1
+
+
+def test_the_prompt_asks_for_czech_names_and_descriptions_and_an_english_key() -> None:
+    world = World(topics_json(MIN_TOPICS))
+    world.get()
+    system = requests(world.setup.anthropic)[0].system or ""
+    assert "`name` and `description` are in Czech" in system
+    assert "`key` is a short lowercase English slug" in system
+
+
+def test_the_unclassified_topic_added_by_code_has_a_czech_name() -> None:
+    stored = World(topics_json(MIN_TOPICS)).get()
+    unclassified = stored.taxonomy.topics[-1]  # type: ignore[attr-defined]
+    assert (unclassified.key, unclassified.name) == (UNCLASSIFIED_KEY, "Nezařazeno")
