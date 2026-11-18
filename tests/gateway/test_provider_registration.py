@@ -109,3 +109,42 @@ def test_a_failed_http_call_is_booked_and_unpaid() -> None:
     with pytest.raises(ClientError):
         llm.complete("propose", "x", Verdict, run_id="run-1")
     assert [(c.status, c.error_kind) for c in log.calls] == [("failed", "server_error")]
+
+
+def _deepseek_llm(transport: FakeTransport, max_output: int, run_cap: str) -> Llm:
+    clock = FakeClock(START)
+    gateway = Gateway(
+        GatewayConfig({"openrouter_chat": POLICY}, Decimal(run_cap)),
+        {
+            "openrouter_chat": OpenRouterChatClient(
+                SecretStr("k1"),
+                transport,
+                {"deepseek-v4.1-flash": "deepseek/deepseek-v4.1-flash"},
+                max_output_tokens=max_output,
+            )
+        },
+        clock,
+        FakeCallLog(),
+    )
+    return Llm(
+        LlmConfig({"propose": Route(DEEPSEEK)}, max_retries=0),
+        gateway,
+        clock,
+        FakeSleeper(clock),
+        FakeTracer(),
+    )
+
+
+def test_the_output_limit_of_deepseek_is_reserved_in_the_budget_before_the_call() -> None:
+    # 12288 tokens out at 1.20 USD per million reserve 0.0147 USD: over a 0.01 USD cap, nothing is sent;
+    # the default limit of 4096 tokens reserves 0.0049 USD and goes through.
+    refused = FakeTransport(fixture("openrouter_chat_ok.json"))
+    with pytest.raises(BudgetExceeded):
+        _deepseek_llm(refused, 12288, "0.01").complete(
+            "propose", "<reviews>[]</reviews>", Verdict, run_id="run-1"
+        )
+    assert refused.requests == []
+
+    allowed = FakeTransport(fixture("openrouter_chat_ok.json"))
+    _deepseek_llm(allowed, 4096, "0.01").complete("propose", "<reviews>[]</reviews>", Verdict, run_id="run-1")
+    assert len(allowed.requests) == 1
