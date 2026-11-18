@@ -42,6 +42,8 @@ def test_sends_a_chat_completion_with_the_api_model_the_system_prompt_and_the_sc
     assert body["model"] == "deepseek/deepseek-v4.1-flash"
     assert body["max_tokens"] == 2048
     assert body["response_format"] == {"type": "json_object"}
+    # DeepSeek V4.1 Flash thinks by default and can spend the whole output on it, leaving no answer.
+    assert body["reasoning"] == {"enabled": False}
     messages = body["messages"]
     assert isinstance(messages, list) and len(messages) == 2
     system, user = messages

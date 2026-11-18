@@ -54,6 +54,8 @@ class OpenRouterChatClient:
             "model": api_model,
             "max_tokens": self._max_output,
             "response_format": {"type": "json_object"},
+            # The model reasons by default and can spend the whole output on it, leaving an empty answer.
+            "reasoning": {"enabled": False},
             "messages": [
                 {"role": "system", "content": self._system(asked.system, asked.json_schema)},
                 {"role": "user", "content": asked.prompt},

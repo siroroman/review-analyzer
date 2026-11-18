@@ -84,8 +84,8 @@ _JEV = ModelRef(_OPENROUTER, "jev-1.14")
 _DEEPSEEK = ModelRef(_OPENROUTER_CHAT, "deepseek-v4.1-flash")
 _JEV_IDS = {"jev-1.14": "typesafe/jev-1.14"}
 _DEEPSEEK_IDS = {"deepseek-v4.1-flash": "deepseek/deepseek-v4.1-flash"}
-# One call sorts up to 2000 Reviews: the answer lists a number per Review, so it needs room.
-_CATEGORIZATION_OUTPUT = 16384
+# One call sorts up to 2000 Reviews: the answer lists a number per Review (about 3 tokens each).
+_CATEGORIZATION_OUTPUT = 12288
 _REVIEWS_PER_PLACE = 1000  # ADR-0008: the input limit for Google Maps
 _TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"  # noqa: S105
 _TOKEN_MARGIN = timedelta(seconds=60)
