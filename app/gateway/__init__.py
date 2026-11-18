@@ -15,6 +15,7 @@ from app.gateway._google_places import (
 )
 from app.gateway._gosom import GET_PLACE_DETAILS, GosomClient, PlaceDetailsLookup
 from app.gateway._openrouter import OpenRouterClient
+from app.gateway._openrouter_chat import OpenRouterChatClient
 from app.gateway._types import (
     CallLog,
     CallStatus,
@@ -55,6 +56,7 @@ __all__ = [
     "GooglePage",
     "GooglePlacesClient",
     "GosomClient",
+    "OpenRouterChatClient",
     "OpenRouterClient",
     "PlaceDetailsLookup",
     "ScrapedReview",
