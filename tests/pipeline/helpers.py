@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
-from app.classification import Classifier
+from app.classification import Categorizer, Classifier
 from app.domain import Company, FakeClock, Place, RunStatus, SeededRandom, Source
 from app.gateway import (
     SCRAPE_GOOGLE_REVIEWS,
@@ -66,6 +66,7 @@ class World:
         industry: str | None = "cafe",
         industry_answer: str = '{"label": "cafe"}',
         place_details: PlaceDetailsFetcher | None = None,
+        categorize: bool = False,
     ) -> None:
         self.industry_answer = industry_answer
         self.clock = FakeClock(START)
@@ -92,6 +93,7 @@ class World:
             "classification": Route(JEV),
             "industry": Route(DEEPSEEK),
             "insights": Route(DEEPSEEK),
+            "categorization": Route(DEEPSEEK),
         }
         llm = Llm(LlmConfig(routes, max_retries=0), gateway, self.clock, self.sleeper, FakeTracer())
         self.pipeline = Pipeline(
@@ -100,6 +102,9 @@ class World:
             detector=FakeInjectionDetector(flag_containing="ignore all previous"),
             taxonomies=Taxonomies(llm, self.storage.taxonomies, SeededRandom(0)),
             classifier=Classifier(llm, self.storage.reviews),
+            categorizer=Categorizer(llm, self.storage.reviews, self.storage.taxonomies)
+            if categorize
+            else None,
             insights=InsightGenerator(llm),
             sleeper=self.sleeper,
             place_details=place_details,
@@ -139,6 +144,8 @@ def _task_of(request: CompletionRequest) -> str:
     system = request.system or ""
     if "topic_staff" in request.json_schema.get("properties", {}):  # type: ignore[operator]
         return "classification"
+    if "sort public customer reviews" in system:
+        return "categorization"
     if "design a list of Topics" in system:
         return "taxonomy"
     if "name the industry" in system:
@@ -180,6 +187,15 @@ def _answer(task: str, prompt: str) -> str:
         return json.dumps(
             {"topics": [{"key": key, "name": key.title(), "description": key} for key in TOPICS]}
         )
+    if task == "categorization":
+        count = len(json.loads(prompt.split("<reviews>")[1].split("</reviews>")[0]))
+        group = {
+            "key": "staff",
+            "name": "Obsluha",
+            "description": "Obsluha",
+            "reviews": list(range(1, count + 1)),
+        }
+        return json.dumps({"topics": [group]})
     if task == "classification":
         text = json.loads(prompt.removeprefix("<review>\n").removesuffix("\n</review>"))
         fields: dict[str, object] = {}

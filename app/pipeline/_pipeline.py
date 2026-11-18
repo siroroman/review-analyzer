@@ -4,7 +4,7 @@ from decimal import Decimal
 from functools import partial
 from typing import Protocol
 
-from app.classification import ClassificationResult
+from app.classification import CategorizationResult, ClassificationResult
 from app.domain import (
     Company,
     Metrics,
@@ -71,6 +71,14 @@ class ReviewClassifier(Protocol):
     ) -> ClassificationResult: ...
 
 
+class ReviewCategorizer(Protocol):
+    """The part of `classification.Categorizer` that `pipeline` uses."""
+
+    def categorize(
+        self, industry: str, reviews: Sequence[Review], *, run_id: str
+    ) -> CategorizationResult: ...
+
+
 class InsightMaker(Protocol):
     """The part of `insights.InsightGenerator` that `pipeline` uses."""
 
@@ -79,6 +87,8 @@ class InsightMaker(Protocol):
 
 class Pipeline:
     """Runs a Run: download, sanitize, industry, Taxonomy, classify, Metrics, Insights.
+
+    With a `categorizer` the Taxonomy and classify steps are one: a single model call over all Reviews.
 
     Every step is idempotent and the status only moves forward, so a redelivered or crashed Run resumes
     where it stopped and a finished one is left alone.
@@ -96,6 +106,7 @@ class Pipeline:
         sleeper: Sleeper,
         config: PipelineConfig,
         place_details: PlaceDetailsFetcher | None = None,
+        categorizer: ReviewCategorizer | None = None,
     ) -> None:
         self._storage = storage
         self._sources = sources
@@ -106,6 +117,7 @@ class Pipeline:
         self._sleeper = sleeper
         self._config = config
         self._place_details = place_details
+        self._categorizer = categorizer
 
     def run(self, run_id: str) -> RunResult:
         """Run it to the end and return the result: `done`, `partial` (Budget exceeded or a step failed
@@ -305,6 +317,12 @@ class Pipeline:
         run_id = record.id
         industry = self._industry(record, company)
         self._storage.runs.set_industry(run_id, industry)
+        categorizer = self._categorizer
+        if categorizer is not None:
+            # One model call finds the Topics and sorts every Review (no sample, no per-Review calls).
+            reviews = self._reviews(company)
+            self._attempt(lambda: categorizer.categorize(industry, reviews, run_id=run_id))
+            return
         taxonomy = self._attempt(
             lambda: self._taxonomies.get_taxonomy(
                 industry, sample=lambda: self._reviews(company), run_id=run_id

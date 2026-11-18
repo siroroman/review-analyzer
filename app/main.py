@@ -24,7 +24,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.api import ApiConfig, create_app
-from app.classification import Classifier
+from app.classification import Categorizer, Classifier
 from app.domain import Clock, Source, SystemRandom
 from app.gateway import (
     GOOGLE_PLACES,
@@ -84,6 +84,8 @@ _JEV = ModelRef(_OPENROUTER, "jev-1.14")
 _DEEPSEEK = ModelRef(_OPENROUTER_CHAT, "deepseek-v4.1-flash")
 _JEV_IDS = {"jev-1.14": "typesafe/jev-1.14"}
 _DEEPSEEK_IDS = {"deepseek-v4.1-flash": "deepseek/deepseek-v4.1-flash"}
+# One call sorts up to 2000 Reviews: the answer lists a number per Review, so it needs room.
+_CATEGORIZATION_OUTPUT = 16384
 _REVIEWS_PER_PLACE = 1000  # ADR-0008: the input limit for Google Maps
 _TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"  # noqa: S105
 _TOKEN_MARGIN = timedelta(seconds=60)
@@ -190,7 +192,9 @@ def build_apps(
         GOOGLE_PLACES: GooglePlacesClient(google_key, transport),
         _YASOGAN: YasogaNClient(yasogan_url, transport),
         _OPENROUTER: OpenRouterClient(openrouter_key, transport, _JEV_IDS),
-        _OPENROUTER_CHAT: OpenRouterChatClient(openrouter_key, transport, _DEEPSEEK_IDS),
+        _OPENROUTER_CHAT: OpenRouterChatClient(
+            openrouter_key, transport, _DEEPSEEK_IDS, max_output_tokens=_CATEGORIZATION_OUTPUT, timeout=300
+        ),
     }
     gateway = Gateway(
         GatewayConfig(
@@ -215,6 +219,7 @@ def build_apps(
                 "classification": Route(_JEV),
                 "industry": Route(_DEEPSEEK),
                 "insights": Route(_DEEPSEEK),
+                "categorization": Route(_DEEPSEEK),
             }
         ),
         gateway,
@@ -228,6 +233,7 @@ def build_apps(
         detector=PatternInjectionDetector(),
         taxonomies=Taxonomies(llm, storage.taxonomies, SystemRandom()),
         classifier=Classifier(llm, storage.reviews),
+        categorizer=Categorizer(llm, storage.reviews, storage.taxonomies),
         insights=InsightGenerator(llm),
         sleeper=sleeper,
         config=PipelineConfig(

@@ -68,7 +68,16 @@ def _model_answer(request: HttpRequest) -> HttpResponse:
     system = body["messages"][0]["content"]
     prompt = body["messages"][1]["content"]
     answer: dict[str, object]
-    if "design a list of Topics" in system:
+    if "sort public customer reviews" in system:
+        count = len(json.loads(prompt.split("<reviews>")[1].split("</reviews>")[0]))
+        topic = {
+            "key": "staff",
+            "name": "Obsluha",
+            "description": "Obsluha",
+            "reviews": list(range(1, count + 1)),
+        }
+        answer = {"topics": [topic]}
+    elif "design a list of Topics" in system:
         answer = {"topics": [{"key": key, "name": key.title(), "description": key} for key in TOPICS]}
     elif "name the industry" in system:
         answer = {"label": "Hypermarket"}
