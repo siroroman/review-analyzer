@@ -58,7 +58,7 @@ The ruleset requires a branch to be up to date with `main` before merging (stric
 - Never bypass the hooks with `--no-verify` or `-n` and never override `core.hooksPath`. If a message is rejected, fix the message. If a commit on `main` is refused, `git switch -c <branch>` and commit there.
 - Never rewrite history that is already pushed.
 - Do not merge a PR unless the owner asked for it. `gh pr merge`, `gh repo delete`, `gh issue delete` and `gh release delete` are blocked; `gh pr create` and `gh pr view` are not.
-- Never put secrets in the repository: keys (Apify, OpenRouter, Anthropic, Langfuse, Google) go into `.env` (in `.gitignore`) and, in the cloud, into Secret Manager.
+- Never put secrets in the repository: keys (Apify, OpenRouter, Langfuse, Google) go into `.env` (in `.gitignore`) and, in the cloud, into Secret Manager.
 
 ## Enforcement
 

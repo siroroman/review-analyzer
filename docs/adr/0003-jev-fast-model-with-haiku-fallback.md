@@ -1,6 +1,6 @@
 # 0003: Jev as the fast model, Claude Haiku as fallback
 
-Status: accepted, 2026-11-12. Jev confirmed by the owner on 2026-11-12 after an orientation test; formal check on real Czech Reviews still to do (see below)
+Status: accepted, 2026-11-12; the Haiku fallback and the strong model are superseded by [0009](0009-openrouter-for-every-model-call.md). Jev confirmed by the owner on 2026-11-12 after an orientation test; formal check on real Czech Reviews still to do (see below)
 
 ## Context
 

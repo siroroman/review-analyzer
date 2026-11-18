@@ -102,7 +102,7 @@ Files that check or limit agents and PRs: hooks, CI, check scripts, lint and cov
 ## Glossary and ADRs
 
 - `GLOSSARY.md`: uniform terms (Company, Place, Review, Topic, Run, Insight, TrendPoint) and their use in names.
-- `docs/adr/`: decisions that outlive a ticket: Python and FastAPI, Jev as the fast model and Haiku as fallback, module boundaries and ports, the way of caching and budgeting, the gateway for paid services. The reviewer flags every PR that contradicts an ADR.
+- `docs/adr/`: decisions that outlive a ticket: Python and FastAPI, Jev as the fast model, every model call through OpenRouter, module boundaries and ports, the way of caching and budgeting, the gateway for paid services. The reviewer flags every PR that contradicts an ADR.
 
 ## Context and token management
 
