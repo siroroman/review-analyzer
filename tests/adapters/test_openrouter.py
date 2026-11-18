@@ -1,8 +1,9 @@
 import json
 from decimal import Decimal
+from typing import Literal
 
 import pytest
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 
 from app.gateway import ClientError, ClientTimeout, OpenRouterClient, Tokens
 from app.llm import CompletionRequest
@@ -47,6 +48,33 @@ def test_sends_the_prompt_as_state_and_one_question_per_field() -> None:
         },
         "injection": {"type": "noul"},
     }
+
+
+class Scored(BaseModel):
+    sentiment: Literal["positive", "neutral", "negative"]
+    topic_staff: float = Field(description="How the staff treat guests")
+    topic_prices: float
+
+
+def scored_answer() -> HttpResponse:
+    body = json.loads(fixture("openrouter_decisions_ok.json").body)
+    del body["answers"]["injection"]
+    body["answers"]["topic_staff"] = {"type": "noul", "noul": 0.82, "confidence": 0.8}
+    body["answers"]["topic_prices"] = {"type": "noul", "noul": 0.07, "confidence": 0.9}
+    return HttpResponse(200, json.dumps(body).encode())
+
+
+def test_a_number_field_is_a_noul_question_whose_score_is_kept() -> None:
+    adapter, transport = client(scored_answer())
+    response = adapter.call("complete", request(schema=Scored))
+    assert isinstance(response.payload, str)
+    assert Scored.model_validate_json(response.payload) == Scored(
+        sentiment="negative", topic_staff=0.82, topic_prices=0.07
+    )
+    questions = body_of(transport.requests[0].body)["questions"]
+    assert isinstance(questions, dict)
+    assert questions["topic_staff"] == {"type": "noul", "criteria": {"true": "How the staff treat guests"}}
+    assert questions["topic_prices"] == {"type": "noul"}
 
 
 def test_a_noul_answer_is_a_boolean_by_the_threshold() -> None:

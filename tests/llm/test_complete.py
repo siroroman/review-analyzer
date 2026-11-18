@@ -2,8 +2,8 @@ import pytest
 
 from app.llm import Route, UnknownTask
 from tests.llm.helpers import (
-    HAIKU_USAGE,
-    SONNET,
+    CHAT_USAGE,
+    SECOND,
     VALID,
     Answer,
     Setup,
@@ -27,15 +27,15 @@ def test_a_task_goes_to_the_model_of_its_route() -> None:
     s.llm.complete("insights", "Summarise.", Answer, run_id="run-1")
 
     assert [r.model for r in requests(s.openrouter)] == ["jev-1.14"]
-    assert [r.model for r in requests(s.anthropic)] == ["claude-sonnet"]
+    assert [r.model for r in requests(s.chat)] == ["deepseek-alt"]
 
 
 def test_the_routing_table_is_configuration() -> None:
-    s = Setup(routes={"classify": Route(SONNET)})
+    s = Setup(routes={"classify": Route(SECOND)})
 
     s.llm.complete("classify", "Rate this.", Answer, run_id="run-1")
 
-    assert [r.model for r in requests(s.anthropic)] == ["claude-sonnet"]
+    assert [r.model for r in requests(s.chat)] == ["deepseek-alt"]
     assert requests(s.openrouter) == []
 
 
@@ -59,9 +59,9 @@ def test_the_request_carries_the_prompt_the_system_prompt_and_the_schema() -> No
 
 
 def test_the_system_prompt_is_cached_only_when_asked() -> None:
-    s = Setup(haiku=lambda clock: scripted(HAIKU_USAGE, VALID, VALID, clock=clock))
+    s = Setup(chat=lambda clock: scripted(CHAT_USAGE, VALID, VALID, clock=clock))
 
     s.llm.complete("insights", "a", Answer, run_id="run-1", system="S")
     s.llm.complete("insights", "b", Answer, run_id="run-1", system="S", cache_system=True)
 
-    assert [r.cache_system for r in requests(s.anthropic)] == [False, True]
+    assert [r.cache_system for r in requests(s.chat)] == [False, True]

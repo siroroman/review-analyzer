@@ -25,7 +25,7 @@ The dashboard only calls the API. Scraping and model calls run in a worker throu
 
 ![Processing flow](images/processing-flow.png)
 
-A fast model classifies each review, code computes the numbers and trends, and a strong model only receives aggregated data and samples. Invalid output is retried and then replaced by a fallback result.
+Jev classifies each review, code computes the numbers and trends, and DeepSeek only receives aggregated data and samples. Every model call goes through OpenRouter; no Anthropic model is used ([ADR 0009](adr/0009-openrouter-for-every-model-call.md)). Invalid output is retried once and then rejected; a Review that Jev fails on stays `unclassified`.
 
 ## Tech stack
 
@@ -40,8 +40,8 @@ I recommend a Python backend on Google Cloud Run: Python has the best AI ecosyst
 | Database | PostgreSQL (Neon, free tier); pgvector only later | run state, cache, reviews, results, costs; aggregations by month and branch in SQL |
 | Scraping | Google Maps: self-hosted sidecar services on Cloud Run, [YasogaN/google-maps-review-scraper](https://github.com/YasogaN/google-maps-review-scraper) for Reviews and [gosom/google-maps-scraper](https://github.com/gosom/google-maps-scraper) for Place details and totals ([ADR 0008](adr/0008-self-hosted-google-maps-scrapers.md)); Firmy.cz: Apify (mapy-com-ppe) | no per-Review fee, 1000 newest Reviews with an exact date, Place totals; versions pinned; Apify stays pay per use with a spending limit |
 | Autocomplete | Google Places Autocomplete (New) | unambiguous choice of company or branch; place_id goes straight to the scraper |
-| Fast model | Jev 1.14 (TypeSafe) via OpenRouter, fallback Claude Haiku | typed classification of topics and sentiment, latency 70 to 500 ms, very cheap |
-| Strong model | Claude Sonnet | summary, comparison of sources, explanation of trends, suggestions |
+| Fast model | Jev 1.14 (TypeSafe) via the OpenRouter Decisions API, no fallback | typed assignment of Topics and sentiment, one Review per call, latency 70 to 500 ms, very cheap |
+| Text model | DeepSeek V4.1 Flash (`deepseek/deepseek-v4.1-flash`) via the OpenRouter chat completions API | Topics of a Taxonomy (at most 9, in Czech), the industry, summary, explanation of trends, suggestions |
 | Gateway | in-process Python module `gateway` | one place for rate limits, allow-list, Budget and the call log of all paid and self-hosted services; no extra service to run |
 | Admin access | secret admin token from configuration | protects the admin screen and `/admin/*` without a login |
 | Guardrails | Pydantic schemas, JEV as a prompt injection detector | detection of prompt injection in reviews, output validation |
@@ -59,8 +59,8 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 
 - A module is a Python package `app/<module>/`. The public interface is in `__init__.py`: `Protocol`s and Pydantic types of inputs and outputs. Everything else is internal (`_impl`) and importing it from outside is forbidden; import-linter guards the boundaries in CI.
 - Dependencies go one way: `api`/`worker` → `pipeline` → domain modules → `gateway` → `budget` and ports. Only `gateway` imports `budget`. No cycles.
-- External services (Apify, OpenRouter, Anthropic, Google Places, Langfuse, the database) sit behind ports (`Protocol`) only. An adapter is thin and replaceable; in tests a fake replaces it.
-- Paid and self-hosted external services (Apify, OpenRouter, Anthropic, Google Places, the Google Maps scrapers) are reached only through `gateway`: it owns their ports and adapters, and import-linter forbids importing those adapters from anywhere else. `budget` is called by `gateway` only.
+- External services (Apify, OpenRouter, Google Places, Langfuse, the database) sit behind ports (`Protocol`) only. An adapter is thin and replaceable; in tests a fake replaces it.
+- Paid and self-hosted external services (Apify, OpenRouter, Google Places, the Google Maps scrapers) are reached only through `gateway`: it owns their ports and adapters, and import-linter forbids importing those adapters from anywhere else. `budget` is called by `gateway` only.
 - Numbers and trends are pure functions without I/O. I/O stays at the edge (adapters, repositories).
 - `api` and `worker` are thin layers: parse the request, call `pipeline`, serialize. No business logic.
 - A module changes only at the price of an interface change; if the interface stays, the tests stay green.
@@ -72,12 +72,12 @@ The code is split into deep modules: each hides a lot of logic behind a small, s
 | `places` | `suggest(query)`, `resolve(place_id) -> Place`, `branches(place) -> list[Place]`, `confirm(place_ids) -> Company`, `match_other_sources(place)` | finding candidate branches of a chain, matching a branch on Firmy.cz by name and address, a Company as the user-confirmed set of Places (the same set is the same Company); Google Places calls go through `gateway` | fake gateway and HTTP clients, contract tests on recorded responses |
 | `sources` | `fetch_reviews(place, since, limit) -> list[RawReview]` | Apify actors for Firmy.cz and the YasogaN scraper for Google Maps (both called through `gateway`), polling, pagination, field mapping, dates | fake gateway, fake clients, fixtures from real outputs |
 | `sanitize` | `prepare(raw) -> PreparedReviews(clean, flagged)` | removal of HTML and hidden characters, PII, deduplication (hash), prompt injection detector | pure functions, fake detector, property-based tests |
-| `taxonomy` | `infer_industry(sample) -> str`, `get_taxonomy(industry) -> Taxonomy` | naming the industry of a Company with the strong model from a bounded sample (data delimiters, validated key), generating topics from a sample, freezing them; the pipeline falls back to the generic industry `general` when the industry cannot be inferred | fake `llm` over fake gateway |
-| `classification` | `classify(source, place_id, taxonomy, run_id) -> ClassificationResult(classified, unclassified)` | only Reviews without a ReviewTopic for the Taxonomy version, batching, delimited prompt, validation of the answer, `unclassified` when both models fail; Jev with fallback to Haiku is `llm`'s routing | fake `llm` over fake gateway, in-memory storage |
+| `taxonomy` | `infer_industry(sample) -> str`, `get_taxonomy(industry) -> Taxonomy` | naming the industry of a Company with DeepSeek from a random sample of at most 200 Reviews with text, never Flagged (data delimiters, validated key, randomness from an injected `RandomSource`), generating at most 9 Czech topics from such a sample, freezing them; the pipeline falls back to the generic industry `general` when the industry cannot be inferred | fake `llm` over fake gateway |
+| `classification` | `classify(source, place_id, taxonomy, run_id) -> ClassificationResult(classified, unclassified)` | only Reviews with text and without a ReviewTopic for the Taxonomy version, one Jev call per Review (a score and a sentiment per Topic, Topics scored from 0.5 up, best three), delimited prompt, validation of the answer, `unclassified` when the call fails; no fallback model | fake `llm` over fake gateway, in-memory storage |
 | `metrics` | `compute(reviews, topics) -> Metrics` (averages, `TrendPoint`, topic shares, drops and rises) | all computations and anomaly detection | pure functions, no mocks |
-| `insights` | `generate(metrics, samples) -> Insights` | prompts, Sonnet, schema validation, grounding check (the review IDs exist), content check | fake LLM port |
+| `insights` | `generate(metrics, samples) -> Insights` | prompts, DeepSeek, schema validation, grounding check (the review IDs exist), content check | fake LLM port |
 | `llm` | `complete(task, prompt, schema) -> T` | model routing, retry, fallback, prompt caching, Langfuse tracing; provider calls go through `gateway` | fake gateway |
-| `gateway` | `call(service, operation, request) -> response`, `GatewayDenied`, `BudgetExceeded` | allow-list of services and operations, rate limit and concurrency per service, `budget.reserve` before and `record` after every call, a record of every call (no request or response bodies), provider adapters (OpenRouter, Anthropic, Apify, Google Places, YasogaN, gosom) | fake `ServiceClient`s, fake `Clock`, fake `CallLog` |
+| `gateway` | `call(service, operation, request) -> response`, `GatewayDenied`, `BudgetExceeded` | allow-list of services and operations, rate limit and concurrency per service, `budget.reserve` before and `record` after every call, a record of every call (no request or response bodies), provider adapters (OpenRouter Decisions and chat, Apify, Google Places, YasogaN, gosom) | fake `ServiceClient`s, fake `Clock`, fake `CallLog` |
 | `budget` | `reserve(estimate)`, `record(cost)`, `BudgetExceeded` | cost estimate, cap per run, monthly cap, for every paid service | pure functions; called by `gateway` only |
 | `transport` | `HttpTransport.send(request) -> response`, `read_secret(environ, name)` | the HTTP call on the standard library, where keys are read from configuration; no key in a `repr`, error or log | local test server, fake transport |
 | `tracing` | `LangfuseTracer` (the `llm` `Tracer` port) | one Langfuse generation per model call with tokens and price; a Langfuse failure never fails a Run | fake transport, recorded Langfuse answers |
@@ -180,7 +180,7 @@ A database is needed: the worker runs asynchronously, so run state, cache and al
 | Topic | key, name, description, industry | taxonomy of topics (e.g. staff, waiting, prices) |
 | ReviewTopic | review_id, topic_id, sentiment, confidence | result of the classification |
 | AnalysisRun | company_id, status, budget, cost USD, tokens, time | one pipeline run and its costs |
-| Insight | run_id, type (summary, anomaly, suggestion), period, text, review_ids | output of the strong model with links to reviews |
+| Insight | run_id, type (summary, anomaly, suggestion), period, text, review_ids | output of DeepSeek with links to reviews |
 | TrendPoint | run_id, source, period, average, count, sentiment | precomputed points of the timeline |
 | ServiceCall | id, run_id (nullable), service, operation, status (ok, denied, failed), cost USD, units (tokens, items), latency, error kind, created_at | the Call log: one record of every paid call, without request or response bodies |
 
@@ -200,7 +200,7 @@ Three screens for users (search, run progress and result) and one admin screen f
     - a note when the industry could not be inferred and the generic topics were used
 4. **Admin** (owner only, at `/admin`, protected by a secret admin token; login stays out of the MVP):
     - current spend against the monthly cap and per-run caps
-    - spend per service (OpenRouter, Anthropic, Apify, Google Places), per day and per run
+    - spend per service (OpenRouter, Apify, Google Places), per day and per run
     - the call log with filters (service, operation, run, status, date range); denied and failed calls included
     - read-only; served by `GET /admin/spend` and `GET /admin/calls`
 
@@ -210,9 +210,9 @@ All open questions are decided, except how the branches of a chain are found and
 
 | Question | Decision | Consequence |
 | --- | --- | --- |
-| Fast model | [Jev 1.14 by TypeSafe AI](https://typesafe.ai/blog/introducing-system-one-models-and-jev) via the [OpenRouter](https://openrouter.ai/typesafe/jev-1.14) Decisions API, fallback Claude Haiku | classification of topics and sentiment and prompt injection detection; typed output, $0.042 per 1M input tokens, output free, latency about 0.12 s; we do not use Jev Router (automatic LLM choice), routing is in code |
+| Fast model | [Jev 1.14 by TypeSafe AI](https://typesafe.ai/blog/introducing-system-one-models-and-jev) via the [OpenRouter](https://openrouter.ai/typesafe/jev-1.14) Decisions API, no fallback ([ADR 0009](adr/0009-openrouter-for-every-model-call.md)) | assignment of topics and sentiment and prompt injection detection; typed output, $0.042 per 1M input tokens, output free, latency about 0.12 s; we do not use Jev Router (automatic LLM choice), routing is in code |
 | Backend | Python + FastAPI | API and worker in one image |
-| Topic taxonomy | generated per industry, the industry is inferred ([ADR 0007](adr/0007-infer-industry-with-strong-model.md)) | the strong model names the industry from a sample of the downloaded reviews, an LLM proposes topics once per industry, then they are frozen and JEV classifies every review into them; when the industry cannot be inferred the Run uses a generic Taxonomy and the result says so |
+| Topic taxonomy | generated per industry, the industry is inferred ([ADR 0007](adr/0007-infer-industry-with-strong-model.md)) | DeepSeek names the industry from a sample of the downloaded reviews and proposes at most 9 Czech topics once per industry, then they are frozen and Jev assigns them to every review with text; when the industry cannot be inferred the Run uses a generic Taxonomy and the result says so |
 | Autocomplete | Google Places Autocomplete (New) | place_id goes straight to the Google Maps scraper; a branch on Firmy.cz is matched by name and address; Mapy.com dropped out as an autocomplete source |
 | Firmy.cz | **Candidate, not decided** (go/no-go after the terms of use are read). Technically feasible with [oodoow/mapy-com-ppe](https://apify.com/oodoow/mapy-com-ppe) (Mapy.com serves the Firmy.cz profiles: the Place id equals the Firmy.cz detail id); jupri/firmy is not used (it needs full access to the Apify account) | tested 2026-11-13 on 3 Places: all Reviews are returned (165 to 329), each with an ISO date and rating, but **no review ID** (the adapter derives one by hashing date, reviewer and text), the rating is on a 0-100 scale (convert to 1-5) and the same Place can come back several times in one run (deduplicate by Place id). The terms of use were not read, so the owner decides go/no-go; see `docs/research/firmy-cz-branch-discovery-and-fixtures.md` |
 | Review dates | a scraper with an exact date | Google Maps: YasogaN `google-maps-review-scraper` (`time.published`, Unix time in milliseconds, newest first, at most 1000 per Place and Run, `since` applied after fetching), deduplication by `review_id` ([ADR 0008](adr/0008-self-hosted-google-maps-scrapers.md); replaces compass, whose dates were probably computed from relative text); Firmy.cz via mapy-com-ppe gives an ISO `date` (day precision, fixed +01:00 offset) |
@@ -228,5 +228,5 @@ All open questions are decided, except how the branches of a chain are found and
 **Still to verify:**
 
 - [ ] Branch discovery for a chain: Google Places text search by name, filtered by name and address, plus user confirmation; precision on 3 real companies
-- [ ] Jev: whether it handles Czech (50 real reviews labelled by a model and corrected by a human, plus about 15 synthetic injection attacks; go if sentiment agreement is at least 80 %, topics at least 70 % and no injection false negatives, otherwise Haiku only; test key limited to 5 USD) and a client for the OpenRouter Decisions API, which is not OpenAI-compatible
+- [ ] Jev: whether it handles Czech (50 real reviews labelled by a model and corrected by a human, plus about 15 synthetic injection attacks; go if sentiment agreement is at least 80 %, topics at least 70 % and no injection false negatives; there is no fallback model since [ADR 0009](adr/0009-openrouter-for-every-model-call.md); test key limited to 5 USD) and a client for the OpenRouter Decisions API, which is not OpenAI-compatible
 - [ ] Test run: jupri/firmy and oodoow/mapy-com-ppe (date, review ID, more than 3 reviews?)

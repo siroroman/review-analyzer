@@ -8,21 +8,19 @@ from app.gateway._provider import count, model_request, send, tokens_in
 from app.gateway._types import ClientError, ClientResponse, Usage
 from app.transport import HttpRequest, HttpTransport
 
-SERVICE = "anthropic"
-_URL = "https://api.anthropic.com/v1/messages"
-_VERSION = "2023-06-01"
+SERVICE = "openrouter_chat"
+_URL = "https://openrouter.ai/api/v1/chat/completions"
 _SCHEMA_RULE = (
     "Answer with only one JSON object that is valid for this JSON Schema, with no other text:\n{schema}"
 )
 
 
-class AnthropicClient:
-    """ServiceClient `anthropic`: Claude through the Messages API. Operation `complete`.
+class OpenRouterChatClient:
+    """ServiceClient `openrouter_chat`: DeepSeek through the OpenRouter chat completions API.
 
-    `models` maps the model name of the price table (`claude-haiku`) to the model ID of the API. The
-    schema goes into the system block, which carries the prompt-caching mark when `cache_system` is set.
-    Tokens written to or read from the cache are billed as plain input: an upper bound, never an
-    under-count. The key is a `SecretStr` and never leaves this class.
+    Operation `complete`. `models` maps the model name of the price table (`deepseek-v4.1-flash`) to
+    the model ID of the API. The schema goes into the system message and the answer must be a JSON
+    object. The key is a `SecretStr` and never leaves this class.
     """
 
     def __init__(
@@ -52,20 +50,21 @@ class AnthropicClient:
         api_model = self._models.get(asked.model)
         if api_model is None:
             raise ClientError("unknown_model")
-        block: dict[str, object] = {"type": "text", "text": self._system(asked.system, asked.json_schema)}
-        if asked.cache_system:
-            block["cache_control"] = {"type": "ephemeral"}
         body = {
             "model": api_model,
             "max_tokens": self._max_output,
-            "system": [block],
-            "messages": [{"role": "user", "content": asked.prompt}],
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": self._system(asked.system, asked.json_schema)},
+                {"role": "user", "content": asked.prompt},
+            ],
         }
         exchange = send(self._transport, self._http(body)).body
         usage = self._usage(exchange, asked.model)
-        if exchange.get("stop_reason") == "max_tokens":
+        choice = self._choice(exchange, usage)
+        if choice.get("finish_reason") == "length":
             raise ClientError("truncated", usage)
-        return ClientResponse(self._text(exchange, usage), usage)
+        return ClientResponse(self._text(choice, usage), usage)
 
     @staticmethod
     def _system(system: str | None, schema: Mapping[str, object]) -> str:
@@ -76,11 +75,7 @@ class AnthropicClient:
         return HttpRequest(
             "POST",
             _URL,
-            {
-                "x-api-key": self._key.get_secret_value(),
-                "anthropic-version": _VERSION,
-                "content-type": "application/json",
-            },
+            {"Authorization": f"Bearer {self._key.get_secret_value()}", "Content-Type": "application/json"},
             json.dumps(body, ensure_ascii=False).encode(),
             self._timeout,
         )
@@ -90,17 +85,21 @@ class AnthropicClient:
         usage = body.get("usage")
         if not isinstance(usage, dict):
             raise ClientError("bad_response")
-        plain = count(usage.get("input_tokens"))
-        written = count(usage.get("cache_creation_input_tokens", 0))
-        read = count(usage.get("cache_read_input_tokens", 0))
-        return Tokens(SERVICE, model, plain + written + read, count(usage.get("output_tokens")))
+        return Tokens(
+            SERVICE, model, count(usage.get("prompt_tokens")), count(usage.get("completion_tokens"))
+        )
 
     @staticmethod
-    def _text(body: Mapping[str, object], usage: Tokens) -> str:
-        content = body.get("content")
-        if not isinstance(content, list):
+    def _choice(body: Mapping[str, object], usage: Tokens) -> Mapping[str, object]:
+        choices = body.get("choices")
+        if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
             raise ClientError("bad_response", usage)
-        parts = [b["text"] for b in content if isinstance(b, dict) and isinstance(b.get("text"), str)]
-        if not parts:
+        return choices[0]
+
+    @staticmethod
+    def _text(choice: Mapping[str, object], usage: Tokens) -> str:
+        message = choice.get("message")
+        text = message.get("content") if isinstance(message, dict) else None
+        if not isinstance(text, str) or not text:
             raise ClientError("bad_response", usage)
-        return "".join(parts)
+        return text

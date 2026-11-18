@@ -1,6 +1,6 @@
 # 0007: The industry of a Run is inferred, not entered
 
-Status: accepted, 2026-11-16. Changes the decision "Topic taxonomy: generated per industry" in the specification: the industry is still the key of a Taxonomy, but the user no longer enters it.
+Status: accepted, 2026-11-16; the model (Sonnet) is superseded by DeepSeek in [0009](0009-openrouter-for-every-model-call.md). Changes the decision "Topic taxonomy: generated per industry" in the specification: the industry is still the key of a Taxonomy, but the user no longer enters it.
 
 ## Context
 

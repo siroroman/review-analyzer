@@ -15,6 +15,7 @@ from app.domain._analysis import (
 )
 from app.domain._clock import Clock, FakeClock
 from app.domain._places import Company, Place, PlaceDetails, PlaceResult, Source
+from app.domain._random import RandomSource, SeededRandom, SystemRandom
 from app.domain._reviews import DatePrecision, Rating, RawReview, Review
 from app.domain._run_status import InvalidTransition, RunStatus, advance
 from app.domain._topics import ReviewTopic, Sentiment, Taxonomy, Topic
@@ -41,11 +42,14 @@ __all__ = [
     "Place",
     "PlaceDetails",
     "PlaceResult",
+    "RandomSource",
     "Rating",
     "RawReview",
     "Review",
     "ReviewTopic",
+    "SeededRandom",
     "Sentiment",
+    "SystemRandom",
     "Taxonomy",
     "Topic",
     "Source",

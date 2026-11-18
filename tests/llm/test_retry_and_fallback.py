@@ -5,8 +5,8 @@ import pytest
 from app.gateway import BudgetExceeded, ClientError, ClientTimeout, GatewayDenied
 from app.llm import ModelRef, Route
 from tests.llm.helpers import (
-    HAIKU,
-    HAIKU_USAGE,
+    CHAT,
+    CHAT_USAGE,
     JEV,
     JEV_USAGE,
     VALID,
@@ -28,7 +28,7 @@ def test_a_timeout_is_retried_after_a_backoff() -> None:
     assert result == Answer(label="service", score=3)
     assert s.sleeper.delays == [SECOND]
     assert len(s.openrouter.calls) == 2
-    assert s.anthropic.calls == []
+    assert s.chat.calls == []
 
 
 def test_a_5xx_is_retried_and_the_backoff_doubles() -> None:
@@ -47,7 +47,7 @@ def test_the_fallback_model_is_used_after_the_retries_are_spent() -> None:
 
     assert result == Answer(label="service", score=3)
     assert len(s.openrouter.calls) == 3  # one call and two retries
-    assert [r.model for r in requests(s.anthropic)] == ["claude-haiku"]
+    assert [r.model for r in requests(s.chat)] == ["deepseek-v4.1-flash"]
 
 
 def test_a_failure_that_is_not_worth_repeating_goes_straight_to_the_fallback() -> None:
@@ -57,24 +57,24 @@ def test_a_failure_that_is_not_worth_repeating_goes_straight_to_the_fallback() -
 
     assert len(s.openrouter.calls) == 1
     assert s.sleeper.delays == []
-    assert len(s.anthropic.calls) == 1
+    assert len(s.chat.calls) == 1
 
 
 def test_the_fallback_gets_its_own_retries() -> None:
     s = Setup(
         jev=lambda c: scripted(JEV_USAGE, ClientError("bad_request"), clock=c),
-        haiku=lambda c: scripted(HAIKU_USAGE, SERVER_ERROR, VALID, clock=c),
+        chat=lambda c: scripted(CHAT_USAGE, SERVER_ERROR, VALID, clock=c),
     )
 
     s.llm.complete("classify", "Rate this.", Answer, run_id="run-1")
 
-    assert len(s.anthropic.calls) == 2
+    assert len(s.chat.calls) == 2
 
 
 def test_when_the_fallback_fails_too_the_last_error_is_raised() -> None:
     s = Setup(
         jev=lambda c: scripted(JEV_USAGE, ClientError("bad_request"), clock=c),
-        haiku=lambda c: scripted(HAIKU_USAGE, ClientError("overloaded"), clock=c),
+        chat=lambda c: scripted(CHAT_USAGE, ClientError("overloaded"), clock=c),
     )
 
     with pytest.raises(ClientError) as failure:
@@ -102,16 +102,16 @@ def test_no_retries_when_configured_so() -> None:
 
     assert len(s.openrouter.calls) == 1
     assert s.sleeper.delays == []
-    assert len(s.anthropic.calls) == 1
+    assert len(s.chat.calls) == 1
 
 
 def test_an_exceeded_budget_is_not_retried_and_does_not_fall_back() -> None:
-    s = Setup(run_cap="0.1", routes={"classify": Route(HAIKU, JEV)})  # a haiku call is estimated at 0.2
+    s = Setup(run_cap="0.1", routes={"classify": Route(CHAT, JEV)})  # a chat call is estimated at 0.45
 
     with pytest.raises(BudgetExceeded):
         s.llm.complete("classify", "Rate this.", Answer, run_id="run-1")
 
-    assert s.anthropic.calls == []
+    assert s.chat.calls == []
     assert s.openrouter.calls == []
     assert s.sleeper.delays == []
 

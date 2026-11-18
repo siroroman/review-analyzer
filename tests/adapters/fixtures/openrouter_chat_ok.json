@@ -1,0 +1,13 @@
+{
+  "id": "gen-fixture-1",
+  "object": "chat.completion",
+  "model": "deepseek/deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {"role": "assistant", "content": "{\"sentiment\": \"negative\", \"injection\": false}"}
+    }
+  ],
+  "usage": {"prompt_tokens": 180, "completion_tokens": 14, "total_tokens": 194}
+}

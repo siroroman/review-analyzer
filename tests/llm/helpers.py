@@ -20,11 +20,11 @@ D = Decimal
 START = datetime(2026, 11, 12, 8, 0, tzinfo=UTC)
 
 JEV = ModelRef("openrouter", "jev-1.14")
-HAIKU = ModelRef("anthropic", "claude-haiku")
-SONNET = ModelRef("anthropic", "claude-sonnet")
+CHAT = ModelRef("openrouter_chat", "deepseek-v4.1-flash")
+SECOND = ModelRef("openrouter_chat", "deepseek-alt")
 
-# Placeholder prices of app/budget/_estimate.py: haiku 1 / 5 USD per million tokens.
-HAIKU_USAGE = Tokens("anthropic", "claude-haiku", 100_000, 20_000)  # 0.1 + 0.1 = 0.2 USD
+# Placeholder prices of app/budget/_estimate.py: DeepSeek 0.30 / 1.20 USD per million tokens.
+CHAT_USAGE = Tokens("openrouter_chat", "deepseek-v4.1-flash", 500_000, 250_000)  # 0.15 + 0.30 = 0.45 USD
 JEV_USAGE = Tokens("openrouter", "jev-1.14", 10_000, 0)  # 0.001 USD
 
 VALID = '{"label": "service", "score": 3}'
@@ -70,7 +70,7 @@ class Setup:
     def __init__(
         self,
         jev: Callable[[FakeClock], FakeServiceClient] | None = None,
-        haiku: Callable[[FakeClock], FakeServiceClient] | None = None,
+        chat: Callable[[FakeClock], FakeServiceClient] | None = None,
         routes: dict[str, Route] | None = None,
         run_cap: str = "5",
         monthly_cap: str = "30",
@@ -82,19 +82,17 @@ class Setup:
         self.tracer = FakeTracer()
         self.log = FakeCallLog()
         self.openrouter = jev(self.clock) if jev else scripted(JEV_USAGE, VALID, clock=self.clock, took=took)
-        self.anthropic = (
-            haiku(self.clock) if haiku else scripted(HAIKU_USAGE, VALID, clock=self.clock, took=took)
-        )
+        self.chat = chat(self.clock) if chat else scripted(CHAT_USAGE, VALID, clock=self.clock, took=took)
         gateway = Gateway(
-            GatewayConfig({"openrouter": policy(), "anthropic": policy()}, D(run_cap), D(monthly_cap)),
-            {"openrouter": self.openrouter, "anthropic": self.anthropic},
+            GatewayConfig({"openrouter": policy(), "openrouter_chat": policy()}, D(run_cap), D(monthly_cap)),
+            {"openrouter": self.openrouter, "openrouter_chat": self.chat},
             self.clock,
             self.log,
         )
         config = LlmConfig(
             routes=routes
             if routes is not None
-            else {"classify": Route(JEV, HAIKU), "insights": Route(SONNET)},
+            else {"classify": Route(JEV, CHAT), "insights": Route(SECOND)},
             max_retries=max_retries,
             backoff=timedelta(seconds=1),
         )

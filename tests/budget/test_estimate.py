@@ -6,10 +6,16 @@ from app.budget import Tokens, Units, UnknownPrice, estimate_cost
 
 
 def test_tokens_are_priced_per_million_by_direction() -> None:
-    # Worked example: 2M input at 3 USD/M plus 0.5M output at 15 USD/M = 6 + 7.5.
-    usage = Tokens(service="anthropic", model="claude-sonnet", input=2_000_000, output=500_000)
+    # Worked example: 2M input at 0.30 USD/M plus 0.5M output at 1.20 USD/M = 0.6 + 0.6.
+    usage = Tokens(service="openrouter_chat", model="deepseek-v4.1-flash", input=2_000_000, output=500_000)
 
-    assert estimate_cost(usage) == Decimal("13.5")
+    assert estimate_cost(usage) == Decimal("1.2")
+
+
+def test_jev_is_priced_per_million_by_direction() -> None:
+    usage = Tokens(service="openrouter", model="jev-1.14", input=2_000_000, output=1_000_000)
+
+    assert estimate_cost(usage) == Decimal("0.5")
 
 
 def test_units_are_priced_per_unit() -> None:
@@ -32,8 +38,8 @@ def test_a_self_hosted_scraper_review_costs_nothing_and_the_apify_review_is_no_l
 @pytest.mark.parametrize(
     "usage",
     [
-        Tokens(service="anthropic", model="no-such-model", input=1, output=1),
-        Tokens(service="no-such-service", model="claude-sonnet", input=1, output=1),
+        Tokens(service="openrouter_chat", model="no-such-model", input=1, output=1),
+        Tokens(service="no-such-service", model="deepseek-v4.1-flash", input=1, output=1),
         Units(service="apify", unit="no-such-unit", count=1),
     ],
 )
@@ -46,7 +52,7 @@ def test_negative_usage_is_rejected() -> None:
     with pytest.raises(ValueError, match="negative"):
         Units(service="apify", unit="review", count=-1)
     with pytest.raises(ValueError, match="negative"):
-        Tokens(service="anthropic", model="claude-sonnet", input=-1, output=0)
+        Tokens(service="openrouter_chat", model="deepseek-v4.1-flash", input=-1, output=0)
 
 
 def test_a_places_text_search_is_priced_per_request() -> None:

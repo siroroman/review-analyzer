@@ -21,7 +21,7 @@ ENVIRON = {
     "DATABASE_URL": "postgresql://user:db-secret@localhost/none",
     "GOOGLE_PLACES_API_KEY": "google-secret",
     "YASOGAN_URL": "https://yasogan.example",
-    "ANTHROPIC_API_KEY": "anthropic-secret",
+    "OPENROUTER_API_KEY": "openrouter-secret",
     "LANGFUSE_PUBLIC_KEY": "langfuse-public",
     "LANGFUSE_SECRET_KEY": "langfuse-secret",
     "LANGFUSE_HOST": "https://langfuse.example",
@@ -61,22 +61,17 @@ def scraped_items(count: int = 40) -> list[dict[str, object]]:
 
 
 def _model_answer(request: HttpRequest) -> HttpResponse:
+    """DeepSeek (chat completions) for Topics, industry and insights; Jev (Decisions) for a Review."""
     body = json.loads(request.body)
-    system = body["system"][0]["text"]
-    prompt = body["messages"][0]["content"]
+    if request.url.endswith("/decisions"):
+        return _json(_jev_answer(body["questions"]))
+    system = body["messages"][0]["content"]
+    prompt = body["messages"][1]["content"]
     answer: dict[str, object]
     if "design a list of Topics" in system:
         answer = {"topics": [{"key": key, "name": key.title(), "description": key} for key in TOPICS]}
     elif "name the industry" in system:
         answer = {"label": "Hypermarket"}
-    elif "classify public customer reviews" in system:
-        items = json.loads(prompt.split("<reviews>\n", 1)[1].rsplit("\n</reviews>", 1)[0])
-        answer = {
-            "results": [
-                {"id": item["id"], "topics": [{"key": "staff", "sentiment": "positive", "confidence": 0.9}]}
-                for item in items
-            ]
-        }
     else:
         first = re.search(r'<review id="([^"]+)"', prompt)
         answer = {
@@ -92,15 +87,27 @@ def _model_answer(request: HttpRequest) -> HttpResponse:
         }
     return _json(
         {
-            "content": [{"type": "text", "text": json.dumps(answer)}],
-            "stop_reason": "end_turn",
-            "usage": {"input_tokens": 100, "output_tokens": 20},
+            "choices": [
+                {"finish_reason": "stop", "message": {"role": "assistant", "content": json.dumps(answer)}}
+            ],
+            "usage": {"prompt_tokens": 100, "completion_tokens": 20},
         }
     )
 
 
+def _jev_answer(questions: dict[str, dict[str, object]]) -> dict[str, object]:
+    """Every Review is about the staff, positively: a high score for `staff`, a low one for the rest."""
+    answers: dict[str, object] = {}
+    for name, question in questions.items():
+        if question["type"] == "choice":
+            answers[name] = {"type": "choice", "choice": "positive", "confidence": 0.9}
+        else:
+            answers[name] = {"type": "noul", "noul": 0.9 if name == "topic_staff" else 0.1, "confidence": 0.9}
+    return {"answers": answers, "usage": {"input_tokens": 100, "output_tokens": 5}}
+
+
 class Internet:
-    """An `HttpTransport` that plays every service by its URL: Google, the scraper, Anthropic, Langfuse,
+    """An `HttpTransport` that plays every service by its URL: Google, the scraper, OpenRouter, Langfuse,
     Cloud Tasks and the metadata server. It remembers every request; nothing leaves the process."""
 
     def __init__(self) -> None:
@@ -121,7 +128,7 @@ class Internet:
             )
         if host == "yasogan.example":
             return _json(scraped_items())
-        if host == "api.anthropic.com":
+        if host == "openrouter.ai":
             return _model_answer(request)
         if host == "cloudtasks.googleapis.com":
             self.tasks.append(json.loads(request.body)["task"])

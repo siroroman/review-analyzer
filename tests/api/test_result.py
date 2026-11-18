@@ -158,7 +158,12 @@ def test_the_result_splits_the_cost_by_service_and_the_parts_sum_to_the_cost() -
     run_id = _start(api)
     _finish(api, run_id)
     api.reporter.reports[run_id] = _report(run_id, RunStatus.DONE)
-    for service, cost in (("apify", "0.1"), ("openrouter", "0.05"), ("anthropic", "0.07"), ("other", "0.03")):
+    for service, cost in (
+        ("apify", "0.1"),
+        ("openrouter", "0.05"),
+        ("openrouter_chat", "0.07"),
+        ("other", "0.03"),
+    ):
         api.storage.calls.record(call(service=service, run_id=run_id, cost=cost))
     api.storage.calls.record(call(service="apify", run_id="another", cost="9"))
     body = api.client.get(f"/runs/{run_id}/result", headers=HEADERS).json()

@@ -70,7 +70,7 @@ class GatewayDenied(Exception):
 
 
 class ServiceClient(Protocol):
-    """Port: one paid service (adapter of OpenRouter, Anthropic, Apify, Google Places)."""
+    """Port: one paid service (adapter of OpenRouter, Apify, Google Places)."""
 
     def estimate(self, operation: str, request: object) -> Usage:
         """The usage the call is expected to need, for the Budget check before it."""

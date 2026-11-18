@@ -37,7 +37,7 @@ A subject reviews talk about (e.g. staff, waiting, prices), part of a Taxonomy.
 _Avoid_: Category, tag, theme
 
 **Industry**:
-A short lowercase label of the kind of business a Company is (e.g. `cafe`), inferred by the strong model from a sample of its Reviews. It only selects a Taxonomy; two Companies need not get the same label. When it cannot be inferred the Run uses the generic industry `general`.
+A short lowercase label of the kind of business a Company is (e.g. `cafe`), inferred by DeepSeek from a sample of its Reviews. It only selects a Taxonomy; two Companies need not get the same label. When it cannot be inferred the Run uses the generic industry `general`.
 _Avoid_: Sector, category, Obor
 
 **Taxonomy**:
@@ -57,7 +57,7 @@ Everything computed by code from Reviews and ReviewTopics: averages, TrendPoints
 _Avoid_: Stats, analytics
 
 **Insight**:
-A statement by the strong model (summary, anomaly explanation or suggestion) that cites the IDs of the Reviews it rests on.
+A statement by DeepSeek (summary, anomaly explanation or suggestion) that cites the IDs of the Reviews it rests on.
 _Avoid_: Finding, recommendation, conclusion
 
 **Grounding**:

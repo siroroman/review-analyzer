@@ -12,13 +12,12 @@ from decimal import Decimal
 
 from app.classification import TASK
 from app.domain import Clock
-from app.gateway import AnthropicClient, Gateway, GatewayConfig, OpenRouterClient, ServicePolicy
+from app.gateway import Gateway, GatewayConfig, OpenRouterClient, ServicePolicy
 from app.llm import FakeTracer, Llm, LlmConfig, ModelRef, Route
 from app.storage import in_memory_storage
 from app.transport import UrllibTransport, read_secret
 
 JEV = ModelRef("openrouter", "jev-1.14")
-HAIKU = ModelRef("anthropic", "claude-haiku")
 RUN_CAP = Decimal(1)  # one evaluation of 200 Reviews costs cents; a loop must still stop at 1 USD
 
 
@@ -40,20 +39,13 @@ def live_llm() -> tuple[Llm, Clock, str]:
     openrouter = OpenRouterClient(
         read_secret(os.environ, "OPENROUTER_API_KEY"), transport, {"jev-1.14": "typesafe/jev-1.14"}
     )
-    anthropic = AnthropicClient(
-        read_secret(os.environ, "ANTHROPIC_API_KEY"), transport, {"claude-haiku": "claude-haiku-5-5"}
-    )
     policy = ServicePolicy(frozenset({"complete"}), 100, timedelta(seconds=60), 2)
     gateway = Gateway(
-        GatewayConfig({"openrouter": policy, "anthropic": policy}, RUN_CAP),
-        {"openrouter": openrouter, "anthropic": anthropic},
+        GatewayConfig({"openrouter": policy}, RUN_CAP),
+        {"openrouter": openrouter},
         clock,
         in_memory_storage(clock).calls,
     )
-    config = LlmConfig(routes={TASK: Route(JEV, HAIKU)})
+    config = LlmConfig(routes={TASK: Route(JEV)})
     # Langfuse traces are for real Runs; an evaluation would only fill them with test Reviews.
-    return (
-        Llm(config, gateway, clock, _Sleeper(), FakeTracer()),
-        clock,
-        f"{JEV.model}, fallback {HAIKU.model}",
-    )
+    return Llm(config, gateway, clock, _Sleeper(), FakeTracer()), clock, JEV.model

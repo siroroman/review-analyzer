@@ -4,7 +4,7 @@ from app.domain import FakeClock
 from app.gateway import ClientResponse, FakeServiceClient
 from app.llm import InvalidOutput
 from tests.llm.helpers import (
-    HAIKU_USAGE,
+    CHAT_USAGE,
     JEV_USAGE,
     VALID,
     Answer,
@@ -24,7 +24,7 @@ def test_invalid_json_gets_one_repair_retry() -> None:
 
     assert result == Answer(label="service", score=3)
     assert len(s.openrouter.calls) == 2
-    assert s.anthropic.calls == []
+    assert s.chat.calls == []
 
 
 def test_the_repair_prompt_keeps_the_prompt_and_never_repeats_the_bad_answer() -> None:
@@ -52,20 +52,20 @@ def test_after_a_failed_repair_the_fallback_model_gets_a_turn() -> None:
 
     assert result == Answer(label="service", score=3)
     assert len(s.openrouter.calls) == 2  # one repair retry, no more
-    assert len(s.anthropic.calls) == 1
+    assert len(s.chat.calls) == 1
 
 
 def test_invalid_output_from_every_model_is_an_error() -> None:
     s = Setup(
         jev=lambda c: scripted(JEV_USAGE, NOT_JSON, NOT_JSON, clock=c),
-        haiku=lambda c: scripted(HAIKU_USAGE, NOT_JSON, WRONG_SHAPE, clock=c),
+        chat=lambda c: scripted(CHAT_USAGE, NOT_JSON, WRONG_SHAPE, clock=c),
     )
 
     with pytest.raises(InvalidOutput) as failure:
         s.llm.complete("classify", "Rate this.", Answer, run_id="run-1")
 
-    assert (failure.value.task, failure.value.model) == ("classify", "claude-haiku")
-    assert len(s.anthropic.calls) == 2
+    assert (failure.value.task, failure.value.model) == ("classify", "deepseek-v4.1-flash")
+    assert len(s.chat.calls) == 2
 
 
 def test_an_answer_that_is_not_text_is_invalid_output() -> None:

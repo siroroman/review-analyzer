@@ -11,8 +11,8 @@ D = Decimal
 def _fill(storage: Storage) -> list[ServiceCall]:
     calls = [
         call("apify", "run_actor", "run-1", "ok", "1.25", START),
-        call("anthropic", "complete", "run-1", "ok", "0.5", START + timedelta(hours=1)),
-        call("anthropic", "complete", "run-2", "failed", "0.25", START + timedelta(days=1)),
+        call("openrouter_chat", "complete", "run-1", "ok", "0.5", START + timedelta(hours=1)),
+        call("openrouter_chat", "complete", "run-2", "failed", "0.25", START + timedelta(days=1)),
         call("google_places", "details", "run-2", "denied", "0", START + timedelta(days=1, hours=2)),
         call("apify", "run_actor", "run-3", "ok", "2", START + timedelta(days=40)),
     ]
@@ -50,7 +50,7 @@ def test_query_date_range_includes_since_and_excludes_until(storage: Storage) ->
 
 def test_filters_combine(storage: Storage) -> None:
     calls = _fill(storage)
-    assert storage.calls.query(CallFilter(service="anthropic", run_id="run-2")) == [calls[2]]
+    assert storage.calls.query(CallFilter(service="openrouter_chat", run_id="run-2")) == [calls[2]]
     assert storage.calls.query(CallFilter(service="apify", status="failed")) == []
 
 
@@ -68,7 +68,7 @@ def test_sums_per_service_day_and_run(storage: Storage) -> None:
     everything = CallFilter()
     assert storage.calls.cost_by_service(everything) == {
         "apify": D("3.25"),
-        "anthropic": D("0.75"),
+        "openrouter_chat": D("0.75"),
         "google_places": D(0),
     }
     assert storage.calls.cost_by_day(everything) == {
@@ -83,7 +83,7 @@ def test_sums_respect_the_filter_and_an_empty_match_is_empty(storage: Storage) -
     _fill(storage)
     assert storage.calls.cost_by_service(CallFilter(run_id="run-1")) == {
         "apify": D("1.25"),
-        "anthropic": D("0.5"),
+        "openrouter_chat": D("0.5"),
     }
     assert storage.calls.cost_by_run(CallFilter(service="nobody")) == {}
     assert storage.calls.cost_by_day(CallFilter(service="nobody")) == {}

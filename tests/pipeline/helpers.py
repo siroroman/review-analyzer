@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from app.classification import Classifier
-from app.domain import Company, FakeClock, Place, RunStatus, Source
+from app.domain import Company, FakeClock, Place, RunStatus, SeededRandom, Source
 from app.gateway import (
     SCRAPE_GOOGLE_REVIEWS,
     ClientError,
@@ -27,10 +27,10 @@ from app.storage import CallFilter, Storage, StoredCompany, in_memory_storage
 from app.taxonomy import Taxonomies
 
 START = datetime(2026, 11, 13, 8, 0, tzinfo=UTC)
-HAIKU = ModelRef("anthropic", "claude-haiku")
-SONNET = ModelRef("anthropic", "claude-sonnet")
-SMALL = Tokens("anthropic", "claude-haiku", 1_000, 100)  # about 0.0015 USD
-HUGE = Tokens("anthropic", "claude-sonnet", 10_000_000, 0)  # 30 USD: over any Run cap used here
+JEV = ModelRef("openrouter", "jev-1.14")
+DEEPSEEK = ModelRef("openrouter_chat", "deepseek-v4.1-flash")
+SMALL = Tokens("openrouter_chat", "deepseek-v4.1-flash", 1_000, 100)  # about 0.0004 USD
+HUGE = Tokens("openrouter_chat", "deepseek-v4.1-flash", 100_000_000, 0)  # 30 USD: over any Run cap here
 TOPICS = ("staff", "waiting", "prices", "food", "place", "cleanliness", "quality", "other")
 PLACE = Place(source=Source.GOOGLE_MAPS, external_id="g1", name="Kavárna", address="Praha")
 FIRMY = Place(source=Source.FIRMY_CZ, external_id="f1", name="Kavárna", address="Praha")
@@ -80,23 +80,25 @@ class World:
         self.scrapes: list[YasogaNScrape] = []
         policy = ServicePolicy(frozenset({"complete", SCRAPE_GOOGLE_REVIEWS}), 1000, timedelta(seconds=60), 4)
         gateway = Gateway(
-            GatewayConfig({"anthropic": policy, "yasogan": policy}, Decimal(run_cap)),
-            {"anthropic": _Model(self), "yasogan": _Scraper(self)},
+            GatewayConfig(
+                {"openrouter": policy, "openrouter_chat": policy, "yasogan": policy}, Decimal(run_cap)
+            ),
+            {"openrouter": _Model(self), "openrouter_chat": _Model(self), "yasogan": _Scraper(self)},
             self.clock,
             self.storage.calls,
         )
         routes = {
-            "taxonomy": Route(HAIKU),
-            "classification": Route(HAIKU),
-            "industry": Route(SONNET),
-            "insights": Route(SONNET),
+            "taxonomy": Route(DEEPSEEK),
+            "classification": Route(JEV),
+            "industry": Route(DEEPSEEK),
+            "insights": Route(DEEPSEEK),
         }
         llm = Llm(LlmConfig(routes, max_retries=0), gateway, self.clock, self.sleeper, FakeTracer())
         self.pipeline = Pipeline(
             storage=self.storage,
             sources=Sources(gateway),
             detector=FakeInjectionDetector(flag_containing="ignore all previous"),
-            taxonomies=Taxonomies(llm, self.storage.taxonomies),
+            taxonomies=Taxonomies(llm, self.storage.taxonomies, SeededRandom(0)),
             classifier=Classifier(llm, self.storage.reviews),
             insights=InsightGenerator(llm),
             sleeper=self.sleeper,
@@ -135,10 +137,10 @@ class World:
 
 def _task_of(request: CompletionRequest) -> str:
     system = request.system or ""
+    if "topic_staff" in request.json_schema.get("properties", {}):  # type: ignore[operator]
+        return "classification"
     if "design a list of Topics" in system:
         return "taxonomy"
-    if "classify public customer reviews" in system:
-        return "classification"
     if "name the industry" in system:
         return "industry"
     return "insights"
@@ -179,21 +181,12 @@ def _answer(task: str, prompt: str) -> str:
             {"topics": [{"key": key, "name": key.title(), "description": key} for key in TOPICS]}
         )
     if task == "classification":
-        body = prompt.split("<reviews>\n", 1)[1].rsplit("\n</reviews>", 1)[0]
-        items = json.loads(body)
-        return json.dumps(
-            {
-                "results": [
-                    {
-                        "id": item["id"],
-                        "topics": [
-                            {"key": "staff", "sentiment": _sentiment(item["text"]), "confidence": 0.9}
-                        ],
-                    }
-                    for item in items
-                ]
-            }
-        )
+        text = json.loads(prompt.removeprefix("<review>\n").removesuffix("\n</review>"))
+        fields: dict[str, object] = {}
+        for key in TOPICS:
+            fields[f"topic_{key}"] = 0.9 if key == "staff" else 0
+            fields[f"sentiment_{key}"] = _sentiment(text) if key == "staff" else "neutral"
+        return json.dumps(fields)
     first = re.search(r'<review id="([^"]+)"', prompt)
     cited = [first.group(1)] if first else []
     return json.dumps(

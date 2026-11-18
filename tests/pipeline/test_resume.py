@@ -73,7 +73,7 @@ def test_a_stale_cache_fetches_only_new_reviews_and_classifies_only_those() -> N
     classified_before = world.model_calls_of("classification")
     second = world.run()
     assert second.reviews == 42
-    assert world.model_calls_of("classification") == classified_before + 1  # one batch of 2 new Reviews
+    assert world.model_calls_of("classification") == classified_before + 2  # one call per new Review
     assert second.unclassified == 0
 
 
