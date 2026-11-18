@@ -16,10 +16,15 @@ export function formatRating(value: number): string {
   return value.toLocaleString("cs-CZ", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
+/** A whole number with the Czech thousands separator, e.g. `26 348` (a non-breaking space). */
+export function formatNumber(value: number): string {
+  return value.toLocaleString("cs-CZ");
+}
+
 /** Czech plural of "recenze": 1-4 recenze, otherwise recenzí. */
 export function formatCount(count: number): string {
   const word = count >= 1 && count <= 4 ? "recenze" : "recenzí";
-  return `${count} ${word}`;
+  return `${formatNumber(count)} ${word}`;
 }
 
 const plural = (count: number, one: string, few: string, many: string) => (count === 1 ? one : count >= 2 && count <= 4 ? few : many);

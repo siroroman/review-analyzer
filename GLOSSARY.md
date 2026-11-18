@@ -14,6 +14,10 @@ _Avoid_: Business, client, organization
 One branch of a Company on one Source, identified by that Source's external ID.
 _Avoid_: Location, branch (as a data term), listing
 
+**Place totals**:
+The rating, the Review count and the count per star of a Place as Google Maps reports them, not computed from the analyzed Reviews. They can be larger than the analyzed set, which is limited to the newest 1000 Reviews per Place.
+_Avoid_: Overall rating, statistics
+
 **Source**:
 A public site that hosts reviews: Google Maps or Firmy.cz.
 _Avoid_: Platform, provider (a provider is an external service such as Apify, a scraper or a model API)

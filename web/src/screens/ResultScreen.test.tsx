@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { ApiError } from "../api/client";
+import { ApiError, type RunResult } from "../api/client";
 import { ApiProvider } from "../api/context";
 import { fakeApi, fakeResult } from "../fakeApi";
 import { readRecent } from "../recentRuns";
@@ -86,7 +86,7 @@ const twoSources = () =>
 it("shows exactly two boxes: the rating of each Source and the cost", async () => {
   setup(fakeApi());
   const google = await screen.findByRole("group", { name: "Google Maps" });
-  expect(within(google).getByText("4,0")).toBeInTheDocument();
+  expect(within(google).getByText("4,4")).toBeInTheDocument();
   expect(within(google).getByText("18 recenzí")).toBeInTheDocument();
   expect(within(screen.getByRole("group", { name: "Náklady analýzy" })).getByText(/USD/)).toBeInTheDocument();
   expect(screen.getAllByRole("group").map((group) => group.getAttribute("aria-label")).filter((label) => label === "Google Maps" || label === "Náklady analýzy")).toEqual(["Google Maps", "Náklady analýzy"]);
@@ -416,4 +416,124 @@ it("remembers the opened result for the Search screen", async () => {
   setup(fakeApi());
   await screen.findByRole("heading", { level: 1, name: "Kavárna U Mlýna" });
   expect(readRecent(Date.now())).toMatchObject([{ run_id: "run-1", name: "Kavárna U Mlýna" }]);
+});
+
+/** The matchers normalize the non-breaking space of the thousands separator to a plain one. */
+const NBSP = " ";
+
+/** The default Place of the fake result with some of its fields replaced. */
+function withPlace(place: Partial<RunResult["places"][number]>) {
+  const base = fakeResult();
+  return fakeResult({ places: [{ ...base.places[0]!, ...place }] });
+}
+
+const fullPlace = {
+  category: "Kavárna",
+  address: "Mlýnská 1, Praha",
+  phone: "+420 123 456 789",
+  website: "https://umlyna.example",
+  maps_url: "https://maps.example/umlyna",
+  thumbnail_url: "https://img.example/umlyna.jpg",
+};
+
+it("shows who the Place is: category, address, phone, website, Maps link and thumbnail", async () => {
+  setup(fakeApi({ runResult: vi.fn(async () => withPlace(fullPlace)) }));
+  const header = await screen.findByRole("group", { name: "Údaje o místě" });
+  expect(within(header).getByText("Kavárna")).toBeInTheDocument();
+  expect(within(header).getByText("Mlýnská 1, Praha")).toBeInTheDocument();
+  expect(within(header).getByText("+420 123 456 789")).toBeInTheDocument();
+  const website = within(header).getByRole("link", { name: "umlyna.example" });
+  expect(website).toHaveAttribute("href", "https://umlyna.example");
+  const maps = within(header).getByRole("link", { name: "Otevřít v Google Maps" });
+  expect(maps).toHaveAttribute("href", "https://maps.example/umlyna");
+  for (const link of [website, maps]) {
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(link).toHaveAttribute("target", "_blank");
+  }
+  expect(within(header).getByRole("img", { name: "Kavárna U Mlýna" })).toHaveAttribute("src", "https://img.example/umlyna.jpg");
+});
+
+it.each(Object.keys(fullPlace))("leaves out only the missing field %s of the Place header", async (field) => {
+  setup(fakeApi({ runResult: vi.fn(async () => withPlace({ ...fullPlace, [field]: null })) }));
+  await screen.findByRole("heading", { level: 1 });
+  const present = {
+    category: () => screen.queryByText("Kavárna"),
+    address: () => screen.queryByText("Mlýnská 1, Praha"),
+    phone: () => screen.queryByText("+420 123 456 789"),
+    website: () => screen.queryByRole("link", { name: "umlyna.example" }),
+    maps_url: () => screen.queryByRole("link", { name: "Otevřít v Google Maps" }),
+    thumbnail_url: () => screen.queryByRole("img", { name: "Kavárna U Mlýna" }),
+  };
+  for (const [key, find] of Object.entries(present)) {
+    if (key === field) expect(find()).not.toBeInTheDocument();
+    else expect(find()).toBeInTheDocument();
+  }
+});
+
+it("shows no Place header at all when the Place has no details", async () => {
+  setup(fakeApi({ runResult: vi.fn(async () => withPlace({ category: null, address: null })) }));
+  await screen.findByRole("heading", { level: 1 });
+  expect(screen.queryByRole("group", { name: "Údaje o místě" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Otevřít v Google Maps" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("img", { name: "Kavárna U Mlýna" })).not.toBeInTheDocument();
+});
+
+it("takes the rating and the Review count of the box from Google Maps, not from the analyzed Reviews", async () => {
+  const result = withPlace({ rating: 4.6, review_count: 26348, reviews_per_rating: { 5: 20000, 4: 4000, 3: 1500, 2: 500, 1: 348 }, analyzed_count: 1000, analyzed_is_limited: true });
+  setup(fakeApi({ runResult: vi.fn(async () => result) }));
+  const google = await screen.findByRole("group", { name: "Google Maps" });
+  expect(within(google).getByText("4,6")).toBeInTheDocument();
+  expect(within(google).getByText(`26${NBSP}348 recenzí`)).toBeInTheDocument();
+});
+
+it("says the analysis covers only the newest Reviews when the Place has more", async () => {
+  const result = withPlace({ rating: 4.6, review_count: 26348, reviews_per_rating: { 5: 26348 }, analyzed_count: 1000, analyzed_is_limited: true });
+  setup(fakeApi({ runResult: vi.fn(async () => result) }));
+  const note = await screen.findByRole("status");
+  expect(note).toHaveTextContent(`Na Google Maps je 26${NBSP}348 hodnocení, analyzujeme posledních 1${NBSP}000.`);
+});
+
+it("shows no limit note when every Review is analyzed", async () => {
+  setup(fakeApi());
+  await screen.findByRole("heading", { level: 1 });
+  expect(screen.queryByText(/analyzujeme posledních/)).not.toBeInTheDocument();
+});
+
+it("falls back to the analyzed numbers and shows no limit note when the Google Maps totals are missing", async () => {
+  const result = withPlace({ rating: null, review_count: null, reviews_per_rating: null, analyzed_is_limited: true });
+  setup(fakeApi({ runResult: vi.fn(async () => result) }));
+  const google = await screen.findByRole("group", { name: "Google Maps" });
+  expect(within(google).getByText("4,0")).toBeInTheDocument();
+  expect(within(google).getByText("18 recenzí")).toBeInTheDocument();
+  expect(screen.queryByText(/analyzujeme posledních/)).not.toBeInTheDocument();
+  const rows = within(screen.getByRole("group", { name: "Rozdělení hodnocení" })).getAllByRole("button");
+  expect(rows[0]).toHaveAccessibleName("5 ★, 8 recenzí, 44 %");
+});
+
+it("builds the star distribution from the Google Maps counts and puts it under the boxes", async () => {
+  const result = withPlace({ rating: 4.6, review_count: 1100, reviews_per_rating: { 5: 800, 4: 200, 3: 50, 2: 30, 1: 20 }, analyzed_count: 1000, analyzed_is_limited: true });
+  setup(fakeApi({ runResult: vi.fn(async () => result) }));
+  const distribution = await screen.findByRole("group", { name: "Rozdělení hodnocení" });
+  const rows = within(distribution).getAllByRole("button");
+  const counts = rows.map((row) => Number(/, (\d+) recenz/.exec(row.getAttribute("aria-label")!)![1]));
+  expect(counts).toEqual([800, 200, 50, 30, 20]);
+  expect(counts.reduce((a, b) => a + b, 0)).toBe(1100);
+  expect(within(distribution).getByText(`Všech 1${NBSP}100 recenzí`)).toBeInTheDocument();
+  const boxes = screen.getByRole("group", { name: "Náklady analýzy" });
+  const timeline = screen.getByRole("heading", { name: "Vývoj hodnocení" });
+  expect(boxes.compareDocumentPosition(distribution) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(distribution.compareDocumentPosition(timeline) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it("keeps Reviews without text in the counts and does not say they were dropped", async () => {
+  setup(fakeApi());
+  await screen.findByRole("heading", { level: 1 });
+  expect(screen.queryByText(/vyřazeno|vyřazen/i)).not.toBeInTheDocument();
+});
+
+it("writes the count of every distribution row with the thousands separator", async () => {
+  const result = withPlace({ rating: 4.6, review_count: 26348, reviews_per_rating: { 5: 20000, 4: 4000, 3: 1500, 2: 500, 1: 348 }, analyzed_count: 1000, analyzed_is_limited: true });
+  setup(fakeApi({ runResult: vi.fn(async () => result) }));
+  const rows = within(await screen.findByRole("group", { name: "Rozdělení hodnocení" })).getAllByRole("button");
+  expect(rows.map((row) => row.textContent)).toEqual([`5 ★20\u00a0000 · 76 %`, `4 ★4\u00a0000 · 15 %`, `3 ★1\u00a0500 · 6 %`, "2 ★500 · 2 %", "1 ★348 · 1 %"]);
 });
