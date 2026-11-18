@@ -32,7 +32,8 @@ def texts_sent(found: Sequence[Review], seed: int) -> list[str]:
     taxonomies = Taxonomies(setup.llm, in_memory_storage(setup.clock).taxonomies, SeededRandom(seed))
     taxonomies.get_taxonomy("cafe", sample=lambda: found, run_id="run-1")
     prompt = requests(setup.anthropic)[0].prompt
-    return json.loads(prompt.split("<reviews>\n")[1].split("\n</reviews>")[0])
+    texts: list[str] = json.loads(prompt.split("<reviews>\n")[1].split("\n</reviews>")[0])
+    return texts
 
 
 def test_the_sample_has_at_most_200_reviews_all_with_text_and_none_flagged() -> None:
