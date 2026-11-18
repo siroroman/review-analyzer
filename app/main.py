@@ -25,7 +25,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.api import ApiConfig, create_app
 from app.classification import Classifier
-from app.domain import Clock, Source
+from app.domain import Clock, Source, SystemRandom
 from app.gateway import (
     GOOGLE_PLACES,
     SCRAPE_GOOGLE_REVIEWS,
@@ -220,7 +220,7 @@ def build_apps(
         storage=storage,
         sources=Sources(gateway),
         detector=PatternInjectionDetector(),
-        taxonomies=Taxonomies(llm, storage.taxonomies),
+        taxonomies=Taxonomies(llm, storage.taxonomies, SystemRandom()),
         classifier=Classifier(llm, storage.reviews),
         insights=InsightGenerator(llm),
         sleeper=sleeper,

@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from app.domain import DatePrecision, Review, Source, Taxonomy, Topic
+from app.domain import DatePrecision, Review, SeededRandom, Source, Taxonomy, Topic
 from app.gateway import ClientError
 from app.llm import ModelRef, Route
 from app.storage import Storage, in_memory_storage
@@ -51,7 +51,7 @@ class World:
     def __init__(self, *answers: str | Exception) -> None:
         self.setup = Setup(haiku=lambda clock: scripted(HAIKU_USAGE, *answers, clock=clock), routes=ROUTES)
         self.storage: Storage = in_memory_storage(self.setup.clock)
-        self.taxonomies = Taxonomies(self.setup.llm, self.storage.taxonomies)
+        self.taxonomies = Taxonomies(self.setup.llm, self.storage.taxonomies, SeededRandom(0))
 
     def get(self, sample: Callable[[], Sequence[Review]] | None = None, industry: str = "cafe") -> object:
         return self.taxonomies.get_taxonomy(
@@ -195,7 +195,7 @@ def test_the_sample_sent_to_the_model_is_capped() -> None:
     world = World(topics_json(8))
     world.get(sample=lambda: reviews(1000))
     prompt = requests(world.setup.anthropic)[0].prompt
-    assert 0 < prompt.count("Dobrá") <= 100
+    assert 0 < prompt.count("Dobrá") <= 200
 
 
 def test_a_failing_model_passes_its_error_through_and_stores_nothing() -> None:
@@ -219,36 +219,16 @@ def sent_texts(world: World) -> list[str]:
     return texts
 
 
-def test_the_sample_is_the_newest_hundred_with_text_whatever_the_input_order() -> None:
-    old = [
-        r.model_copy(update={"text": f"old {i}", "published_on": date(2025, 1, 1)})
-        for i, r in enumerate(reviews(150))
-    ]
-    new = [
-        r.model_copy(update={"text": f"new {i}", "external_id": f"n{i}", "published_on": date(2026, 10, 1)})
-        for i, r in enumerate(reviews(100))
-    ]
-    texts = []
-    orders: list[list[Review]] = [old + new, new + old, list(reversed(old + new))]
-    for order in orders:
-        world = World(topics_json(8))
-        world.get(sample=lambda order=order: order)  # type: ignore[misc]
-        texts.append(sent_texts(world))
-    assert len(texts[0]) == 100
-    assert all(t.startswith("new") for t in texts[0])
-    assert sorted(texts[0]) == sorted(texts[1]) == sorted(texts[2])
-
-
-def test_of_1000_reviews_with_400_with_text_the_sample_is_100_reviews_with_text() -> None:
+def test_of_1000_reviews_with_400_with_text_the_sample_is_200_reviews_with_text() -> None:
     star_only = [r.model_copy(update={"text": ""}) for r in dated(600, offset=1000)]
     with_text = dated(400)
     world = World(topics_json(8))
     world.get(sample=lambda: [*star_only, *with_text])
-    assert len(sent_texts(world)) == 100
+    assert len(sent_texts(world)) == 200
     assert all(sent_texts(world))
 
 
-def test_fewer_than_a_hundred_with_text_are_all_in_the_sample() -> None:
+def test_fewer_than_the_cap_with_text_are_all_in_the_sample() -> None:
     world = World(topics_json(8))
     world.get(sample=lambda: [*dated(60), *dated(200, text="", offset=500)])
     assert len(sent_texts(world)) == 60
@@ -258,18 +238,3 @@ def test_star_only_reviews_do_not_count_towards_the_minimum() -> None:
     with pytest.raises(SampleTooSmall) as raised:
         World(topics_json(8)).get(sample=lambda: [*dated(MIN_SAMPLE - 1), *dated(500, text="", offset=500)])
     assert raised.value.size == MIN_SAMPLE - 1
-
-
-def test_reviews_on_the_same_date_give_the_same_sample_in_any_input_order() -> None:
-    tied = [
-        r.model_copy(update={"text": f"tie {i:03d}", "external_id": f"t{i:03d}"})
-        for i, r in enumerate(reviews(150))
-    ]
-    samples = []
-    for order in (tied, list(reversed(tied))):
-        world = World(topics_json(8))
-        world.get(sample=lambda order=order: order)  # type: ignore[misc]
-        samples.append(sent_texts(world))
-    assert len(samples[0]) == 100
-    assert samples[0] == samples[1]
-    assert set(samples[0]) == {f"tie {i:03d}" for i in range(100)}

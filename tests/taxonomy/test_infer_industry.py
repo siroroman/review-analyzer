@@ -1,10 +1,9 @@
 import json
 from collections.abc import Sequence
-from datetime import date
 
 import pytest
 
-from app.domain import Review
+from app.domain import Review, SeededRandom
 from app.gateway import ClientError
 from app.llm import ModelRef, Route
 from app.storage import Storage, in_memory_storage
@@ -34,7 +33,7 @@ class World:
     def __init__(self, *answers: str | Exception) -> None:
         self.setup = Setup(haiku=lambda clock: scripted(HAIKU_USAGE, *answers, clock=clock), routes=ROUTES)
         self.storage: Storage = in_memory_storage(self.setup.clock)
-        self.taxonomies = Taxonomies(self.setup.llm, self.storage.taxonomies)
+        self.taxonomies = Taxonomies(self.setup.llm, self.storage.taxonomies, SeededRandom(0))
 
     def infer(self, sample: Sequence[Review] | None = None) -> str:
         found = reviews(MIN_SAMPLE) if sample is None else sample
@@ -149,17 +148,9 @@ def test_the_generic_key_is_a_valid_industry_key() -> None:
     assert World(answer(GENERIC_INDUSTRY)).infer() == GENERIC_INDUSTRY
 
 
-def test_the_industry_sample_is_the_newest_hundred_with_text_whatever_the_input_order() -> None:
-    old = [
-        r.model_copy(update={"text": f"old {i}", "published_on": date(2025, 1, 1)})
-        for i, r in enumerate(reviews(150))
-    ]
-    new = [
-        r.model_copy(update={"text": f"new {i}", "external_id": f"n{i}", "published_on": date(2026, 10, 1)})
-        for i, r in enumerate(reviews(100))
-    ]
+def test_the_industry_sample_is_a_random_sample_of_at_most_200_reviews_with_text() -> None:
+    many = [r.model_copy(update={"text": f"text {i}"}) for i, r in enumerate(reviews(500))]
     world = World(answer("cafe"))
-    world.infer(old + new)
+    world.infer(many)
     [request] = requests(world.setup.anthropic)
-    assert request.prompt.count("new ") == 100
-    assert "old " not in request.prompt
+    assert request.prompt.count("text ") == 200

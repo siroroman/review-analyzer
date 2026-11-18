@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from app.classification import Classifier
-from app.domain import Company, FakeClock, Place, RunStatus, Source
+from app.domain import Company, FakeClock, Place, RunStatus, SeededRandom, Source
 from app.gateway import (
     SCRAPE_GOOGLE_REVIEWS,
     ClientError,
@@ -96,7 +96,7 @@ class World:
             storage=self.storage,
             sources=Sources(gateway),
             detector=FakeInjectionDetector(flag_containing="ignore all previous"),
-            taxonomies=Taxonomies(llm, self.storage.taxonomies),
+            taxonomies=Taxonomies(llm, self.storage.taxonomies, SeededRandom(0)),
             classifier=Classifier(llm, self.storage.reviews),
             insights=InsightGenerator(llm),
             sleeper=self.sleeper,
