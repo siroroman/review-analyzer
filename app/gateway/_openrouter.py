@@ -26,11 +26,23 @@ def _questions(schema: Mapping[str, object]) -> dict[str, dict[str, Any]]:
         options = spec.get("enum")
         if isinstance(options, list) and options and all(isinstance(o, str) for o in options):
             questions[name] = {"type": "choice", "criteria": {o: o for o in options}}
-        elif spec.get("type") == "boolean":
+        elif spec.get("type") in ("boolean", "number"):
             questions[name] = {"type": "noul"}
+            if isinstance(spec.get("description"), str):
+                questions[name]["criteria"] = {"true": spec["description"]}
         else:
             raise ClientError("unsupported_schema")
     return questions
+
+
+def _score_fields(schema: Mapping[str, object]) -> frozenset[str]:
+    """The fields typed `number`: their answer is the raw score, not a yes/no by the threshold."""
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return frozenset()
+    return frozenset(
+        name for name, spec in properties.items() if isinstance(spec, dict) and spec.get("type") == "number"
+    )
 
 
 class OpenRouterClient:
@@ -75,7 +87,8 @@ class OpenRouterClient:
         body = {"model": api_model, "state": asked.prompt, "questions": questions}
         exchange = send(self._transport, self._http(body))
         usage = self._usage(exchange.body, asked)
-        return ClientResponse(self._payload(exchange.body, questions, usage), usage)
+        scores = _score_fields(asked.json_schema)
+        return ClientResponse(self._payload(exchange.body, questions, scores, usage), usage)
 
     def _http(self, body: Mapping[str, object]) -> HttpRequest:
         return HttpRequest(
@@ -96,7 +109,11 @@ class OpenRouterClient:
         )
 
     def _payload(
-        self, body: Mapping[str, object], questions: Mapping[str, Mapping[str, Any]], usage: Tokens
+        self,
+        body: Mapping[str, object],
+        questions: Mapping[str, Mapping[str, Any]],
+        scores: frozenset[str],
+        usage: Tokens,
     ) -> str:
         answers = body.get("answers")
         if not isinstance(answers, dict):
@@ -117,5 +134,5 @@ class OpenRouterClient:
                 score = answer.get("noul")
                 if isinstance(score, bool) or not isinstance(score, int | float):
                     raise ClientError("bad_response", usage)
-                result[name] = score >= self._threshold
+                result[name] = score if name in scores else score >= self._threshold
         return json.dumps(result, ensure_ascii=False)
