@@ -1,5 +1,5 @@
 import type { Metrics } from "../api/client";
-import { formatCount } from "./result";
+import { formatCount, formatNumber } from "./result";
 
 const percent = (count: number, total: number) => Math.round((count / total) * 100);
 
@@ -33,7 +33,7 @@ export function RatingDistribution({
                 <span className={`block h-3.5 rounded-full bg-ink`} style={{ width: `${percent(count, total)}%` }} />
               </span>
               <span className="w-24 flex-none text-right text-muted">
-                {count} · {percent(count, total)} %
+                {formatNumber(count)} · {percent(count, total)} %
               </span>
             </button>
           </li>

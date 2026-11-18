@@ -530,3 +530,10 @@ it("keeps Reviews without text in the counts and does not say they were dropped"
   await screen.findByRole("heading", { level: 1 });
   expect(screen.queryByText(/vyřazeno|vyřazen/i)).not.toBeInTheDocument();
 });
+
+it("writes the count of every distribution row with the thousands separator", async () => {
+  const result = withPlace({ rating: 4.6, review_count: 26348, reviews_per_rating: { 5: 20000, 4: 4000, 3: 1500, 2: 500, 1: 348 }, analyzed_count: 1000, analyzed_is_limited: true });
+  setup(fakeApi({ runResult: vi.fn(async () => result) }));
+  const rows = within(await screen.findByRole("group", { name: "Rozdělení hodnocení" })).getAllByRole("button");
+  expect(rows.map((row) => row.textContent)).toEqual([`5 ★20\u00a0000 · 76 %`, `4 ★4\u00a0000 · 15 %`, `3 ★1\u00a0500 · 6 %`, "2 ★500 · 2 %", "1 ★348 · 1 %"]);
+});
