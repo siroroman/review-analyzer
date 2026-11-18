@@ -12,7 +12,7 @@ import { RatingDistribution } from "./RatingDistribution";
 import { ReviewsPanel, type PanelRequest } from "./ReviewsPanel";
 import { Timeline, monthLabel } from "./Timeline";
 import { TopicsCard } from "./TopicsCard";
-import { SOURCE_LABEL, topicName, formatCount, formatRating, type Source, type Summary } from "./result";
+import { SOURCE_LABEL, topicName, formatCount, formatNumber, formatRating, type Source } from "./result";
 
 /** The Sources of the Company's Places and the months the Reviews cover. */
 function sourceLine(places: { source: Source }[], trend: { period_start: string }[]): string {
@@ -31,13 +31,60 @@ function Card({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Rating({ summary }: { summary: Summary | null | undefined }) {
+function Rating({ rating, count }: { rating: number | null; count: number }) {
   return (
     <>
-      <p className="text-3xl font-semibold">{summary ? formatRating(summary.average_rating) : "–"}</p>
-      <p className="text-sm text-muted">{formatCount(summary?.count ?? 0)}</p>
+      <p className="text-3xl font-semibold">{rating === null ? "–" : formatRating(rating)}</p>
+      <p className="text-sm text-muted">{formatCount(count)}</p>
     </>
   );
+}
+
+type PlaceTotals = RunResult["places"][number];
+
+const EXTERNAL = { target: "_blank", rel: "noopener noreferrer" } as const;
+const LINK = "inline-flex min-h-11 items-center underline";
+
+/** What Google Maps says about the Place; a missing field is simply left out. */
+function PlaceHeader({ place, name }: { place: PlaceTotals; name: string }) {
+  const facts = [place.category, place.address, place.phone].filter((fact): fact is string => !!fact);
+  if (facts.length === 0 && !place.website && !place.maps_url && !place.thumbnail_url) return null;
+  return (
+    <section role="group" aria-label="Údaje o místě" className="mb-4 flex flex-wrap items-center gap-4">
+      {place.thumbnail_url && <img src={place.thumbnail_url} alt={name} className="h-20 w-20 flex-none rounded-card object-cover" />}
+      <div className="min-w-0 text-sm">
+        {facts.map((fact) => (
+          <p key={fact}>{fact}</p>
+        ))}
+        <div className="flex flex-wrap gap-x-4">
+          {place.website && (
+            <a href={place.website} {...EXTERNAL} className={LINK}>
+              {websiteLabel(place.website)}
+            </a>
+          )}
+          {place.maps_url && (
+            <a href={place.maps_url} {...EXTERNAL} className={LINK}>
+              Otevřít v Google Maps
+            </a>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** The host of a website without `www.`, or the address itself when it is not a valid URL. */
+function websiteLabel(website: string): string {
+  try {
+    return new URL(website).hostname.replace(/^www\./, "");
+  } catch {
+    return website;
+  }
+}
+
+/** The Google Maps count per star as the 5 to 1 rows of the distribution. */
+function starCounts(perRating: Record<string, number>): { stars: number; count: number }[] {
+  return [5, 4, 3, 2, 1].map((stars) => ({ stars, count: perRating[stars] ?? 0 }));
 }
 
 /** The result of a finished Run. The Run lives on the server, so opening the link again shows the same result. */
@@ -105,6 +152,12 @@ function Dashboard({ result }: { result: RunResult }) {
   const openRating = (stars: number) => setPanel({ topic: null, request: { title: `Recenze: ${stars} ★`, load: () => api.reviews(result.run_id, { rating: stars }) } });
   const closePanel = useMemo(() => () => setPanel(null), []);
   const google = metrics.per_source.find((entry) => entry.source === "google_maps");
+  const place = result.places.find((entry) => entry.source === "google_maps");
+  const placeName = company.places.find((entry) => entry.source === "google_maps" && entry.external_id === place?.place_external_id)?.name ?? company.name;
+  const hasTotals = google !== undefined && place !== undefined && place.rating !== null && place.review_count !== null;
+  const rating = hasTotals ? place.rating : (google?.summary.average_rating ?? null);
+  const reviewCount = hasTotals ? place.review_count! : (google?.summary.count ?? 0);
+  const distribution = hasTotals && place.reviews_per_rating ? starCounts(place.reviews_per_rating) : metrics.rating_counts;
   const months = new Set(metrics.trend.map((point) => point.period_start)).size;
 
   return (
@@ -121,15 +174,24 @@ function Dashboard({ result }: { result: RunResult }) {
       )}
       <h1 className="text-2xl font-semibold">{company.name}</h1>
       <p className="mb-4 mt-1 text-sm text-muted">{sourceLine(company.places, metrics.trend)}</p>
-      <div className="mb-6 flex flex-wrap gap-3">
+      {place && <PlaceHeader place={place} name={placeName} />}
+      <div className="mb-4 flex flex-wrap gap-3">
         {google && (
           <Card label={SOURCE_LABEL.google_maps}>
-            <Rating summary={google.summary} />
+            <Rating rating={rating} count={reviewCount} />
           </Card>
         )}
         <Card label="Náklady analýzy">
           <p className="text-3xl font-semibold">{formatCost(result.cost)}</p>
         </Card>
+      </div>
+      {hasTotals && place.analyzed_is_limited && (
+        <p role="status" className="mb-4 rounded-card border border-line bg-card p-3">
+          Na Google Maps je {formatNumber(place.review_count!)} hodnocení, analyzujeme posledních {formatNumber(place.analyzed_count)}.
+        </p>
+      )}
+      <div className="mb-6">
+        <RatingDistribution counts={distribution} onSelect={openRating} />
       </div>
       <div className="mt-6">
         <section className="min-w-0 rounded-card border border-line bg-card p-5">
@@ -150,7 +212,6 @@ function Dashboard({ result }: { result: RunResult }) {
         </div>
       )}
       <div className="mt-4 flex flex-col gap-4">
-        <RatingDistribution counts={metrics.rating_counts} onSelect={openRating} />
         <div className="mt-6">
           <Insights insights={result.insights} onOpen={openInsight} />
         </div>
