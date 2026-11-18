@@ -1,4 +1,8 @@
-"""Classification: clean Reviews get Topics, sentiment and confidence from Jev, one Review per call."""
+"""Classification: Reviews get Topics, sentiment and confidence.
+
+The `Categorizer` (DeepSeek, one call for all Reviews, ADR-0010) is the product path; the `Classifier`
+(Jev, one call per Review) stays as the path used when no `Categorizer` is wired.
+"""
 
 from app.classification._categorize import (
     MAX_CATEGORIES,

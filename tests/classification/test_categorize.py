@@ -158,3 +158,95 @@ def test_only_the_newest_reviews_up_to_the_limit_are_sent() -> None:
     world.run(*many)
     prompt = requests(world.setup.chat)[0].prompt
     assert len(json.loads(prompt.split("<reviews>")[1].split("</reviews>")[0])) == MAX_REVIEWS
+
+
+def other_review(index: int) -> Review:
+    """A Review of a second Company of the same industry (another Place)."""
+    return review(index).model_copy(update={"place_external_id": "g2", "external_id": f"o{index:03d}"})
+
+
+def second_company(world: World) -> None:
+    world.storage.companies.get_or_create(
+        Company(
+            name="Other cafe",
+            industry="cafe",
+            places=(Place(source=Source.GOOGLE_MAPS, external_id="g2", name="Other", address="Brno"),),
+        )
+    )
+
+
+def assign(*picks: dict[str, object]) -> str:
+    return json.dumps({"topics": list(picks)})
+
+
+def test_a_second_company_of_the_industry_is_sorted_into_the_frozen_topics_and_keeps_the_first_intact() -> (
+    None
+):
+    world = World(answer(group("staff", 1)), assign({"key": "staff", "reviews": [1]}))
+    world.run(review(1))
+    second_company(world)
+    other = other_review(1)
+    world.storage.reviews.add([other])
+
+    result = world.categorizer.categorize("cafe", [other], run_id="run-2")
+
+    assert (result.classified, result.unclassified) == (1, 0)
+    assert result.taxonomy is not None and result.taxonomy.version == 1
+    assert world.storage.taxonomies.latest("cafe") == result.taxonomy  # no new version
+    assert world.topics() == {"r001": ["staff"]}  # the first Company still has its Topics
+    second = world.storage.reviews.topics_for_place(Source.GOOGLE_MAPS, "g2", result.taxonomy)
+    assert [t.topic_key for t in second] == ["staff"]
+
+
+def test_the_second_run_sends_the_frozen_topics_and_only_reviews_without_a_topic() -> None:
+    world = World(answer(group("staff", 1)), assign({"key": "staff", "reviews": [1]}))
+    first = review(1)
+    world.run(first)
+    new = review(2)
+    world.storage.reviews.add([new])
+
+    world.categorizer.categorize("cafe", [first, new], run_id="run-2")
+
+    prompt = requests(world.setup.chat)[1].prompt
+    assert prompt.startswith("<topics>")
+    assert '"key": "staff"' in prompt
+    assert "Recenze číslo 2" in prompt and 'Recenze číslo 1"' not in prompt
+
+
+def test_a_redelivered_run_calls_nothing_and_stores_nothing_new() -> None:
+    world = World(answer(group("staff", 1)))
+    first = review(1)
+    world.run(first)
+
+    again = world.categorizer.categorize("cafe", [first], run_id="run-1")
+
+    assert len(requests(world.setup.chat)) == 1
+    assert (again.classified, again.unclassified) == (0, 0)
+    assert again.taxonomy is not None and again.taxonomy.version == 1
+
+
+def test_a_topic_key_that_is_not_in_the_taxonomy_is_dropped_and_the_review_is_unclassified() -> None:
+    world = World(answer(group("staff", 1)), assign({"key": "invented", "reviews": [1]}))
+    first = review(1)
+    world.run(first)
+    new = review(2)
+    world.storage.reviews.add([new])
+
+    result = world.categorizer.categorize("cafe", [first, new], run_id="run-2")
+
+    assert (result.classified, result.unclassified) == (0, 1)
+    assert world.topics()["r002"] == [UNCLASSIFIED_KEY]
+
+
+def test_reviews_over_the_limit_wait_for_the_next_run() -> None:
+    from app.classification import MAX_REVIEWS
+
+    world = World(
+        answer(group("staff", *range(1, MAX_REVIEWS + 1))), assign({"key": "staff", "reviews": [1, 2]})
+    )
+    many = [review(i) for i in range(MAX_REVIEWS + 2)]
+    world.run(*many)
+
+    rest = world.categorizer.categorize("cafe", many, run_id="run-2")
+
+    assert rest.classified + rest.unclassified == 2

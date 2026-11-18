@@ -1,4 +1,5 @@
 from app.domain import RunStatus, Source
+from app.gateway import ClientError
 from tests.pipeline.helpers import PLACE, World, month_of_reviews, with_injection
 
 
@@ -20,3 +21,23 @@ def test_the_report_names_the_topic_the_categorizer_found() -> None:
     world = World(scraped_reviews=month_of_reviews(40), categorize=True)
     report = world.pipeline.report(world.run().run_id)
     assert [t.name for t in report.topics] == ["Obsluha"]
+
+
+def test_a_categorizer_that_fails_past_retry_ends_the_run_partial_with_the_reviews_kept() -> None:
+    world = World(
+        scraped_reviews=month_of_reviews(40),
+        categorize=True,
+        always_fail={"categorization": ClientError("server_error")},
+    )
+    result = world.run()
+    assert result.status is RunStatus.PARTIAL
+    assert result.reviews == 40
+    assert result.unclassified == 40
+
+
+def test_a_redelivered_run_does_not_call_the_categorizer_again() -> None:
+    world = World(scraped_reviews=month_of_reviews(40), categorize=True)
+    run_id = world.new_run()
+    world.pipeline.run(run_id)
+    world.pipeline.run(run_id)
+    assert world.model_calls_of("categorization") == 1

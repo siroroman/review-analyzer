@@ -41,7 +41,7 @@ A short lowercase label of the kind of business a Company is (e.g. `cafe`), infe
 _Avoid_: Sector, category, Obor
 
 **Taxonomy**:
-The frozen list of Topics for one industry, generated once from a sample of Reviews.
+The frozen list of Topics for one industry, found once by the model from the Reviews of the first Run of that industry.
 _Avoid_: Topic list, ontology
 
 **ReviewTopic**:
