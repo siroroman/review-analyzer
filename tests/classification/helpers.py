@@ -1,23 +1,23 @@
 import json
+from collections.abc import Sequence
 from datetime import date
 
 from app.domain import DatePrecision, Review, Source, Taxonomy, Topic
-from app.llm import ModelRef, Route
+from app.llm import Route
 from app.storage import StoredTaxonomy
 from app.taxonomy import UNCLASSIFIED_KEY
-from tests.llm.helpers import HAIKU_USAGE, JEV, JEV_USAGE, Setup, Step, requests, scripted
+from tests.llm.helpers import JEV, JEV_USAGE, Setup, Step, requests, scripted
 
-HAIKU = ModelRef("anthropic", "claude-haiku")
-ROUTES = {"classification": Route(JEV, HAIKU)}
+ROUTES = {"classification": Route(JEV)}
 PLACE = "g1"
 
 
 def taxonomy(version: int = 1) -> StoredTaxonomy:
     topics = (
-        Topic(key="staff", name="Staff", description="How staff treat guests"),
-        Topic(key="waiting", name="Waiting", description="How long things take"),
-        Topic(key="prices", name="Prices", description="Value for money"),
-        Topic(key=UNCLASSIFIED_KEY, name="Unclassified", description="Fits none of the others"),
+        Topic(key="staff", name="Obsluha", description="How staff treat guests"),
+        Topic(key="waiting", name="Čekání", description="How long things take"),
+        Topic(key="prices", name="Ceny", description="Value for money"),
+        Topic(key=UNCLASSIFIED_KEY, name="Nezařazeno", description="Fits none of the others"),
     )
     return StoredTaxonomy(version, Taxonomy(industry="cafe", topics=topics))
 
@@ -37,33 +37,24 @@ def review(index: int, text: str | None = None, flagged: bool = False) -> Review
     )
 
 
-def entry(rid: str, *topics: tuple[str, str, float]) -> dict[str, object]:
-    return {
-        "id": rid,
-        "topics": [
-            {"key": key, "sentiment": sentiment, "confidence": conf} for key, sentiment, conf in topics
-        ],
-    }
+def answer(**asked: float | tuple[float, str]) -> str:
+    """What Jev answers for one Review: a score and a sentiment for every Topic of `taxonomy()`.
+
+    A Topic given as a number gets a positive sentiment, as `(score, sentiment)` its own; a Topic left out
+    scores 0.
+    """
+    fields: dict[str, object] = {}
+    for key in ("staff", "waiting", "prices"):
+        value = asked.get(key, (0, "neutral"))
+        score, sentiment = value if isinstance(value, tuple) else (value, "positive")
+        fields[f"topic_{key}"] = score
+        fields[f"sentiment_{key}"] = sentiment
+    return json.dumps(fields)
 
 
-def answer(*entries: dict[str, object]) -> str:
-    return json.dumps({"results": list(entries)})
-
-
-def full_answer(count: int, key: str = "staff") -> str:
-    """Every Review of a batch of `count` gets one positive Topic."""
-    return answer(*(entry(str(i), (key, "positive", 0.9)) for i in range(1, count + 1)))
-
-
-def setup(
-    jev: list[Step],
-    haiku: list[Step] | None = None,
-    routes: dict[str, Route] | None = None,
-    run_cap: str = "5",
-) -> Setup:
+def setup(jev: Sequence[Step], routes: dict[str, Route] | None = None, run_cap: str = "5") -> Setup:
     return Setup(
         jev=lambda clock: scripted(JEV_USAGE, *jev, clock=clock),
-        haiku=lambda clock: scripted(HAIKU_USAGE, *(haiku or []), clock=clock),
         routes=routes or ROUTES,
         run_cap=run_cap,
     )

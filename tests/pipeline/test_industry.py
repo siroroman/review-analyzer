@@ -53,7 +53,9 @@ def test_the_inference_counts_in_the_cost_of_the_run_and_in_the_call_log() -> No
     known = World(industry="cafe").run()
     assert with_inference.cost > known.cost
     logged = world.storage.calls.query(CallFilter(run_id=with_inference.run_id))
-    assert len([c for c in logged if c.service == "anthropic"]) == len(world.model_calls)
+    assert len([c for c in logged if c.service in ("openrouter", "openrouter_chat")]) == len(
+        world.model_calls
+    )
     assert "industry" in world.model_calls
 
 

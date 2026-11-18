@@ -4,20 +4,30 @@ from pathlib import Path
 import pytest
 
 from evaluation import EvaluationSet, Report, load_set, main, run_evaluation
-from tests.classification.helpers import answer, entry, setup
+from tests.classification.helpers import setup
 from tests.llm.helpers import Setup
 
 DATA = Path("evaluation/data")
 
 
-def perfect(loaded: EvaluationSet) -> str:
-    """The answer a perfect classifier gives for one batch (the whole sample fits in one)."""
-    return answer(
-        *(
-            entry(str(n), *((e.topic, e.sentiment, 0.9) for e in item.expected))
-            for n, item in enumerate(loaded.items, start=1)
-        )
-    )
+KEYS = ("staff", "waiting", "prices", "food")
+
+
+def judgement(expected: dict[str, str]) -> str:
+    """What Jev answers for one Review of the sample Taxonomy: a score and a sentiment per Topic."""
+    fields: dict[str, object] = {}
+    for key in KEYS:
+        fields[f"topic_{key}"] = 0.9 if key in expected else 0
+        fields[f"sentiment_{key}"] = expected.get(key, "neutral")
+    return json.dumps(fields)
+
+
+def perfect(loaded: EvaluationSet) -> list[str]:
+    """The answers a perfect classifier gives: one per Review, in order."""
+    return [
+        judgement({e.topic: e.sentiment for e in item.expected if e.topic != "unclassified"})
+        for item in loaded.items
+    ]
 
 
 def sample() -> EvaluationSet:
@@ -26,7 +36,7 @@ def sample() -> EvaluationSet:
 
 def test_a_perfect_classifier_scores_one_everywhere() -> None:
     loaded = sample()
-    world: Setup = setup([perfect(loaded)])
+    world: Setup = setup(perfect(loaded))
 
     report = run_evaluation(world.llm, loaded, world.clock, models="jev-1.14")
 
@@ -42,18 +52,19 @@ def test_the_model_sees_the_texts_only_inside_the_data_delimiters() -> None:
     from tests.classification.helpers import requests
 
     loaded = sample()
-    world: Setup = setup([perfect(loaded)])
+    world: Setup = setup(perfect(loaded))
 
     run_evaluation(world.llm, loaded, world.clock, models="jev-1.14")
 
-    (request,) = requests(world.openrouter)
-    assert request.prompt.startswith("<reviews>\n") and request.prompt.endswith("\n</reviews>")
-    assert "Obsluha byla milá" in request.prompt
+    sent = requests(world.openrouter)
+    assert len(sent) == 8
+    assert all(r.prompt.startswith("<review>\n") and r.prompt.endswith("\n</review>") for r in sent)
+    assert "Obsluha byla milá" in sent[0].prompt
 
 
 def test_a_model_that_fails_gives_unclassified_not_a_crash() -> None:
     loaded = sample()
-    world: Setup = setup(["not json", "not json"], ["not json", "not json"])
+    world: Setup = setup(["not json", "not json"] * 8)
 
     report = run_evaluation(world.llm, loaded, world.clock, models="jev-1.14")
 
@@ -72,17 +83,17 @@ def test_main_prints_the_table_and_saves_only_on_request(
         "--last", str(last),
     ]  # fmt: skip
 
-    world = setup([perfect(loaded)])
+    world = setup(perfect(loaded))
     assert main(args, llm=lambda: (world.llm, world.clock, "jev-1.14")) == 0
     first = capsys.readouterr().out
     assert "overall sentiment accuracy 100%" in first and "no earlier report" in first
     assert not last.exists()
 
-    world = setup([perfect(loaded)])
+    world = setup(perfect(loaded))
     assert main([*args, "--save"], llm=lambda: (world.llm, world.clock, "jev-1.14")) == 0
     assert Report.from_json(last.read_text()).reviews == 8
 
-    world = setup([answer(*(entry(str(n), ("food", "negative", 0.9)) for n in range(1, 9)))])
+    world = setup([judgement({"food": "negative"})] * 8)
     assert main(args, llm=lambda: (world.llm, world.clock, "jev-1.14")) == 0
     third = capsys.readouterr().out
     assert "DROP" in third and "compared with the report of" in third
